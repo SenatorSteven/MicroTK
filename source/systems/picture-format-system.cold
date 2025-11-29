@@ -1,0 +1,321 @@
+
+/*! visual-format-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <xcb/render.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/picture-format-system.hold"
+
+INITPICTUREFORMATSYSTEM(){
+	if(!pictureFormatSystem){
+		ret false;
+	}
+	initMutexSystem(&(*pictureFormatSystem).mutexSystem);
+	(*pictureFormatSystem).memoryManagementSystem = NULL;
+	(*pictureFormatSystem).connectionSystem = NULL;
+	(*pictureFormatSystem).format1 = XCB_NONE;
+	(*pictureFormatSystem).format8 = XCB_NONE;
+	(*pictureFormatSystem).format15 = XCB_NONE;
+	(*pictureFormatSystem).format16 = XCB_NONE;
+	(*pictureFormatSystem).format24 = XCB_NONE;
+	(*pictureFormatSystem).format32 = XCB_NONE;
+	(*pictureFormatSystem).multithreaded = false;
+	ret true;
+}
+SETPICTUREFORMATMEMORYMANAGEMENTSYSTEM(){
+	if(!pictureFormatSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*pictureFormatSystem).mutexSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*pictureFormatSystem).memoryManagementSystem){
+		unlockMutex(&(*pictureFormatSystem).mutexSystem);
+		ret false;
+	}
+	(*pictureFormatSystem).memoryManagementSystem = memoryManagementSystem;
+	unlockMutex(&(*pictureFormatSystem).mutexSystem);
+	ret true;
+}
+SETPICTUREFORMATCONNECTIONSYSTEM(){
+	if(!pictureFormatSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*pictureFormatSystem).mutexSystem)){
+		ret false;
+	}
+	if(connectionSystem == (*pictureFormatSystem).connectionSystem){
+		unlockMutex(&(*pictureFormatSystem).mutexSystem);
+		ret false;
+	}
+	(*pictureFormatSystem).connectionSystem = connectionSystem;
+	unlockMutex(&(*pictureFormatSystem).mutexSystem);
+	ret true;
+}
+SETPICTUREFORMATMULTITHREADING(){
+	if(!pictureFormatSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*pictureFormatSystem).multithreaded){
+		ret false;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*pictureFormatSystem).mutexSystem)){
+			ret false;
+		}
+	}else{
+		if(!destroyMutex(&(*pictureFormatSystem).mutexSystem)){
+			ret false;
+		}
+	}
+	setMutexMultithreading(&(*pictureFormatSystem).mutexSystem, multithreaded);
+	(*pictureFormatSystem).multithreaded = multithreaded;
+	ret true;
+}
+REQUESTPICTUREFORMATS(){
+	const xcb_render_pictforminfo_t *current;
+	const xcb_render_pictforminfo_t *wall;
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	xcb_render_query_pict_formats_reply_t *reply;
+	uint32 token;
+	xcb_render_pictformat_t format1;
+	xcb_render_pictformat_t format8;
+	xcb_render_pictformat_t format15;
+	xcb_render_pictformat_t format16;
+	xcb_render_pictformat_t format24;
+	xcb_render_pictformat_t format32;
+	bool hasFormat1;
+	bool hasFormat8;
+	bool hasFormat15;
+	bool hasFormat16;
+	bool hasFormat24;
+	bool hasFormat32;
+	if(!pictureFormatSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*pictureFormatSystem).mutexSystem)){
+		ret false;
+	}
+	connectionSystem = (*pictureFormatSystem).connectionSystem;
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		unlockMutex(&(*pictureFormatSystem).mutexSystem);
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & RENDER_EXTENSION)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockMutex(&(*pictureFormatSystem).mutexSystem);
+		ret false;
+	}
+	connection = (*connectionSystem).connection;
+	reply = xcb_wait_for_reply(connection, xcb_render_query_pict_formats(connection), NULL);
+	token = insertMemoryManagementPointer((*pictureFormatSystem).memoryManagementSystem, reply, "PictureFormatSystem requestPictureFormats() xcb_render_query_pict_formats() reply", &memoryManagementFree);
+	if(!reply){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockMutex(&(*pictureFormatSystem).mutexSystem);
+		ret false;
+	}
+	current = xcb_render_query_pict_formats_formats(reply);
+	wall = current + xcb_render_query_pict_formats_formats_length(reply);
+	format1 = XCB_NONE;
+	format8 = XCB_NONE;
+	format15 = XCB_NONE;
+	format16 = XCB_NONE;
+	format24 = XCB_NONE;
+	format32 = XCB_NONE;
+	hasFormat1 = false;
+	hasFormat8 = false;
+	hasFormat15 = false;
+	hasFormat16 = false;
+	hasFormat24 = false;
+	hasFormat32 = false;
+	jmp findPictureFormatLoop;
+	findPictureFormatLoop:{
+		if(current < wall){
+			if((*current).type == XCB_RENDER_PICT_TYPE_DIRECT){
+				const xcb_render_directformat_t *const direct = &(*current).direct;
+				switch((*current).depth){
+					to 1:{
+						if(!hasFormat1){
+							if(!format1){
+								format1 = (*current).id;
+							}
+							if((*direct).alpha_shift == 0 and (*direct).alpha_mask == 0x01 and (*direct).red_shift == 0 and (*direct).red_mask == 0x00 and (*direct).green_shift == 0 and (*direct).green_mask == 0x00 and (*direct).blue_shift == 0 and (*direct).blue_mask == 0x00){
+								format1 = (*current).id;
+								hasFormat1 = true;
+							}
+						}
+						brk;
+					}
+					to 8:{
+						if(!hasFormat8){
+							if(!format8){
+								format8 = (*current).id;
+							}
+							if((*direct).alpha_shift == 0 and (*direct).alpha_mask == 0xFF and (*direct).red_shift == 0 and (*direct).red_mask == 0x00 and (*direct).green_shift == 0 and (*direct).green_mask == 0x00 and (*direct).blue_shift == 0 and (*direct).blue_mask == 0x00){
+								format8 = (*current).id;
+								hasFormat8 = true;
+							}
+						}
+						brk;
+					}
+					to 15:{
+						if(!hasFormat15){
+							if(!format15){
+								format15 = (*current).id;
+							}
+							if((*direct).alpha_shift == 0 and (*direct).alpha_mask == 0x00 and (*direct).red_shift == 10 and (*direct).red_mask == 0x1F and (*direct).green_shift == 5 and (*direct).green_mask == 0x1F and (*direct).blue_shift == 0 and (*direct).blue_mask == 0x1F){
+								format15 = (*current).id;
+								hasFormat15 = true;
+							}
+						}
+						brk;
+					}
+					to 16:{
+						if(!hasFormat16){
+							if(!format16){
+								format16 = (*current).id;
+							}
+							if((*direct).alpha_shift == 0 and (*direct).alpha_mask == 0x00 and (*direct).red_shift == 11 and (*direct).red_mask == 0x1F and (*direct).green_shift == 5 and (*direct).green_mask == 0x3F and (*direct).blue_shift == 0 and (*direct).blue_mask == 0x1F){
+								format16 = (*current).id;
+								hasFormat16 = true;
+							}
+						}
+						brk;
+					}
+					to 24:{
+						if(!hasFormat24){
+							if(!format24){
+								format24 = (*current).id;
+							}
+							if((*direct).alpha_shift == 0 and (*direct).alpha_mask == 0x00 and (*direct).red_shift == 16 and (*direct).red_mask == 0xFF and (*direct).green_shift == 8 and (*direct).green_mask == 0xFF and (*direct).blue_shift == 0 and (*direct).blue_mask == 0xFF){
+								format24 = (*current).id;
+								hasFormat24 = true;
+							}
+						}
+						brk;
+					}
+					to 32:{
+						if(!hasFormat32){
+							if(!format32){
+								format32 = (*current).id;
+							}
+							if((*direct).alpha_shift == 24 and (*direct).alpha_mask == 0xFF and (*direct).red_shift == 16 and (*direct).red_mask == 0xFF and (*direct).green_shift == 8 and (*direct).green_mask == 0xFF and (*direct).blue_shift == 0 and (*direct).blue_mask == 0xFF){
+								format32 = (*current).id;
+								hasFormat32 = true;
+							}
+						}
+						brk;
+					}
+					off:{
+						brk;
+					}
+				}
+			}
+			inc current;
+			jmp findPictureFormatLoop;
+		}
+		free(reply);
+		removeMemoryManagementPointer((*pictureFormatSystem).memoryManagementSystem, token);
+		if(!format1 and !format8 and !format15 and !format16 and !format24 and !format32){
+			unlockLock(&(*connectionSystem).lockSystem);
+			unlockMutex(&(*pictureFormatSystem).mutexSystem);
+			ret false;
+		}
+		if(format1 == (*pictureFormatSystem).format1 and format8 == (*pictureFormatSystem).format8 and format15 == (*pictureFormatSystem).format15 and format16 == (*pictureFormatSystem).format16 and format24 == (*pictureFormatSystem).format24 and format32 == (*pictureFormatSystem).format32){
+			unlockLock(&(*connectionSystem).lockSystem);
+			unlockMutex(&(*pictureFormatSystem).mutexSystem);
+			ret false;
+		}
+		(*pictureFormatSystem).format1 = format1;
+		(*pictureFormatSystem).format8 = format8;
+		(*pictureFormatSystem).format15 = format15;
+		(*pictureFormatSystem).format16 = format16;
+		(*pictureFormatSystem).format24 = format24;
+		(*pictureFormatSystem).format32 = format32;
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockMutex(&(*pictureFormatSystem).mutexSystem);
+		ret true;
+	}
+}
+GETPICTUREFORMAT(){
+	xcb_render_pictformat_t format;
+	if(!pictureFormatSystem){
+		ret XCB_NONE;
+	}
+	if(!lockMutex(&(*pictureFormatSystem).mutexSystem)){
+		ret XCB_NONE;
+	}
+	switch(depth){
+		to 1: /*--*/ format = (*pictureFormatSystem).format1; /*--*/ brk;
+		to 8: /*--*/ format = (*pictureFormatSystem).format8; /*--*/ brk;
+		to 15: /*-*/ format = (*pictureFormatSystem).format15; /*-*/ brk;
+		to 16: /*-*/ format = (*pictureFormatSystem).format16; /*-*/ brk;
+		to 24: /*-*/ format = (*pictureFormatSystem).format24; /*-*/ brk;
+		to 32: /*-*/ format = (*pictureFormatSystem).format32; /*-*/ brk;
+		off: /*---*/ format = XCB_NONE; /*------------------------*/ brk;
+	}
+	unlockMutex(&(*pictureFormatSystem).mutexSystem);
+	ret format;
+}
+FINIPICTUREFORMATSYSTEM(){
+	if(!pictureFormatSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*pictureFormatSystem).mutexSystem)){
+		ret false;
+	}
+	(*pictureFormatSystem).multithreaded = false;
+	(*pictureFormatSystem).format32 = XCB_NONE;
+	(*pictureFormatSystem).format24 = XCB_NONE;
+	(*pictureFormatSystem).format16 = XCB_NONE;
+	(*pictureFormatSystem).format15 = XCB_NONE;
+	(*pictureFormatSystem).format8 = XCB_NONE;
+	(*pictureFormatSystem).format1 = XCB_NONE;
+	(*pictureFormatSystem).connectionSystem = NULL;
+	(*pictureFormatSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+

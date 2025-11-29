@@ -1,0 +1,123 @@
+
+/*!
+	binary search tree that supports inserting, path inserting and finding utf-8 strings similarly to a trie but in a smaller block of memory.
+
+	should eventually support depth first search to return n amount of strings.
+
+	support removal.
+
+	different node structs based on what is allowed. what is allowed should be set on creation, when data start is NULL.
+*/
+
+
+
+
+
+
+
+
+
+/*! string-tree-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef STRING_TREE_SYSTEM_HOLD
+#define STRING_TREE_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define StringTreeSystem /*----------------------*/ StringTreeSystem
+
+#define NONE_STRING_TREE_SETTING /*--------------*/ (b(00))
+#define ORDERED_STRING_TREE_SETTING /*-----------*/ (b(01))
+#define REMOVE_STRING_TREE_SETTING /*------------*/ (b(10))
+#define DEPTH_FIRST_STRING_TREE_SETTING /*-------*/ (b(10))
+
+#define INITSTRINGTREESYSTEM() /*----------------*/ bool             initStringTreeSystem(StringTreeSystem *const stringTreeSystem)
+#define SETSTRINGTREEMEMORYMANAGEMENTSYSTEM() /*-*/ bool             setStringTreeMemoryManagementSystem(StringTreeSystem *const stringTreeSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETSTRINGTREEBLOCKSIZE() /*--------------*/ bool             setStringTreeBlockSize(StringTreeSystem *const stringTreeSystem, const uint blockSize)
+#define SETSTRINGTREESETTING() /*----------------*/ bool             setStringTreeSetting(StringTreeSystem *const stringTreeSystem, const char setting)
+#define PATHINSERTSTRINGTREESTRING() /*----------*/ bool             pathInsertStringTreeString(StringTreeSystem *const stringTreeSystem, const char *path)
+#define INSERTSTRINGTREESTRING() /*--------------*/ bool             insertStringTreeString(StringTreeSystem *const stringTreeSystem, const char *string)
+#define REMOVESTRINGTREESTRING() /*--------------*/ bool             removeStringTreeString(StringTreeSystem *const stringTreeSystem, const char *prefix)
+#define GETSTRINGTREEPREFIX() /*-----------------*/ StringTreeNode * getStringTreePrefix(StringTreeSystem *const stringTreeSystem, const char **const stringReturn)
+#define FINDSTRINGTREESTRING() /*----------------*/ bool             findStringTreeString(StringTreeSystem *const stringTreeSystem, const char *string)
+#define FINISTRINGTREESYSTEM() /*----------------*/ bool             finiStringTreeSystem(StringTreeSystem *const stringTreeSystem)
+
+#define PRINTSTRINGTREELOG() /*------------------*/ bool             printStringTreeLog(StringTreeSystem *const stringTreeSystem)
+
+def struct{
+	uint8 /*--------------------*/ pad0[2];
+	bool /*---------------------*/ inUse;
+	char /*---------------------*/ byte;
+	uint32 /*-------------------*/ nextSiblingOffset;
+	uint32 /*-------------------*/ firstChildOffset;
+} StringTreeNode;
+
+def struct{
+	uint8 /*--------------------*/ pad0[2];
+	bool /*---------------------*/ inUse;
+	char /*---------------------*/ byte;
+	uint32 /*-------------------*/ nextSiblingOffset;
+	uint32 /*-------------------*/ firstChildOffset;
+	uint32 /*-------------------*/ parentOffset;
+} BacktrackerStringTreeNode;
+
+def struct{
+	MutexSystem /*--------------*/ mutexSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	StringTreeNode * /*---------*/ nodeStart;
+	uint32 /*-------------------*/ nodeToken;
+	uint32 /*-------------------*/ nodeSize;
+	uint32 /*-------------------*/ nodeAllocated;
+	uint32 /*-------------------*/ nodeBlockSize;
+	uint8 /*--------------------*/ setting;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[4];
+} StringTreeSystem;
+
+INITSTRINGTREESYSTEM();
+SETSTRINGTREEMEMORYMANAGEMENTSYSTEM();
+SETSTRINGTREEBLOCKSIZE();
+SETSTRINGTREESETTING();
+PATHINSERTSTRINGTREESTRING();
+INSERTSTRINGTREESTRING();
+REMOVESTRINGTREESTRING();
+GETSTRINGTREEPREFIX();
+FINDSTRINGTREESTRING();
+FINISTRINGTREESYSTEM();
+PRINTSTRINGTREELOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

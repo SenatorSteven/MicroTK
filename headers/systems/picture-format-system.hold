@@ -1,0 +1,78 @@
+
+/*! picture-format-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef PICTURE_FORMAT_SYSTEM_HOLD
+#define PICTURE_FORMAT_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define PictureFormatSystem /*----------------------*/ PictureFormatSystem
+
+#define INITPICTUREFORMATSYSTEM() /*----------------*/ bool                     initPictureFormatSystem(PictureFormatSystem *const pictureFormatSystem)
+#define SETPICTUREFORMATMEMORYMANAGEMENTSYSTEM() /*-*/ bool                     setPictureFormatMemoryManagementSystem(PictureFormatSystem *const pictureFormatSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETPICTUREFORMATCONNECTIONSYSTEM() /*-------*/ bool                     setPictureFormatConnectionSystem(PictureFormatSystem *const pictureFormatSystem, ConnectionSystem *const connectionSystem)
+#define SETPICTUREFORMATMULTITHREADING() /*---------*/ bool                     setPictureFormatMultithreading(PictureFormatSystem *const pictureFormatSystem, bool multithreaded)
+#define REQUESTPICTUREFORMATS() /*------------------*/ bool                     requestPictureFormats(PictureFormatSystem *const pictureFormatSystem)
+#define GETPICTUREFORMAT() /*-----------------------*/ xcb_render_pictformat_t  getPictureFormat(PictureFormatSystem *const pictureFormatSystem, const uint8 depth)
+#define FINIPICTUREFORMATSYSTEM() /*----------------*/ bool                     finiPictureFormatSystem(PictureFormatSystem *const pictureFormatSystem)
+
+#define PRINTPICTUREFORMATLOG() /*------------------*/ bool                     printPictureFormatLog(PictureFormatSystem *const pictureFormatSystem)
+
+def struct{
+	MutexSystem /*--------------*/ mutexSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	ConnectionSystem * /*-------*/ connectionSystem;
+	xcb_render_pictformat_t /*--*/ format1;
+	xcb_render_pictformat_t /*--*/ format8;
+	xcb_render_pictformat_t /*--*/ format15;
+	xcb_render_pictformat_t /*--*/ format16;
+	xcb_render_pictformat_t /*--*/ format24;
+	xcb_render_pictformat_t /*--*/ format32;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[5];
+} PictureFormatSystem;
+
+INITPICTUREFORMATSYSTEM();
+SETPICTUREFORMATMEMORYMANAGEMENTSYSTEM();
+SETPICTUREFORMATCONNECTIONSYSTEM();
+SETPICTUREFORMATMULTITHREADING();
+REQUESTPICTUREFORMATS();
+GETPICTUREFORMAT();
+FINIPICTUREFORMATSYSTEM();
+PRINTPICTUREFORMATLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

@@ -1,0 +1,64 @@
+
+/*! worker-thread-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef WORKER_THREAD_SYSTEM_HOLD
+#define WORKER_THREAD_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define WorkerThreadSystem /*----------------------*/ WorkerThreadSystem
+
+#define INITWORKERTHREADSYSTEM() /*----------------*/ bool   initWorkerThreadSystem(WorkerThreadSystem *const workerThreadSystem)
+#define SETWORKERTHREADMEMORYMANAGEMENTSYSTEM() /*-*/ bool   setWorkerThreadMemoryManagementSystem(WorkerThreadSystem *const workerThreadSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETWORKERTHREADARGUMENT() /*---------------*/ bool   setWorkerThreadArgument(WorkerThreadSystem *const workerThreadSystem, bool (*callback)(void *const argument), const void *const argumentStart, uint argumentSize)
+#define SPAWNWORKERTHREAD() /*---------------------*/ bool   spawnWorkerThread(WorkerThreadSystem *const workerThreadSystem)
+#define WORKERTHREADMAIN() /*----------------------*/ void * workerThreadMain(void *const argument)
+#define FINIWORKERTHREADSYSTEM() /*----------------*/ bool   finiWorkerThreadSystem(WorkerThreadSystem *const workerThreadSystem)
+
+def struct{
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	bool /*---------------------*/ (*callback)(void *const argument);
+	uint8 /*--------------------*/ argumentStart[64];
+	uint32 /*-------------------*/ argumentToken;
+	uint32 /*-------------------*/ argumentSize;
+} WorkerThreadSystem;
+
+INITWORKERTHREADSYSTEM();
+SETWORKERTHREADMEMORYMANAGEMENTSYSTEM();
+SETWORKERTHREADARGUMENT();
+SPAWNWORKERTHREAD();
+WORKERTHREADMAIN();
+FINIWORKERTHREADSYSTEM();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

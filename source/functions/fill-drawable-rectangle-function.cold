@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! fill-drawable-rectangle-function.cold
 
 MIT License
 
@@ -21,11 +21,34 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#define _POSIX_C_SOURCE /*-*/ (200112L)
 
-## -
--
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <xcb/xcb.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/functions/fill-drawable-rectangle-function.hold"
+
+FILLDRAWABLERECTANGLE(){
+	if(!connectionIsOpen(connectionSystem) or !drawable or !gc or !rectangle){
+		ret false;
+	}
+	xcb_change_gc((*connectionSystem).connection, gc, XCB_GC_FOREGROUND, &color);
+	xcb_poly_fill_rectangle((*connectionSystem).connection, drawable, gc, 1, rectangle);
+	ret true;
+}
 

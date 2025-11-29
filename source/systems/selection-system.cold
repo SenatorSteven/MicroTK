@@ -1,0 +1,425 @@
+
+/*! selection-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Complete the Selection system.
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/selection-system.hold"
+
+INITSELECTIONSYSTEM(){
+	if(!selectionSystem){
+		ret false;
+	}
+	(*selectionSystem).selectionAmount = 0;
+	(*selectionSystem).selectionAxisAmount = 0;
+	(*selectionSystem).currentSelection = 0;
+	(*selectionSystem).startingSelectionNumber = 0;
+	(*selectionSystem).startingSelectionType = NONE_STARTING_SELECTION;
+	(*selectionSystem).selectionAxis = NONE_SELECTION_AXIS;
+	(*selectionSystem).allowCircularNavigation = false;
+	ret true;
+}
+SETSELECTIONAXIS(){
+	if(!selectionSystem or selectionAxis > VERTICAL_SELECTION_AXIS or selectionAxis == (*selectionSystem).selectionAxis){
+		ret false;
+	}
+	(*selectionSystem).selectionAxis = selectionAxis;
+	ret true;
+}
+SETSELECTIONAXISAMOUNT(){
+	if(!selectionSystem or selectionAxisAmount == (*selectionSystem).selectionAxisAmount){
+		ret false;
+	}
+	(*selectionSystem).selectionAxisAmount = selectionAxisAmount;
+	ret true;
+}
+SETSELECTIONAMOUNT(){
+	if(!selectionSystem or selectionAmount == (*selectionSystem).selectionAmount){
+		ret false;
+	}
+	(*selectionSystem).selectionAmount = selectionAmount;
+	if((*selectionSystem).currentSelection > selectionAmount){
+		(*selectionSystem).currentSelection = selectionAmount;
+	}
+	ret true;
+}
+SETSTARTINGSELECTION(){
+	if(!selectionSystem or startingSelectionType > NUMBERED_STARTING_SELECTION){
+		ret false;
+	}
+	(*selectionSystem).startingSelectionType = startingSelectionType;
+
+	/*! really? */
+
+	(*selectionSystem).startingSelectionNumber = startingSelectionNumber;
+
+	ret true;
+}
+SETSELECTIONNAVIGATION(){
+	if(!selectionSystem or allowCircularNavigation == (*selectionSystem).allowCircularNavigation){
+		ret false;
+	}
+	(*selectionSystem).allowCircularNavigation = allowCircularNavigation;
+	ret true;
+}
+SETCURRENTSELECTION(){
+	uint currentSelection;
+	if(!selectionSystem){
+		ret false;
+	}
+	currentSelection = 0;
+	switch((*selectionSystem).startingSelectionType){
+		to NONE_STARTING_SELECTION:{
+			brk;
+		}
+		to FIRST_STARTING_SELECTION:{
+			if((*selectionSystem).selectionAmount){
+				currentSelection = 1;
+			}
+			brk;
+		}
+		to LAST_STARTING_SELECTION:{
+			if((*selectionSystem).selectionAmount){
+				currentSelection = (*selectionSystem).selectionAmount;
+			}
+			brk;
+		}
+		to NUMBERED_STARTING_SELECTION:{
+			if((*selectionSystem).selectionAmount){
+				currentSelection = (*selectionSystem).startingSelectionNumber + 1;
+				if(currentSelection > (*selectionSystem).selectionAmount){
+					currentSelection = (*selectionSystem).selectionAmount;
+				}
+			}
+			brk;
+		}
+		off:{
+			ret false;
+		}
+	}
+	if(currentSelection == (*selectionSystem).currentSelection){
+		ret false;
+	}
+	(*selectionSystem).currentSelection = currentSelection;
+	ret true;
+}
+MOVECURRENTSELECTION(){
+	uint selectionAxisAmount;
+	uint height;
+	if(!selectionSystem or !(*selectionSystem).selectionAmount){
+		ret false;
+	}
+	selectionAxisAmount = (*selectionSystem).selectionAxisAmount;
+	height = 0;
+	if(!selectionAxisAmount){
+		selectionAxisAmount = (*selectionSystem).selectionAmount;
+	}
+	if(selectionAxisAmount){
+		height = ((*selectionSystem).selectionAmount - 1) / selectionAxisAmount + 1;
+	}
+	switch(whichSelection){
+		to NONE_WHICH_SELECTION:{
+			ret false;
+		}
+		to PREVIOUS_WHICH_SELECTION:{
+			jmp selectPrevious;
+		}
+		to NEXT_WHICH_SELECTION:{
+			jmp selectNext;
+		}
+		to LEFT_WHICH_SELECTION: switch((*selectionSystem).selectionAxis){
+			to NONE_SELECTION_AXIS: /*-------*/ ret false;
+			to HORIZONTAL_SELECTION_AXIS: /*-*/ jmp selectLeft;
+			to VERTICAL_SELECTION_AXIS: /*---*/ jmp selectAbove;
+			off: /*--------------------------*/ ret false;
+		}
+		to RIGHT_WHICH_SELECTION: switch((*selectionSystem).selectionAxis){
+			to NONE_SELECTION_AXIS: /*-------*/ ret false;
+			to HORIZONTAL_SELECTION_AXIS: /*-*/ jmp selectRight;
+			to VERTICAL_SELECTION_AXIS: /*---*/ jmp selectBelow;
+			off: /*--------------------------*/ ret false;
+		}
+		to ABOVE_WHICH_SELECTION: switch((*selectionSystem).selectionAxis){
+			to NONE_SELECTION_AXIS: /*-------*/ ret false;
+			to HORIZONTAL_SELECTION_AXIS: /*-*/ jmp selectAbove;
+			to VERTICAL_SELECTION_AXIS: /*---*/ jmp selectLeft;
+			off: /*--------------------------*/ ret false;
+		}
+		to BELOW_WHICH_SELECTION: switch((*selectionSystem).selectionAxis){
+			to NONE_SELECTION_AXIS: /*-------*/ ret false;
+			to HORIZONTAL_SELECTION_AXIS: /*-*/ jmp selectBelow;
+			to VERTICAL_SELECTION_AXIS: /*---*/ jmp selectRight;
+			off: /*--------------------------*/ ret false;
+		}
+		off:{
+			ret false;
+		}
+	}
+	selectPrevious:{
+		if((*selectionSystem).currentSelection){
+			if((*selectionSystem).currentSelection == 1){
+				if(!(*selectionSystem).allowCircularNavigation){
+					ret false;
+				}
+				(*selectionSystem).currentSelection = (*selectionSystem).selectionAmount;
+				ret true;
+			}
+			dec (*selectionSystem).currentSelection;
+			ret true;
+		}
+		(*selectionSystem).currentSelection = (*selectionSystem).selectionAmount;
+		ret true;
+	}
+	selectNext:{
+		if((*selectionSystem).currentSelection){
+			if((*selectionSystem).currentSelection == (*selectionSystem).selectionAmount){
+				if(!(*selectionSystem).allowCircularNavigation){
+					ret false;
+				}
+				(*selectionSystem).currentSelection = 1;
+				ret true;
+			}
+			inc (*selectionSystem).currentSelection;
+			ret true;
+		}
+		(*selectionSystem).currentSelection = 1;
+		ret true;
+	}
+	selectLeft:{
+#ifdef a
+		if((*selectionSystem).currentSelection){
+
+
+
+
+
+
+
+
+
+/*!*/
+
+			if(!(((*selectionSystem).currentSelection - 1) % selectionAxisAmount)){
+				if(!(*selectionSystem).allowCircularNavigation){
+					ret false;
+				}
+
+
+
+[] [] [] []
+[] [] [] []
+[] [] [] []
+[]
+				uint y = ((*selectionSystem).currentSelection - 1) / selectionAxisAmount + 1;
+				uint howMany = ((*selectionSystem).selectionAmount - (*selectionSystem).currentSelection < selectionAxisAmount);
+
+
+
+				(*selectionSystem).currentSelection += selectionAxisAmount - 1;
+
+
+
+				if((*selectionSystem).currentSelection > (*selectionSystem).selectionAmount){
+					(*selectionSystem).currentSelection = (*selectionSystem).selectionAmount;
+				}
+
+
+
+				ret true;
+			}
+			dec (*selectionSystem).currentSelection;
+			ret true;
+		}
+
+
+
+[] [] [] []
+[] [] [] []
+[] [] [] []
+[]
+		(*selectionSystem).currentSelection = height / 2 * selectionAxisAmount + selectionAxisAmount;
+
+
+
+#endif
+		ret true;
+	}
+	selectRight:{
+#ifdef a
+		if((*selectionSystem).currentSelection){
+			if((*selectionSystem).currentSelection == (*selectionSystem).selectionAmount or !((*selectionSystem).currentSelection % selectionAxisAmount)){
+				if(!(*selectionSystem).allowCircularNavigation){
+					ret false;
+				}
+				(*selectionSystem).currentSelection -= ((*selectionSystem).currentSelection - 1) % selectionAxisAmount;
+				ret true;
+			}
+			inc (*selectionSystem).currentSelection;
+			ret true;
+		}
+		(*selectionSystem).currentSelection = height / 2 * selectionAxisAmount;
+#endif
+		ret true;
+	}
+
+
+
+
+
+
+
+
+
+	selectAbove:{
+#ifdef a
+		if((*selectionSystem).currentSelection){
+			if((*selectionSystem).currentSelection <= selectionAxisAmount){
+				if(!(*selectionSystem).allowCircularNavigation){
+					ret false;
+				}
+
+
+
+[] [] [] []
+[] [] [] []
+[] [] [] []
+[]
+
+
+
+				(*selectionSystem).currentSelection = height * selectionAxisAmount - (((*selectionSystem).currentSelection - 1) % selectionAxisAmount) / 2;
+
+
+
+				ret true;
+			}
+			(*selectionSystem).currentSelection -= selectionAxisAmount;
+			ret true;
+		}
+
+
+
+[] [] [] []
+[] [] [] []
+[] [] [] []
+[]
+
+
+
+		uint y = ((*selectionSystem).currentSelection - 1) / selectionAxisAmount + 1;
+		uint widthOfLine = ;
+
+		(*selectionSystem).currentSelection = (height - 1) * selectionAxisAmount + selectionAxisAmount / 2 + ( < ) selectionAxisAmount;
+
+
+
+height * selectionAxisAmount - (((*selectionSystem).currentSelection - 1) % selectionAxisAmount) / 2;
+
+
+
+#endif
+		ret true;
+	}
+
+/*!*/
+
+
+
+
+
+
+
+
+
+	selectBelow:{
+#ifdef a
+		if((*selectionSystem).currentSelection){
+			if((*selectionSystem).currentSelection + selectionAxisAmount > (*selectionSystem).selectionAmount){
+				if(!(*selectionSystem).allowCircularNavigation){
+					ret false;
+				}
+				(*selectionSystem).currentSelection -= ((*selectionSystem).currentSelection - 1) / selectionAxisAmount * selectionAxisAmount;
+				ret true;
+			}
+			(*selectionSystem).currentSelection += selectionAxisAmount;
+			ret true;
+		}
+
+
+
+
+
+
+
+
+
+/*!*/
+
+-- -- -- --
+[]
+
+		(*selectionSystem).currentSelection = selectionAxisAmount / 2;
+		if((*selectionSystem).currentSelection > (*selectionSystem).selectionAmount){
+			(*selectionSystem).currentSelection = (*selectionSystem).selectionAmount;
+		}
+
+/*!*/
+
+
+
+
+
+
+
+
+
+#endif
+		ret true;
+	}
+}
+FINISELECTIONSYSTEM(){
+	if(!selectionSystem){
+		ret false;
+	}
+	(*selectionSystem).selectionAmount = 0;
+	(*selectionSystem).selectionAxisAmount = 0;
+	(*selectionSystem).currentSelection = 0;
+	(*selectionSystem).startingSelectionNumber = 0;
+	(*selectionSystem).startingSelectionType = NONE_STARTING_SELECTION;
+	(*selectionSystem).selectionAxis = NONE_SELECTION_AXIS;
+	(*selectionSystem).allowCircularNavigation = false;
+	ret true;
+}
+

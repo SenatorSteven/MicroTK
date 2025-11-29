@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! intersects-1-d-function.hold
 
 MIT License
 
@@ -21,11 +21,24 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef INTERSECTS_1_D_FUNCTION_HOLD
+#define INTERSECTS_1_D_FUNCTION_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define INTERSECTS1D() /*-*/ bool  intersects1D(const int x0, const int width0, const int x1, const int width1)
+
+INTERSECTS1D();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
 

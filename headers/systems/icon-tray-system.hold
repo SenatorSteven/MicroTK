@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! icon-tray-system.hold
 
 MIT License
 
@@ -21,11 +21,41 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef ICON_TRAY_SYSTEM_HOLD
+#define ICON_TRAY_SYSTEM_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define IconTraySystem /*-------*/ IconTraySystem
+
+#define INITICONTRAYSYSTEM() /*-*/ bool  initIconTraySystem(IconTraySystem *const iconTraySystem)
+#define FINIICONTRAYSYSTEM() /*-*/ bool  finiIconTraySystem(IconTraySystem *const iconTraySystem)
+
+#define PRINTICONTRAYLOG() /*---*/ bool  printIconTrayLog(IconTraySystem *const iconTraySystem)
+
+def struct{
+	MutexSystem /*--------------*/ mutexSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[5];
+} IconTraySystem;
+
+INITICONTRAYSYSTEM();
+FINIICONTRAYSYSTEM();
+PRINTICONTRAYLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
 

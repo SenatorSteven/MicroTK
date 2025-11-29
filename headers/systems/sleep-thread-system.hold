@@ -1,0 +1,83 @@
+
+/*! sleep-thread-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef SLEEP_THREAD_SYSTEM_HOLD
+#define SLEEP_THREAD_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define SleepThreadSystem /*---------------*/ SleepThreadSystem
+
+#define NONE_OPERATION_SETTING /*----------*/ (b(00))
+#define LOOP_OPERATION_SETTING /*----------*/ (b(01))
+#define RESTART_TIMER_OPERATION_SETTING /*-*/ (b(10))
+
+#define INITSLEEPTHREADSYSTEM() /*---------*/ bool   initSleepThreadSystem(SleepThreadSystem *const sleepThreadSystem)
+#define SETSLEEPTHREADOPERATION() /*-------*/ bool   setSleepThreadOperation(SleepThreadSystem *const sleepThreadSystem, bool (*const risingOperation)(SleepThreadSystem *const sleepThreadSystem, void *const argument), void *const risingOperationArgument, bool (*const fallingOperation)(SleepThreadSystem *const sleepThreadSystem, void *const argument), void *const fallingOperationArgument, const uint8 operationSetting)
+#define SETSLEEPTHREADSLEEPTIME() /*-------*/ bool   setSleepThreadSleepTime(SleepThreadSystem *const sleepThreadSystem, const uint64 milliseconds)
+#define BOOTSLEEPTHREAD() /*---------------*/ bool   bootSleepThread(SleepThreadSystem *const sleepThreadSystem)
+#define SIGNALSLEEPTHREAD() /*-------------*/ bool   signalSleepThread(SleepThreadSystem *const sleepThreadSystem)
+#define SLEEPTHREADMAIN() /*---------------*/ void * sleepThreadMain(void *const argument)
+#define QUITSLEEPTHREAD() /*---------------*/ bool   quitSleepThread(SleepThreadSystem *const sleepThreadSystem)
+#define FINISLEEPTHREADSYSTEM() /*---------*/ bool   finiSleepThreadSystem(SleepThreadSystem *const sleepThreadSystem)
+
+def struct SleepThreadSystem{
+	uint32 /*----------*/ seconds;
+	uint32 /*----------*/ nanoseconds;
+	bool /*------------*/ (*risingOperation)(struct SleepThreadSystem *const sleepThreadSystem, void *const argument);
+	void * /*----------*/ risingOperationArgument;
+	bool /*------------*/ (*fallingOperation)(struct SleepThreadSystem *const sleepThreadSystem, void *const argument);
+	void * /*----------*/ fallingOperationArgument;
+	uint8 /*-----------*/ operationSetting;
+	bool /*------------*/ mutexCreated;
+	bool /*------------*/ condCreated;
+	bool /*------------*/ threadCreated;
+	volatile bool /*---*/ running;
+	volatile bool /*---*/ quitting;
+	uint8 /*-----------*/ pad0[2];
+	pthread_mutex_t /*-*/ mutex;
+	pthread_cond_t /*--*/ cond;
+	pthread_t /*-------*/ thread;
+} SleepThreadSystem;
+
+INITSLEEPTHREADSYSTEM();
+SETSLEEPTHREADOPERATION();
+SETSLEEPTHREADSLEEPTIME();
+BOOTSLEEPTHREAD();
+SIGNALSLEEPTHREAD();
+SLEEPTHREADMAIN();
+QUITSLEEPTHREAD();
+FINISLEEPTHREADSYSTEM();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

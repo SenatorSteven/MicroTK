@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! ungrab-device-function.hold
 
 MIT License
 
@@ -21,11 +21,28 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef UNGRAB_DEVICE_FUNCTION_HOLD
+#define UNGRAB_DEVICE_FUNCTION_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define NONE_UNGRAB_DEVICE /*-----*/ (0)
+#define KEYBOARD_UNGRAB_DEVICE /*-*/ (1)
+#define POINTER_UNGRAB_DEVICE /*--*/ (2)
+
+#define UNGRABDEVICE() /*---------*/ bool  ungrabDevice(ConnectionSystem *const connectionSystem, const uint8 device)
+
+UNGRABDEVICE();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
 

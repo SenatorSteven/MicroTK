@@ -1,0 +1,111 @@
+
+/*! grab-device-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <time.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/time.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/functions/millisecond-to-timespec-function.hold"
+#include "../../headers/functions/find-timestamp-function.hold"
+#include "../../headers/functions/grab-device-function.hold"
+
+GRABDEVICE(){
+	uint currentAttempt;
+	MemoryManagementSystem *memoryManagementSystem;
+	xcb_connection_t *connection;
+	xcb_window_t rootWindow;
+	struct timespec ts;
+	xcb_timestamp_t timestamp;
+	void *reply;
+	uint32 token;
+	bool flag;
+	if(!connectionIsOpen(connectionSystem) or !device or device > POINTER_GRAB_DEVICE){
+		ret false;
+	}
+	currentAttempt = 0;
+	memoryManagementSystem = (*connectionSystem).memoryManagementSystem;
+	connection = (*connectionSystem).connection;
+	rootWindow = (*connectionSystem).rootWindow;
+	flag = false;
+	millisecondToTimespec(10, &ts);
+	timestamp = findTimestamp(connectionSystem, NULL);
+	jmp grabDeviceLoop;
+	grabDeviceLoop:{
+		if(currentAttempt < attemptAmount){
+			switch(device){
+				to NONE_GRAB_DEVICE:{
+					ret false;
+				}
+				to KEYBOARD_GRAB_DEVICE:{
+					reply = xcb_wait_for_reply(connection, xcb_grab_keyboard(connection, true, rootWindow, timestamp, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC), NULL);
+					token = insertMemoryManagementPointer(memoryManagementSystem, reply, "grabDevice() xcb_grab_keyboard() reply", &memoryManagementFree);
+					brk;
+				}
+				to POINTER_GRAB_DEVICE:{
+					reply = xcb_wait_for_reply(connection, xcb_grab_pointer(connection, true, rootWindow, XCB_EVENT_MASK_BUTTON_PRESS, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_NONE, XCB_NONE, timestamp), NULL);
+					token = insertMemoryManagementPointer(memoryManagementSystem, reply, "grabDevice() xcb_grab_pointer() reply", &memoryManagementFree);
+					brk;
+				}
+				off:{
+					ret false;
+				}
+			}
+			if(reply){
+				flag = (*(xcb_grab_keyboard_reply_t *)reply).status == XCB_GRAB_STATUS_SUCCESS;
+				free(reply);
+				removeMemoryManagementPointer(memoryManagementSystem, token);
+			}
+			if(!flag){
+				nanosleep(&ts, NULL);
+				inc currentAttempt;
+				jmp grabDeviceLoop;
+			}
+		}
+		if(!flag){
+			ret false;
+		}
+		ret true;
+	}
+}
+

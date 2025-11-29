@@ -1,0 +1,224 @@
+
+/*! get-event-timestamp-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <xcb/xcb.h>
+#include <xcb/composite.h>
+#include <xcb/damage.h>
+#include <xcb/randr.h>
+#include <xcb/render.h>
+#include <xcb/shape.h>
+#include <xcb/xfixes.h>
+#include <xcb/xinput.h>
+#include <xcb/xkb.h>
+#include <xcb/xtest.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/functions/get-event-timestamp-function.hold"
+
+GETEVENTTIMESTAMP(){
+	uint offset;
+	if(!event){
+		jmp invalidTimestamp;
+	}
+	jmp switchEvent;
+	switchEvent:{
+		#define XCB_ONE /*-*/ (1)
+		switch((*event).response_type & b(01111111)){
+			to XCB_NONE: /*------------------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_ONE: /*-------------------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_KEY_PRESS: /*-------------------*/ offset =  4; jmp validTimestamp;
+			to XCB_KEY_RELEASE: /*-----------------*/ offset =  4; jmp validTimestamp;
+			to XCB_BUTTON_PRESS: /*----------------*/ offset =  4; jmp validTimestamp;
+			to XCB_BUTTON_RELEASE: /*--------------*/ offset =  4; jmp validTimestamp;
+			to XCB_MOTION_NOTIFY: /*---------------*/ offset =  4; jmp validTimestamp;
+			to XCB_ENTER_NOTIFY: /*----------------*/ offset =  4; jmp validTimestamp;
+			to XCB_LEAVE_NOTIFY: /*----------------*/ offset =  4; jmp validTimestamp;
+			to XCB_FOCUS_IN: /*--------------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_FOCUS_OUT: /*-------------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_KEYMAP_NOTIFY: /*---------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_EXPOSE: /*----------------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_GRAPHICS_EXPOSURE: /*-----------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_NO_EXPOSURE: /*-----------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_VISIBILITY_NOTIFY: /*-----------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_CREATE_NOTIFY: /*---------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_DESTROY_NOTIFY: /*--------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_UNMAP_NOTIFY: /*----------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_MAP_NOTIFY: /*------------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_MAP_REQUEST: /*-----------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_REPARENT_NOTIFY: /*-------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_CONFIGURE_NOTIFY: /*------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_CONFIGURE_REQUEST: /*-----------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_GRAVITY_NOTIFY: /*--------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_RESIZE_REQUEST: /*--------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_CIRCULATE_NOTIFY: /*------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_CIRCULATE_REQUEST: /*-----------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_PROPERTY_NOTIFY: /*-------------*/ offset =  6; jmp validTimestamp;
+			to XCB_SELECTION_CLEAR: /*-------------*/ offset =  4; jmp validTimestamp;
+			to XCB_SELECTION_REQUEST: /*-----------*/ offset =  4; jmp validTimestamp;
+			to XCB_SELECTION_NOTIFY: /*------------*/ offset =  4; jmp validTimestamp;
+			to XCB_COLORMAP_NOTIFY: /*-------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_CLIENT_MESSAGE: /*--------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_MAPPING_NOTIFY: /*--------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_GE_GENERIC: /*------------------*/ /*--------*/ jmp genericEvent;
+			off: /*--------------------------------*/ /*--------*/ jmp extensionEvent;
+		}
+		#undef  XCB_ONE
+	}
+	genericEvent:{
+		if(isConnectionEventInput(connectionSystem, event)) /*-----*/ jmp switchInputEvent;
+		jmp invalidTimestamp;
+	}
+	extensionEvent:{
+		if(isConnectionEventComposite(connectionSystem, event)) /*-*/ jmp switchCompositeEvent;
+		if(isConnectionEventDamage(connectionSystem, event)) /*----*/ jmp switchDamageEvent;
+		if(isConnectionEventRandr(connectionSystem, event)) /*-----*/ jmp switchRandrEvent;
+		if(isConnectionEventRender(connectionSystem, event)) /*----*/ jmp switchRenderEvent;
+		if(isConnectionEventShape(connectionSystem, event)) /*-----*/ jmp switchShapeEvent;
+		if(isConnectionEventTest(connectionSystem, event)) /*------*/ jmp switchTestEvent;
+		if(isConnectionEventXfixes(connectionSystem, event)) /*----*/ jmp switchXfixesEvent;
+		if(isConnectionEventXkb(connectionSystem, event)) /*-------*/ jmp switchXkbEvent;
+		jmp invalidTimestamp;
+	}
+	switchCompositeEvent:{
+		switch(getConnectionCompositeResponseType(connectionSystem, event)){
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+	}
+	switchDamageEvent:{
+		switch(getConnectionDamageResponseType(connectionSystem, event)){
+			to XCB_DAMAGE_NOTIFY: /*---------------*/ offset = 12; jmp validTimestamp;
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+	}
+	switchInputEvent:{
+		#define XCB_INPUT_ZERO /*-*/ (0)
+		switch(getConnectionInputResponseType(connectionSystem, event)){
+			to XCB_INPUT_ZERO: /*------------------*/ /*--------*/ jmp invalidTimestamp;
+			to XCB_INPUT_DEVICE_CHANGED: /*--------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_KEY_PRESS: /*-------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_KEY_RELEASE: /*-----------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_BUTTON_PRESS: /*----------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_BUTTON_RELEASE: /*--------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_MOTION: /*----------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_ENTER: /*-----------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_LEAVE: /*-----------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_FOCUS_IN: /*--------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_FOCUS_OUT: /*-------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_HIERARCHY: /*-------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_PROPERTY: /*--------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_RAW_KEY_PRESS: /*---------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_RAW_KEY_RELEASE: /*-------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_RAW_BUTTON_PRESS: /*------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_RAW_BUTTON_RELEASE: /*----*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_RAW_MOTION: /*------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_TOUCH_BEGIN: /*-----------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_TOUCH_UPDATE: /*----------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_TOUCH_END: /*-------------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_TOUCH_OWNERSHIP: /*-------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_RAW_TOUCH_BEGIN: /*-------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_RAW_TOUCH_UPDATE: /*------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_RAW_TOUCH_END: /*---------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_BARRIER_HIT: /*-----------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_BARRIER_LEAVE: /*---------*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_GESTURE_PINCH_BEGIN: /*---*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_GESTURE_PINCH_UPDATE: /*--*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_GESTURE_PINCH_END: /*-----*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_GESTURE_SWIPE_BEGIN: /*---*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_GESTURE_SWIPE_UPDATE: /*--*/ offset = 12; jmp validTimestamp;
+			to XCB_INPUT_GESTURE_SWIPE_END: /*-----*/ offset = 12; jmp validTimestamp;
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+		#undef  XCB_INPUT_ZERO
+	}
+	switchRandrEvent:{
+		switch(getConnectionRandrResponseType(connectionSystem, event)){
+			to XCB_RANDR_SCREEN_CHANGE_NOTIFY: /*--*/ offset =  4; jmp validTimestamp;
+			to XCB_RANDR_NOTIFY: /*----------------*/ /*--------*/ jmp invalidTimestamp;
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+	}
+	switchRenderEvent:{
+		switch(getConnectionRenderResponseType(connectionSystem, event)){
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+	}
+	switchShapeEvent:{
+		switch(getConnectionShapeResponseType(connectionSystem, event)){
+			to XCB_SHAPE_NOTIFY: /*----------------*/ offset = 16; jmp validTimestamp;
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+	}
+	switchTestEvent:{
+		switch(getConnectionTestResponseType(connectionSystem, event)){
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+	}
+	switchXfixesEvent:{
+		switch(getConnectionXfixesResponseType(connectionSystem, event)){
+			to XCB_XFIXES_SELECTION_NOTIFY: /*-----*/ offset = 16; jmp validTimestamp;
+			to XCB_XFIXES_CURSOR_NOTIFY: /*--------*/ offset = 12; jmp validTimestamp;
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+	}
+	switchXkbEvent:{
+		switch(getConnectionXkbResponseType(connectionSystem, event)){
+			to XCB_XKB_NEW_KEYBOARD_NOTIFY: /*-----*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_MAP_NOTIFY: /*--------------*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_STATE_NOTIFY: /*------------*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_CONTROLS_NOTIFY: /*---------*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_INDICATOR_STATE_NOTIFY: /*--*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_INDICATOR_MAP_NOTIFY: /*----*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_NAMES_NOTIFY: /*------------*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_COMPAT_MAP_NOTIFY: /*-------*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_BELL_NOTIFY: /*-------------*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_ACTION_MESSAGE: /*----------*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_ACCESS_X_NOTIFY: /*---------*/ offset =  4; jmp validTimestamp;
+			to XCB_XKB_EXTENSION_DEVICE_NOTIFY: /*-*/ offset =  4; jmp validTimestamp;
+			off: /*--------------------------------*/ /*--------*/ jmp invalidTimestamp;
+		}
+	}
+	invalidTimestamp:{
+		ret XCB_CURRENT_TIME;
+	}
+	validTimestamp:{
+		ret *(xcb_timestamp_t *)(event + offset);
+	}
+}
+

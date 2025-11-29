@@ -1,0 +1,99 @@
+
+/*! monitor-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef MONITOR_SYSTEM_HOLD
+#define MONITOR_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define MonitorSystem /*----------------------*/ MonitorSystem
+
+#define NONE_WHICH_MONITOR /*-----------------*/ (0)
+#define POINTER_WHICH_MONITOR /*--------------*/ (1)
+#define FOCUSED_WINDOW_WHICH_MONITOR /*-------*/ (2)
+#define SELF_WHICH_MONITOR /*-----------------*/ (3)
+#define ALL_WHICH_MONITOR /*------------------*/ (4)
+
+#define INITMONITORSYSTEM() /*----------------*/ bool  initMonitorSystem(MonitorSystem *const monitorSystem)
+#define SETMONITORMEMORYMANAGEMENTSYSTEM() /*-*/ bool  setMonitorMemoryManagementSystem(MonitorSystem *const monitorSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETMONITORCONNECTIONSYSTEM() /*-------*/ bool  setMonitorConnectionSystem(MonitorSystem *const monitorSystem, ConnectionSystem *const connectionSystem)
+#define SETMONITORMULTITHREADING() /*---------*/ bool  setMonitorMultithreading(MonitorSystem *const monitorSystem, bool multithreaded)
+#define REQUESTMONITORS() /*------------------*/ bool  requestMonitors(MonitorSystem *const monitorSystem)
+#define DESTROYMONITORS() /*------------------*/ bool  destroyMonitors(MonitorSystem *const monitorSystem)
+#define FINDPOINTERMONITOR() /*---------------*/ bool  findPointerMonitor(MonitorSystem *const monitorSystem, Monitor *const monitorReturn)
+#define FINDGEOMETRYMONITOR() /*--------------*/ bool  findGeometryMonitor(MonitorSystem *const monitorSystem, const int x, const int y, const int width, const int height, Monitor *const monitorReturn)
+#define FINDWINDOWMONITOR() /*----------------*/ bool  findWindowMonitor(MonitorSystem *const monitorSystem, const xcb_window_t window, Monitor *const monitorReturn)
+#define FINIMONITORSYSTEM() /*----------------*/ bool  finiMonitorSystem(MonitorSystem *const monitorSystem)
+
+#define PRINTMONITORLOG() /*------------------*/ bool  printMonitorLog(MonitorSystem *const monitorSystem)
+
+def struct{
+	xcb_atom_t /*---------------*/ name;
+	int32 /*--------------------*/ leftX;
+	int32 /*--------------------*/ rightX;
+	int32 /*--------------------*/ topY;
+	int32 /*--------------------*/ bottomY;
+	int32 /*--------------------*/ width;
+	int32 /*--------------------*/ height;
+	uint32 /*-------------------*/ millimeterWidth;
+	uint32 /*-------------------*/ millimeterHeight;
+} Monitor;
+
+def struct{
+	LockSystem /*---------------*/ lockSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	ConnectionSystem * /*-------*/ connectionSystem;
+	Monitor * /*----------------*/ monitorStart;
+	uint32 /*-------------------*/ monitorToken;
+	uint32 /*-------------------*/ monitorSize;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[5];
+} MonitorSystem;
+
+INITMONITORSYSTEM();
+SETMONITORMEMORYMANAGEMENTSYSTEM();
+SETMONITORCONNECTIONSYSTEM();
+SETMONITORMULTITHREADING();
+REQUESTMONITORS();
+DESTROYMONITORS();
+FINDPOINTERMONITOR();
+FINDGEOMETRYMONITOR();
+FINDWINDOWMONITOR();
+FINIMONITORSYSTEM();
+PRINTMONITORLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

@@ -1,0 +1,53 @@
+
+/*! x.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef X_HOLD
+#define X_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../cold/cold.hold"
+#endif
+
+#define xcb_wait_for_reply(a, b, c) /*---------------------------*/ (xcb_wait_for_reply(a, (b).sequence, c))
+#define xcb_discard_reply(a, b) /*-------------------------------*/ (xcb_discard_reply(a, (b).sequence))
+#define xcb_send_event(a, b, c, d, e) /*-------------------------*/ (xcb_send_event(a, b, c, d, (void *)(e)))
+#define xcb_send_event_checked(a, b, c, d, e) /*-----------------*/ (xcb_send_event_checked(a, b, c, d, (void *)(e)))
+#define xcb_grab_key(a, b, c, d, e, f, g) /*---------------------*/ (xcb_grab_key(a, b, c, e, d, f, g))
+#define xcb_grab_key_checked(a, b, c, d, e, f, g) /*-------------*/ (xcb_grab_key_checked(a, b, c, e, d, f, g))
+#define xcb_ungrab_key(a, b, c, d) /*----------------------------*/ (xcb_ungrab_key(a, c, b, d))
+#define xcb_ungrab_key_checked(a, b, c, d) /*--------------------*/ (xcb_ungrab_key_checked(a, c, b, d))
+#define xcb_grab_button(a, b, c, d, e, f, g, h, i, j) /*---------*/ (xcb_grab_button(a, b, c, f, g, h, i, j, d, e))
+#define xcb_grab_button_checked(a, b, c, d, e, f, g, h, i, j) /*-*/ (xcb_grab_button_checked(a, b, c, f, g, h, i, j, d, e))
+#define xcb_ungrab_button(a, b, c, d) /*-------------------------*/ (xcb_ungrab_button(a, c, b, d))
+#define xcb_ungrab_button_checked(a, b, c, d) /*-----------------*/ (xcb_ungrab_button_checked(a, c, b, d))
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../cold/hot.hold"
+#endif
+
+#endif
+

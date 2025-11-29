@@ -1,0 +1,205 @@
+
+/*! connection-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef CONNECTION_SYSTEM_HOLD
+#define CONNECTION_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define ConnectionSystem /*----------------------*/ ConnectionSystem
+
+#define X_EXTENSION_AMOUNT /*--------------------*/ (9)
+
+#define NONE_EXTENSION /*------------------------*/ (b(000000000))
+#define COMPOSITE_EXTENSION /*-------------------*/ (b(000000001))
+#define DAMAGE_EXTENSION /*----------------------*/ (b(000000010))
+#define INPUT_EXTENSION /*-----------------------*/ (b(000000100))
+#define RANDR_EXTENSION /*-----------------------*/ (b(000001000))
+#define RENDER_EXTENSION /*----------------------*/ (b(000010000))
+#define SHAPE_EXTENSION /*-----------------------*/ (b(000100000))
+#define TEST_EXTENSION /*------------------------*/ (b(001000000))
+#define XFIXES_EXTENSION /*----------------------*/ (b(010000000))
+#define XKB_EXTENSION /*-------------------------*/ (b(100000000))
+
+#define NONE_CONNECTION_OPERATION /*-----------------------------------*/ (0)
+#define SET_CONNECTION_MEMORY_MANAGEMENT_CONNECTION_OPERATION /*-------*/ ()
+#define SET_CONNECTION_PRINT_CONNECTION_OPERATION /*-------------------*/ ()
+#define SET_CONNECTION_MULTITHREADING_CONNECTION_OPERATION /*----------*/ ()
+#define OPEN_CONNECTION_CONNECTION_OPERATION /*------------------------*/ ()
+#define LOAD_CONNECTION_EXTENSIONS_CONNECTION_OPERATION /*-------------*/ ()
+#define RESIZE_CONNECTION_CONNECTION_OPERATION /*----------------------*/ ()
+#define CLOSE_CONNECTION_CONNECTION_OPERATION /*-----------------------*/ ()
+#define CONNECTION_IS_OPEN_CONNECTION_OPERATION /*---------------------*/ ()
+#define IS_CONNECTION_EVENT_COMPOSITE_CONNECTION_OPERATION /*----------*/ ()
+#define IS_CONNECTION_EVENT_DAMAGE_CONNECTION_OPERATION /*-------------*/ ()
+#define IS_CONNECTION_EVENT_INPUT_CONNECTION_OPERATION /*--------------*/ ()
+#define IS_CONNECTION_EVENT_RANDR_CONNECTION_OPERATION /*--------------*/ ()
+#define IS_CONNECTION_EVENT_RENDER_CONNECTION_OPERATION /*-------------*/ ()
+#define IS_CONNECTION_EVENT_SHAPE_CONNECTION_OPERATION /*--------------*/ ()
+#define IS_CONNECTION_EVENT_TEST_CONNECTION_OPERATION /*---------------*/ ()
+#define IS_CONNECTION_EVENT_XFIXES_CONNECTION_OPERATION /*-------------*/ ()
+#define IS_CONNECTION_EVENT_XKB_CONNECTION_OPERATION /*----------------*/ ()
+#define GET_CONNECTION_COMPOSITE_RESPONSE_TYPE_CONNECTION_OPERATION /*-*/ ()
+#define GET_CONNECTION_DAMAGE_RESPONSE_TYPE_CONNECTION_OPERATION /*----*/ ()
+#define GET_CONNECTION_INPUT_RESPONSE_TYPE_CONNECTION_OPERATION /*-----*/ ()
+#define GET_CONNECTION_RANDR_RESPONSE_TYPE_CONNECTION_OPERATION /*-----*/ ()
+#define GET_CONNECTION_RENDER_RESPONSE_TYPE_CONNECTION_OPERATION /*----*/ ()
+#define GET_CONNECTION_SHAPE_RESPONSE_TYPE_CONNECTION_OPERATION /*-----*/ ()
+#define GET_CONNECTION_TEST_RESPONSE_TYPE_CONNECTION_OPERATION /*------*/ ()
+#define GET_CONNECTION_XFIXES_RESPONSE_TYPE_CONNECTION_OPERATION /*----*/ ()
+#define GET_CONNECTION_XKB_RESPONSE_TYPE_CONNECTION_OPERATION /*-------*/ ()
+#define FIND_X_EVENT_NAME_CONNECTION_OPERATION /*----------------------*/ ()
+
+#define NONE_CONNECTION_CODE /*----------------------------------------*/ (0)
+
+#define INITCONNECTIONSYSTEM() /*----------------*/ bool         initConnectionSystem(ConnectionSystem *const connectionSystem)
+#define SETCONNECTIONMEMORYMANAGEMENTSYSTEM() /*-*/ bool         setConnectionMemoryManagementSystem(ConnectionSystem *const connectionSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETCONNECTIONPRINTSYSTEM() /*------------*/ bool         setConnectionPrintSystem(ConnectionSystem *const connectionSystem, PrintSystem *const printSystem)
+#define SETCONNECTIONMULTITHREADING() /*---------*/ bool         setConnectionMultithreading(ConnectionSystem *const connectionSystem, bool multithreaded)
+#define OPENCONNECTION() /*----------------------*/ bool         openConnection(ConnectionSystem *const connectionSystem, const char *connectionName)
+#define LOADCONNECTIONEXTENSIONS() /*------------*/ uint16       loadConnectionExtensions(ConnectionSystem *const connectionSystem, const uint16 extension)
+#define RESIZECONNECTION() /*--------------------*/ bool         resizeConnection(ConnectionSystem *const connectionSystem)
+#define CLOSECONNECTION() /*---------------------*/ bool         closeConnection(ConnectionSystem *const connectionSystem)
+#define CONNECTIONISOPEN() /*--------------------*/ bool         connectionIsOpen(ConnectionSystem *const connectionSystem)
+#define ISCONNECTIONEVENTCOMPOSITE() /*----------*/ bool         isConnectionEventComposite(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define ISCONNECTIONEVENTDAMAGE() /*-------------*/ bool         isConnectionEventDamage(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define ISCONNECTIONEVENTINPUT() /*--------------*/ bool         isConnectionEventInput(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define ISCONNECTIONEVENTRANDR() /*--------------*/ bool         isConnectionEventRandr(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define ISCONNECTIONEVENTRENDER() /*-------------*/ bool         isConnectionEventRender(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define ISCONNECTIONEVENTSHAPE() /*--------------*/ bool         isConnectionEventShape(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define ISCONNECTIONEVENTTEST() /*---------------*/ bool         isConnectionEventTest(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define ISCONNECTIONEVENTXFIXES() /*-------------*/ bool         isConnectionEventXfixes(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define ISCONNECTIONEVENTXKB() /*----------------*/ bool         isConnectionEventXkb(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONCOMPOSITERESPONSETYPE() /*--*/ uint8        getConnectionCompositeResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONDAMAGERESPONSETYPE() /*-----*/ uint8        getConnectionDamageResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONINPUTRESPONSETYPE() /*------*/ uint8        getConnectionInputResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONRANDRRESPONSETYPE() /*------*/ uint8        getConnectionRandrResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONRENDERRESPONSETYPE() /*-----*/ uint8        getConnectionRenderResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONSHAPERESPONSETYPE() /*------*/ uint8        getConnectionShapeResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONTESTRESPONSETYPE() /*-------*/ uint8        getConnectionTestResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONXFIXESRESPONSETYPE() /*-----*/ uint8        getConnectionXfixesResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define GETCONNECTIONXKBRESPONSETYPE() /*--------*/ uint8        getConnectionXkbResponseType(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define FINDXEVENTNAME() /*----------------------*/ const char * findXEventName(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define FINICONNECTIONSYSTEM() /*----------------*/ bool         finiConnectionSystem(ConnectionSystem *const connectionSystem)
+
+#define PRINTCONNECTIONERROR() /*----------------*/ bool         printConnectionError(ConnectionSystem *const connectionSystem)
+#define PRINTCONNECTIONXEVENT() /*---------------*/ bool         printConnectionXEvent(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define PRINTCONNECTIONXERROR() /*---------------*/ bool         printConnectionXError(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+#define PRINTCONNECTIONLOG() /*------------------*/ bool         printConnectionLog(ConnectionSystem *const connectionSystem)
+
+def struct{
+	LockSystem /*---------------*/ lockSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	const char * /*-------------*/ connectionName;
+	Display * /*----------------*/ display;
+	xcb_connection_t * /*-------*/ connection;
+	uint32 /*-------------------*/ displayToken;
+	xcb_window_t /*-------------*/ rootWindow;
+	uint32 /*-------------------*/ widthInPixels;
+	uint32 /*-------------------*/ heightInPixels;
+	uint32 /*-------------------*/ widthInMillimeters;
+	uint32 /*-------------------*/ heightInMillimeters;
+	xcb_visualid_t /*-----------*/ rootVisual;
+	xcb_colormap_t /*-----------*/ rootColormap;
+	uint8 /*--------------------*/ rootDepth;
+	uint8 /*--------------------*/ compositeMajorOpcode;
+	uint8 /*--------------------*/ compositeBaseEvent;
+	uint8 /*--------------------*/ compositeBaseError;
+	uint8 /*--------------------*/ damageMajorOpcode;
+	uint8 /*--------------------*/ damageBaseEvent;
+	uint8 /*--------------------*/ damageBaseError;
+	uint8 /*--------------------*/ inputMajorOpcode;
+	uint8 /*--------------------*/ inputBaseEvent;
+	uint8 /*--------------------*/ inputBaseError;
+	uint8 /*--------------------*/ randrMajorOpcode;
+	uint8 /*--------------------*/ randrBaseEvent;
+	uint8 /*--------------------*/ randrBaseError;
+	uint8 /*--------------------*/ renderMajorOpcode;
+	uint8 /*--------------------*/ renderBaseEvent;
+	uint8 /*--------------------*/ renderBaseError;
+	uint8 /*--------------------*/ shapeMajorOpcode;
+	uint8 /*--------------------*/ shapeBaseEvent;
+	uint8 /*--------------------*/ shapeBaseError;
+	uint8 /*--------------------*/ testMajorOpcode;
+	uint8 /*--------------------*/ testBaseEvent;
+	uint8 /*--------------------*/ testBaseError;
+	uint8 /*--------------------*/ xfixesMajorOpcode;
+	uint8 /*--------------------*/ xfixesBaseEvent;
+	uint8 /*--------------------*/ xfixesBaseError;
+	uint8 /*--------------------*/ xkbMajorOpcode;
+	uint8 /*--------------------*/ xkbBaseEvent;
+	uint8 /*--------------------*/ xkbBaseError;
+	uint16 /*-------------------*/ loadedExtension;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[7];
+} ConnectionSystem;
+
+INITCONNECTIONSYSTEM();
+SETCONNECTIONMEMORYMANAGEMENTSYSTEM();
+SETCONNECTIONPRINTSYSTEM();
+SETCONNECTIONMULTITHREADING();
+OPENCONNECTION();
+LOADCONNECTIONEXTENSIONS();
+RESIZECONNECTION();
+CLOSECONNECTION();
+CONNECTIONISOPEN();
+ISCONNECTIONEVENTCOMPOSITE();
+ISCONNECTIONEVENTDAMAGE();
+ISCONNECTIONEVENTINPUT();
+ISCONNECTIONEVENTRANDR();
+ISCONNECTIONEVENTRENDER();
+ISCONNECTIONEVENTSHAPE();
+ISCONNECTIONEVENTTEST();
+ISCONNECTIONEVENTXFIXES();
+ISCONNECTIONEVENTXKB();
+GETCONNECTIONCOMPOSITERESPONSETYPE();
+GETCONNECTIONDAMAGERESPONSETYPE();
+GETCONNECTIONINPUTRESPONSETYPE();
+GETCONNECTIONRANDRRESPONSETYPE();
+GETCONNECTIONRENDERRESPONSETYPE();
+GETCONNECTIONSHAPERESPONSETYPE();
+GETCONNECTIONTESTRESPONSETYPE();
+GETCONNECTIONXFIXESRESPONSETYPE();
+GETCONNECTIONXKBRESPONSETYPE();
+FINDXEVENTNAME();
+FINICONNECTIONSYSTEM();
+PRINTCONNECTIONERROR();
+PRINTCONNECTIONXEVENT();
+PRINTCONNECTIONXERROR();
+PRINTCONNECTIONLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

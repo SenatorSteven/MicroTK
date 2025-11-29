@@ -1,0 +1,88 @@
+
+/*! configuration-parser-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef CONFIGURATION_PARSER_SYSTEM_HOLD
+#define CONFIGURATION_PARSER_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define ConfigurationParserSystem /*----------------------*/ ConfigurationParserSystem
+
+#define INITCONFIGURATIONPARSERSYSTEM() /*----------------*/ bool  initConfigurationParserSystem(ConfigurationParserSystem *const configurationParserSystem)
+#define SETCONFIGURATIONPARSERMEMORYMANAGEMENTSYSTEM() /*-*/ bool  setConfigurationParserMemoryManagementSystem(ConfigurationParserSystem *const configurationParserSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETCONFIGURATIONPARSERPRINTSYSTEM() /*------------*/ bool  setConfigurationParserPrintSystem(ConfigurationParserSystem *const configurationParserSystem, PrintSystem *const printSystem)
+#define SETCONFIGURATIONPARSERSTATEMENTBLOCKSIZE() /*-----*/ bool  setConfigurationParserStatementBlockSize(ConfigurationParserSystem *const configurationParserSystem, const uint blockSize)
+#define SETCONFIGURATIONPARSERNEWLINEBLOCKSIZE() /*-------*/ bool  setConfigurationParserNewLineBlockSize(ConfigurationParserSystem *const configurationParserSystem, const uint blockSize)
+#define PARSECONFIGURATION() /*---------------------------*/ bool  parseConfiguration(ConfigurationParserSystem *const configurationParserSystem, const char *const configPath, bool (*const preReadConfigFunction)(ConfigurationParserSystem *const configurationParserSystem, void *const argument), void *const preReadConfigArgument, char (*getConfigurationCharacter)(ConfigurationParserSystem *const configurationParserSystem, void *const stream), bool (*readConfigLoopFunction)(ConfigurationParserSystem *const configurationParserSystem, const char character), bool (*const postReadConfigFunction)(ConfigurationParserSystem *const configurationParserSystem, void *const argument), void *const postReadConfigArgument)
+#define FINICONFIGURATIONPARSERSYSTEM() /*----------------*/ bool  finiConfigurationParserSystem(ConfigurationParserSystem *const configurationParserSystem)
+#define PRINTCONFIGURATIONPARSERERROR() /*----------------*/ bool  printConfigurationParserError(PrintSystem *const printSystem, ConfigurationParserSystem *const configurationParserSystem)
+
+#define PRINTCONFIGURATIONPARSERLOG() /*------------------*/ bool  printConfigurationParserLog(ConfigurationParserSystem *const configurationParserSystem)
+
+def struct ConfigurationParserSystem{
+	MutexSystem /*--------------*/ mutexSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	bool /*---------------------*/ (*readConfigLoopFunction)(struct ConfigurationParserSystem *const configurationParserSystem, const char character);
+	char * /*-------------------*/ statementStart;
+	uint32 /*-------------------*/ statementToken;
+	uint32 /*-------------------*/ statementSize;
+	uint32 /*-------------------*/ statementAllocated;
+	uint32 /*-------------------*/ statementBlockSize;
+	char * /*-------------------*/ newLineStart;
+	uint32 /*-------------------*/ newLineToken;
+	uint32 /*-------------------*/ newLineSize;
+	uint32 /*-------------------*/ newLineAllocated;
+	uint32 /*-------------------*/ newLineBlockSize;
+	uint32 /*-------------------*/ line;
+	uint32 /*-------------------*/ column;
+	uint8 /*--------------------*/ characterBytesLeft;
+	bool /*---------------------*/ displaySimpleErrors;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[3];
+} ConfigurationParserSystem;
+
+INITCONFIGURATIONPARSERSYSTEM();
+SETCONFIGURATIONPARSERMEMORYMANAGEMENTSYSTEM();
+SETCONFIGURATIONPARSERPRINTSYSTEM();
+SETCONFIGURATIONPARSERSTATEMENTBLOCKSIZE();
+SETCONFIGURATIONPARSERNEWLINEBLOCKSIZE();
+PARSECONFIGURATION();
+FINICONFIGURATIONPARSERSYSTEM();
+PRINTCONFIGURATIONPARSERERROR();
+PRINTCONFIGURATIONPARSERLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

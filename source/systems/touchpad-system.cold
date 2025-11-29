@@ -1,0 +1,782 @@
+
+/*! touchpad-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#warning Update the Touchpad system.
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <xcb/xinput.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/touchpad-system.hold"
+#include "../../headers/functions/fp3232-to-double-function.hold"
+
+INITTOUCHPADSYSTEM(){
+	if(!touchpadSystem){
+		ret false;
+	}
+	(*touchpadSystem).memoryManagementSystem = NULL;
+	(*touchpadSystem).connectionSystem = NULL;
+	(*touchpadSystem).touchpadStart = NULL;
+	(*touchpadSystem).touchpadToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*touchpadSystem).touchpadSize = 0;
+	ret true;
+}
+SETTOUCHPADMEMORYMANAGEMENTSYSTEM(){
+	if(!touchpadSystem or memoryManagementSystem == (*touchpadSystem).memoryManagementSystem){
+		ret false;
+	}
+	if(memoryManagementSystem){
+		(*touchpadSystem).touchpadToken = insertMemoryManagementPointer(memoryManagementSystem, (*touchpadSystem).touchpadStart, "TouchpadSystem setTouchpadMemoryManagementSystem() touchpad pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, (*touchpadSystem).touchpadToken);
+	}
+	(*touchpadSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETTOUCHPADCONNECTIONSYSTEM(){
+	if(!touchpadSystem or connectionSystem == (*touchpadSystem).connectionSystem){
+		ret false;
+	}
+	(*touchpadSystem).connectionSystem = connectionSystem;
+	ret true;
+}
+REQUESTTOUCHPADS(){
+	xcb_connection_t *connection;
+	uint size;
+	uint allocated;
+	uint blockSize;
+	Touchpad *start;
+	uint32 token;
+	xcb_atom_t xPositionAtom;
+	xcb_atom_t yPositionAtom;
+	if(!touchpadSystem or !connectionIsOpen((*touchpadSystem).connectionSystem)){
+		ret false;
+	}
+	connection = (*(*touchpadSystem).connectionSystem).connection;
+	size = 0;
+	allocated = 0;
+	blockSize = 4;
+	start = NULL;
+	token = NONE_MEMORY_MANAGEMENT_TOKEN;
+	xPositionAtom = XCB_NONE;
+	yPositionAtom = XCB_NONE;
+	jmp getTouchpadAtoms;
+	getTouchpadAtoms:{
+		const xcb_intern_atom_cookie_t cookie0 = xcb_intern_atom_unchecked(connection, false, lengthof("Abs MT Position X"), "Abs MT Position X");
+		const xcb_intern_atom_cookie_t cookie1 = xcb_intern_atom_unchecked(connection, false, lengthof("Abs MT Position Y"), "Abs MT Position Y");
+		xcb_intern_atom_reply_t *reply;
+		uint32 token;
+		reply = xcb_wait_for_reply(connection, cookie0, NULL);
+		token = insertMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, reply, "TouchpadSystem requestTouchpads() xcb_intern_atom() reply", &memoryManagementFree);
+		if(reply){
+			xPositionAtom = (*reply).atom;
+			free(reply);
+			removeMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, token);
+		}
+		reply = xcb_wait_for_reply(connection, cookie1, NULL);
+		token = insertMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, reply, "TouchpadSystem requestTouchpads() xcb_intern_atom() reply", &memoryManagementFree);
+		if(reply){
+			yPositionAtom = (*reply).atom;
+			free(reply);
+			removeMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, token);
+		}
+		jmp getTouchpadInfo;
+	}
+	getTouchpadInfo:{
+		xcb_input_xi_query_device_reply_t *const reply = xcb_wait_for_reply(connection, xcb_input_xi_query_device_unchecked(connection, XCB_INPUT_DEVICE_ALL), NULL);
+		uint32 token = insertMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, reply, "TouchpadSystem requestTouchpads() xcb_input_xi_query_device() reply", &memoryManagementFree);
+		xcb_input_xi_device_info_iterator_t deviceInfo;
+		if(!reply){
+			ret false;
+		}
+		deviceInfo = xcb_input_xi_query_device_infos_iterator(reply);
+		jmp findDeviceTypeLoop;
+		findDeviceTypeLoop:{
+			if(deviceInfo.rem){
+				if((*deviceInfo.data).type == XCB_INPUT_DEVICE_TYPE_SLAVE_POINTER){
+					xcb_input_device_class_iterator_t deviceClass = xcb_input_xi_device_info_classes_iterator(deviceInfo.data);
+					Touchpad *touchpad = NULL;
+					jmp findDeviceClassLoop;
+					findDeviceClassLoop:{
+						if(deviceClass.rem){
+							if((*deviceClass.data).type == XCB_INPUT_DEVICE_CLASS_TYPE_TOUCH){
+								deviceClass = xcb_input_xi_device_info_classes_iterator(deviceInfo.data);
+								if(allocated == size){
+									void *temp;
+									size += blockSize;
+									temp = realloc(start, size * sizeof(Touchpad));
+									if(!token){
+										token = insertMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, temp, "TouchpadSystem requestTouchpads() touchpad pointer", &memoryManagementFree);
+									}else{
+										updateMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, token, temp);
+									}
+									if(!temp){
+										free(start);
+										removeMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, token);
+										ret false;
+									}
+									start = temp;
+								}
+								touchpad = start + allocated;
+								(*touchpad).deviceID = (*deviceInfo.data).deviceid;
+								(*touchpad).x = 0.0;
+								(*touchpad).y = 0.0;
+								(*touchpad).width = 0.0;
+								(*touchpad).height = 0.0;
+								(*touchpad).millimeterWidth = 0.0;
+								(*touchpad).millimeterHeight = 0.0;
+								(*touchpad).finger0.inUse = false;
+								(*touchpad).finger1.inUse = false;
+								(*touchpad).finger2.inUse = false;
+								(*touchpad).finger3.inUse = false;
+								(*touchpad).finger4.inUse = false;
+								(*touchpad).fingerAmount = 0;
+								(*touchpad).gestureAmount = 0;
+								(*touchpad).gestureSize = 0;
+								(*touchpad).gestureAllocated = 0;
+								(*touchpad).gestureStart = NULL;
+								(*touchpad).gestureToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+								(*touchpad).inUse = true;
+								inc allocated;
+								jmp findDeviceValuatorLoop;
+							}
+							xcb_input_device_class_next(&deviceClass);
+							jmp findDeviceClassLoop;
+						}
+						jmp findDeviceValuatorLoop;
+					}
+					findDeviceValuatorLoop:{
+						if(deviceClass.rem){
+							if((*deviceClass.data).type == XCB_INPUT_DEVICE_CLASS_TYPE_VALUATOR){
+								xcb_input_valuator_class_t *const valuator = (void *)deviceClass.data;
+								if(xPositionAtom and (*valuator).label == xPositionAtom){
+									(*touchpad).x = fp3232ToDouble(&(*valuator).min);
+									(*touchpad).width = fp3232ToDouble(&(*valuator).max) - (*touchpad).x + 1;
+									(*touchpad).millimeterWidth = (int64)((*touchpad).width * 1000 / (*valuator).resolution);
+								}elif(yPositionAtom and (*valuator).label == yPositionAtom){
+									(*touchpad).y = fp3232ToDouble(&(*valuator).min);
+									(*touchpad).height = fp3232ToDouble(&(*valuator).max) - (*touchpad).y + 1;
+									(*touchpad).millimeterHeight = (int64)((*touchpad).height * 1000 / (*valuator).resolution);
+								}
+							}
+							xcb_input_device_class_next(&deviceClass);
+							jmp findDeviceValuatorLoop;
+						}
+					}
+				}
+				xcb_input_xi_device_info_next(&deviceInfo);
+				jmp findDeviceTypeLoop;
+			}
+			free(reply);
+			removeMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, token);
+			jmp replaceTouchpads;
+		}
+	}
+	replaceTouchpads:{
+		destroyTouchpads(touchpadSystem);
+		(*touchpadSystem).touchpadSize = allocated;
+		(*touchpadSystem).touchpadStart = start;
+		(*touchpadSystem).touchpadToken = token;
+		jmp trimMemory;
+	}
+	trimMemory:{
+		if((*touchpadSystem).touchpadSize){
+			void *const temp = realloc((*touchpadSystem).touchpadStart, (*touchpadSystem).touchpadSize * sizeof(Touchpad));
+			updateMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, (*touchpadSystem).touchpadToken, temp);
+			if(temp){
+				(*touchpadSystem).touchpadStart = temp;
+			}
+		}
+		ret true;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GETTOUCHPADFINGERDATA(){
+	const uint32 *maskStart;
+	const uint32 *maskCurrent;
+	const uint32 *maskWall;
+	const xcb_input_fp3232_t *valueCurrent;
+	const xcb_input_fp3232_t *valueWall;
+	uint8 axis;
+	if(!touchpadSystem or !event or !fingerDataReturn){
+		ret false;
+	}
+	maskStart = xcb_input_raw_touch_begin_valuator_mask(event);
+	maskCurrent = maskStart;
+	maskWall = maskCurrent + xcb_input_raw_touch_begin_valuator_mask_length(event);
+	axis = NONE_GESTURE_AXIS;
+	(*fingerDataReturn).deviceID = (*event).deviceid;
+	(*fingerDataReturn).fingerID = (*event).detail;
+	(*fingerDataReturn).axis = NONE_GESTURE_AXIS;
+	jmp findUpdatedInfoLoop;
+	findUpdatedInfoLoop:{
+		if(maskCurrent < maskWall){
+			if(maskCurrent == maskStart){
+				axis = *maskCurrent & (X_GESTURE_AXIS | Y_GESTURE_AXIS);
+				(*fingerDataReturn).axis = axis;
+			}
+			inc maskCurrent;
+			jmp findUpdatedInfoLoop;
+		}
+		valueCurrent = xcb_input_raw_touch_begin_axisvalues(event);
+		valueWall = valueCurrent + xcb_input_raw_touch_begin_axisvalues_length(event);
+		jmp findUpdatedValueLoop;
+	}
+	findUpdatedValueLoop:{
+		if(valueCurrent < valueWall){
+			if(axis & X_GESTURE_AXIS){
+				(*fingerDataReturn).x = fp3232ToDouble(valueCurrent);
+				axis &= ~X_GESTURE_AXIS;
+			}elif(axis & Y_GESTURE_AXIS){
+				(*fingerDataReturn).y = fp3232ToDouble(valueCurrent);
+				axis &= ~Y_GESTURE_AXIS;
+			}
+			inc valueCurrent;
+			jmp findUpdatedValueLoop;
+		}
+		ret true;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+INSERTTOUCHPADFINGER(){
+	Touchpad *touchpad;
+	Finger *finger;
+	if(!touchpadSystem or !(*touchpadSystem).touchpadSize or !fingerData or ((*fingerData).axis & (X_GESTURE_AXIS | Y_GESTURE_AXIS)) != (X_GESTURE_AXIS | Y_GESTURE_AXIS)){
+		ret false;
+	}
+	if(!(touchpad = findTouchpad(touchpadSystem, (*fingerData).deviceID))){
+		ret false;
+	}
+	if(!(finger = findTouchpadFingerSlot(touchpadSystem, touchpad))){
+		ret false;
+	}
+	(*finger).deviceID = (*fingerData).deviceID;
+	(*finger).fingerID = (*fingerData).fingerID;
+	(*finger).initialX = (*fingerData).x;
+	(*finger).initialY = (*fingerData).y;
+	(*finger).x = (*fingerData).x;
+	(*finger).y = (*fingerData).y;
+	(*finger).hasUpdated = false;
+	(*finger).inUse = true;
+	inc (*touchpad).fingerAmount;
+	ret true;
+}
+UPDATETOUCHPADFINGER(){
+	Touchpad *touchpad;
+	Finger *finger;
+	if(!touchpadSystem or !fingerData or !((*fingerData).axis & (X_GESTURE_AXIS | Y_GESTURE_AXIS))){
+		ret false;
+	}
+	if(!(touchpad = findTouchpad(touchpadSystem, (*fingerData).deviceID))){
+		ret false;
+	}
+	if(!(finger = findTouchpadFinger(touchpadSystem, touchpad, (*fingerData).fingerID))){
+		ret false;
+	}
+	if((*fingerData).axis & X_GESTURE_AXIS){
+		(*finger).x = (*fingerData).x;
+	}
+	if((*fingerData).axis & Y_GESTURE_AXIS){
+		(*finger).y = (*fingerData).y;
+	}
+	(*finger).hasUpdated = true;
+	ret true;
+}
+REMOVETOUCHPADFINGER(){
+	Touchpad *touchpad;
+	Finger *finger;
+	if(!touchpadSystem or !fingerData){
+		ret false;
+	}
+	if(!(touchpad = findTouchpad(touchpadSystem, (*fingerData).deviceID))){
+		ret false;
+	}
+	if(!(finger = findTouchpadFinger(touchpadSystem, touchpad, (*fingerData).fingerID))){
+		ret false;
+	}
+	(*finger).inUse = false;
+	dec (*touchpad).fingerAmount;
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+FINDTOUCHPADFINGER(){
+	if(!touchpadSystem or !isValidTouchpad(touchpadSystem, touchpad) or !fingerID){
+		ret NULL;
+	}
+	if((*touchpad).finger0.fingerID == fingerID and (*touchpad).finger0.inUse) /*-*/ ret &(*touchpad).finger0;
+	if((*touchpad).finger1.fingerID == fingerID and (*touchpad).finger1.inUse) /*-*/ ret &(*touchpad).finger1;
+	if((*touchpad).finger2.fingerID == fingerID and (*touchpad).finger2.inUse) /*-*/ ret &(*touchpad).finger2;
+	if((*touchpad).finger3.fingerID == fingerID and (*touchpad).finger3.inUse) /*-*/ ret &(*touchpad).finger3;
+	if((*touchpad).finger4.fingerID == fingerID and (*touchpad).finger4.inUse) /*-*/ ret &(*touchpad).finger4;
+	ret NULL;
+}
+FINDTOUCHPADFINGERSLOT(){
+	if(!touchpadSystem or !isValidTouchpad(touchpadSystem, touchpad)){
+		ret NULL;
+	}
+	if(!(*touchpad).finger0.inUse) /*-*/ ret &(*touchpad).finger0;
+	if(!(*touchpad).finger1.inUse) /*-*/ ret &(*touchpad).finger1;
+	if(!(*touchpad).finger2.inUse) /*-*/ ret &(*touchpad).finger2;
+	if(!(*touchpad).finger3.inUse) /*-*/ ret &(*touchpad).finger3;
+	if(!(*touchpad).finger4.inUse) /*-*/ ret &(*touchpad).finger4;
+	ret NULL;
+}
+
+
+
+/*! not completed */
+
+ISVALIDTOUCHPAD(){
+	ret touchpadSystem and touchpad;
+}
+ISVALIDTOUCHPADGESTURE(){
+	(void)touchpadSystem;
+	(void)touchpad;
+	(void)gesture;
+	ret true;
+}
+
+
+
+INSERTTOUCHPADGESTURE(){
+	Gesture *gesture;
+	if(!touchpadSystem or !isValidTouchpad(touchpadSystem, touchpad)){
+		ret false;
+	}
+	gesture = NULL;
+	jmp findGestureSlot;
+	findGestureSlot:{
+		Gesture *current = (*touchpad).gestureStart;
+		Gesture *const wall = current + (*touchpad).gestureAllocated;
+		jmp findGestureSlotLoop;
+		findGestureSlotLoop:{
+			if(current < wall){
+				if(!(*current).inUse){
+					gesture = current;
+					jmp insertGesture;
+				}
+				inc current;
+				jmp findGestureSlotLoop;
+			}
+			jmp insertGesture;
+		}
+	}
+	insertGesture:{
+		if(!gesture){
+
+
+
+			/*! add this later to struct */
+
+			uint gestureBlockSize = 1;
+
+
+
+			if((*touchpad).gestureAllocated == (*touchpad).gestureSize){
+				void *temp;
+				(*touchpad).gestureSize += gestureBlockSize;
+				temp = realloc((*touchpad).gestureStart, (*touchpad).gestureSize * sizeof(Gesture));
+				if(!(*touchpad).gestureToken){
+					(*touchpad).gestureToken = insertMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, temp, "TouchpadSystem insertTouchpadGesture() gesture pointer", &memoryManagementFree);
+				}else{
+					updateMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, (*touchpad).gestureToken, temp);
+				}
+				if(!temp){
+					(*touchpad).gestureSize -= gestureBlockSize;
+					ret false;
+				}
+				(*touchpad).gestureStart = temp;
+			}
+			gesture = (*touchpad).gestureStart + (*touchpad).gestureAllocated;
+			inc (*touchpad).gestureAllocated;
+		}
+		(*gesture).deviceID = (*touchpad).deviceID;
+		(*gesture).fingerAmount = 0;
+		(*gesture).hasUpdated = false;
+		(*gesture).swipeDirection = NONE_GESTURE_SWIPE_DIRECTION;
+		(*gesture).gesturePositionStyle = (*touchpadSystem).gesturePositionStyle;
+		(*gesture).n = 0;
+		(*gesture).initialX = 0;
+		(*gesture).initialY = 0;
+		(*gesture).absoluteX = 0;
+		(*gesture).absoluteY = 0;
+		(*gesture).relativeX = 0;
+		(*gesture).relativeY = 0;
+		(*gesture).deltaX = 0;
+		(*gesture).deltaY = 0;
+		(*gesture).touchpadFinger0 = NULL;
+		(*gesture).touchpadFinger1 = NULL;
+		(*gesture).touchpadFinger2 = NULL;
+		(*gesture).touchpadFinger3 = NULL;
+		(*gesture).touchpadFinger4 = NULL;
+		(*gesture).inUse = true;
+		inc (*touchpad).gestureAmount;
+		ret true;
+	}
+}
+UPDATETOUCHPADGESTURE(){
+	double previousAbsoluteX;
+	double previousAbsoluteY;
+	if(!touchpadSystem or !isValidTouchpad(touchpadSystem, touchpad) or !gesture or !finger){
+		ret false;
+	}
+	previousAbsoluteX = (*gesture).absoluteX;
+	previousAbsoluteY = (*gesture).absoluteY;
+	(*gesture).deltaX = 0;
+	(*gesture).deltaY = 0;
+	inc (*gesture).n;
+	switch((*gesture).gesturePositionStyle){
+		to NONE_GESTURE_POSITION_STYLE:{
+			(*gesture).hasUpdated = true;
+			ret true;
+		}
+		to FIRST_FINGER_GESTURE_POSITION_STYLE:{
+			if(finger == (*gesture).touchpadFinger0){
+				(*gesture).absoluteX = (*finger).x;
+				(*gesture).absoluteY = (*finger).y;
+				brk;
+			}
+			(*gesture).hasUpdated = true;
+			ret true;
+		}
+		to LAST_FINGER_GESTURE_POSITION_STYLE:{
+			if(finger == (*gesture).touchpadFinger0 + (*gesture).fingerAmount - 1){
+				(*gesture).absoluteX = (*finger).x;
+				(*gesture).absoluteY = (*finger).y;
+				brk;
+			}
+			(*gesture).hasUpdated = true;
+			ret true;
+		}
+		to CENTROID_GESTURE_POSITION_STYLE:{
+			Finger *current = (*gesture).touchpadFinger0;
+			Finger *const wall = current + (*gesture).fingerAmount;
+			double x = 0;
+			double y = 0;
+			jmp loop;
+			loop:{
+				if(current < wall){
+					x += (*current).x;
+					y += (*current).y;
+					inc current;
+					jmp loop;
+				}
+				x /= (*gesture).fingerAmount;
+				y /= (*gesture).fingerAmount;
+				(*gesture).absoluteX = x;
+				(*gesture).absoluteY = y;
+				brk;
+			}
+		}
+		off:{
+			ret true;
+		}
+	}
+	(*gesture).deltaX = (*gesture).absoluteX - previousAbsoluteX;
+	(*gesture).deltaY = (*gesture).absoluteY - previousAbsoluteY;
+	(*gesture).relativeX += (*gesture).deltaX;
+	(*gesture).relativeY += (*gesture).deltaY;
+	/*! if(!(*gesture).hasUpdated){ */
+		(*gesture).swipeDirection = NONE_GESTURE_SWIPE_DIRECTION;
+		if((*gesture).deltaX){
+			(*gesture).swipeDirection |= HORIZONTAL_GESTURE_SWIPE_DIRECTION;
+		}
+		if((*gesture).deltaY){
+			(*gesture).swipeDirection |= VERTICAL_GESTURE_SWIPE_DIRECTION;
+		}
+	/*! } */
+	(*gesture).hasUpdated = true;
+	ret true;
+}
+REMOVETOUCHPADGESTURE(){
+	if(!touchpadSystem or !isValidTouchpad(touchpadSystem, touchpad) or !gesture){
+		ret false;
+	}
+
+	/*! find the existing gesture */
+
+
+
+	(*gesture).inUse = false;
+
+
+
+	/*! remove later */
+
+	if(gesture == (*touchpad).gestureStart + (*touchpad).gestureAllocated - 1){
+		dec (*touchpad).gestureAllocated;
+	}
+	dec (*touchpad).gestureAmount;
+
+
+
+	ret true;
+}
+INSERTTOUCHPADGESTUREFINGER(){
+	if(!touchpadSystem or !isValidTouchpad(touchpadSystem, touchpad) or !gesture or !finger){
+		ret false;
+	}
+	if((*gesture).fingerAmount == 5){
+		ret false;
+	}
+	*(&(*gesture).touchpadFinger0 + (*gesture).fingerAmount) = finger;
+	switch((*gesture).gesturePositionStyle){
+		to NONE_GESTURE_POSITION_STYLE:{
+			ret false;
+		}
+		to FIRST_FINGER_GESTURE_POSITION_STYLE:{
+			inc (*gesture).fingerAmount;
+			if(finger == (*gesture).touchpadFinger0){
+				(*gesture).initialX = (*finger).initialX;
+				(*gesture).initialY = (*finger).initialY;
+				(*gesture).absoluteX = (*finger).initialX;
+				(*gesture).absoluteY = (*finger).initialY;
+			}
+			ret true;
+		}
+		to LAST_FINGER_GESTURE_POSITION_STYLE:{
+			inc (*gesture).fingerAmount;
+			if(finger == (*gesture).touchpadFinger0 + (*gesture).fingerAmount - 1){
+				(*gesture).initialX = (*finger).initialX;
+				(*gesture).initialY = (*finger).initialY;
+				(*gesture).absoluteX = (*finger).initialX;
+				(*gesture).absoluteY = (*finger).initialY;
+			}
+			ret true;
+		}
+		to CENTROID_GESTURE_POSITION_STYLE:{
+			Finger *current;
+			Finger *wall;
+			double x;
+			double y;
+			inc (*gesture).fingerAmount;
+			current = (*gesture).touchpadFinger0;
+			wall = current + (*gesture).fingerAmount;
+			x = 0;
+			y = 0;
+			jmp loop;
+			loop:{
+				if(current < wall){
+					x += (*current).initialX;
+					y += (*current).initialY;
+					inc current;
+					jmp loop;
+				}
+				x /= (*gesture).fingerAmount;
+				y /= (*gesture).fingerAmount;
+				(*gesture).initialX = x;
+				(*gesture).initialY = y;
+				(*gesture).absoluteX = x;
+				(*gesture).absoluteY = y;
+				ret true;
+			}
+		}
+		off:{
+			ret false;
+		}
+	}
+}
+FINDTOUCHPADGESTURE(){
+	Gesture *current;
+	Gesture *wall;
+	if(!touchpadSystem or !isValidTouchpad(touchpadSystem, touchpad) or !finger){
+		ret NULL;
+	}
+	current = (*touchpad).gestureStart;
+	wall = current + (*touchpad).gestureAllocated;
+	jmp findTouchpadGestureLoop;
+	findTouchpadGestureLoop:{
+		if(current < wall){
+			if((*current).inUse and ((*current).touchpadFinger0 == finger or (*current).touchpadFinger1 == finger or (*current).touchpadFinger2 == finger or (*current).touchpadFinger3 == finger or (*current).touchpadFinger4 == finger)){
+				ret current;
+			}
+			inc current;
+			jmp findTouchpadGestureLoop;
+		}
+		ret NULL;
+	}
+}
+FINDNEWTOUCHPADGESTURE(){
+	Gesture *current;
+	Gesture *wall;
+	if(!touchpadSystem or !isValidTouchpad(touchpadSystem, touchpad)){
+		ret NULL;
+	}
+	current = (*touchpad).gestureStart;
+	wall = current + (*touchpad).gestureAllocated;
+	jmp findNewTouchpadGestureLoop;
+	findNewTouchpadGestureLoop:{
+		if(current < wall){
+			if((*current).inUse and !(*current).hasUpdated){
+				ret current;
+			}
+			inc current;
+			jmp findNewTouchpadGestureLoop;
+		}
+		ret NULL;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+DESTROYTOUCHPADS(){
+	if(!touchpadSystem){
+		ret false;
+	}
+	free((*touchpadSystem).touchpadStart);
+	removeMemoryManagementPointer((*touchpadSystem).memoryManagementSystem, (*touchpadSystem).touchpadToken);
+	(*touchpadSystem).touchpadStart = NULL;
+	(*touchpadSystem).touchpadToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*touchpadSystem).touchpadSize = 0;
+	ret true;
+}
+FINDTOUCHPAD(){
+	Touchpad *current;
+	Touchpad *wall;
+	if(!touchpadSystem or !deviceID){
+		ret NULL;
+	}
+	current = (*touchpadSystem).touchpadStart;
+	wall = current + (*touchpadSystem).touchpadSize;
+	jmp findTouchpadLoop;
+	findTouchpadLoop:{
+		if(current < wall){
+			if((*current).deviceID == deviceID){
+				ret current;
+			}
+			inc current;
+			jmp findTouchpadLoop;
+		}
+		ret NULL;
+	}
+}
+FINITOUCHPADSYSTEM(){
+	if(!touchpadSystem){
+		ret false;
+	}
+	destroyTouchpads(touchpadSystem);
+	(*touchpadSystem).connectionSystem = NULL;
+	(*touchpadSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+

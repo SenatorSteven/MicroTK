@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! client-list-system.cold
 
 MIT License
 
@@ -21,11 +21,47 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#warning Complete the Client List system.
 
-## -
--
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/client-list-system.hold"
+
+INITCLIENTLISTSYSTEM(){
+	if(!clientListSystem){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+FINICLIENTLISTSYSTEM(){
+	if(!clientListSystem){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
 

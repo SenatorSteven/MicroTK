@@ -1,0 +1,805 @@
+
+/*! print-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Consider adding a Memory Management log print function.
+
+#define _POSIX_C_SOURCE /*-*/ (1L)
+
+#include <pthread.h>
+#include <stdarg.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdarg.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/unistd.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/functions/lock-stream-function.hold"
+#include "../../headers/functions/unlock-stream-function.hold"
+
+INITPRINTSYSTEM(){
+	if(!printSystem){
+		ret false;
+	}
+	initMutexSystem(&(*printSystem).mutexSystem);
+	(*printSystem).memoryManagementSystem = NULL;
+	(*printSystem).programName = "";
+	(*printSystem).outputStream = NULL;
+	(*printSystem).outputPath = "";
+	(*printSystem).errorStream = NULL;
+	(*printSystem).errorPath = "";
+	(*printSystem).outputColorStart = "";
+	(*printSystem).outputColorEvent = "";
+	(*printSystem).outputColorOutput = "";
+	(*printSystem).outputColorError = "";
+	(*printSystem).outputColorFatal = "";
+	(*printSystem).outputColorEnd = "";
+	(*printSystem).errorColorStart = "";
+	(*printSystem).errorColorEvent = "";
+	(*printSystem).errorColorOutput = "";
+	(*printSystem).errorColorError = "";
+	(*printSystem).errorColorFatal = "";
+	(*printSystem).errorColorEnd = "";
+	(*printSystem).openOutputStream = NULL;
+	(*printSystem).openOutputStreamToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*printSystem).openErrorStream = NULL;
+	(*printSystem).openErrorStreamToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*printSystem).operation = NONE_PRINT_OPERATION;
+	(*printSystem).code = NONE_PRINT_CODE;
+	(*printSystem).multithreaded = false;
+	ret true;
+}
+SETPRINTMEMORYMANAGEMENTSYSTEM(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*printSystem).memoryManagementSystem){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	if(memoryManagementSystem){
+		(*printSystem).openOutputStreamToken = insertMemoryManagementPointer(memoryManagementSystem, (*printSystem).openOutputStream, "PrintSystem setPrintMemoryManagementSystem() open output stream", &memoryManagementFclose);
+		(*printSystem).openErrorStreamToken = insertMemoryManagementPointer(memoryManagementSystem, (*printSystem).openErrorStream, "PrintSystem setPrintMemoryManagementSystem() open error stream", &memoryManagementFclose);
+	}else{
+		removeMemoryManagementPointer((*printSystem).memoryManagementSystem, (*printSystem).openOutputStreamToken);
+		removeMemoryManagementPointer((*printSystem).memoryManagementSystem, (*printSystem).openErrorStreamToken);
+	}
+	(*printSystem).memoryManagementSystem = memoryManagementSystem;
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_MEMORY_MANAGEMENT_SYSTEM_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETPRINTPROGRAMNAME(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!programName){
+		programName = "";
+	}
+	if(programName == (*printSystem).programName){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	(*printSystem).programName = programName;
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_PROGRAM_NAME_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETPRINTOUTPUTSTREAM(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(outputStream == (*printSystem).outputStream){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	(*printSystem).outputStream = outputStream;
+	(*printSystem).outputPath = "";
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_OUTPUT_STREAM_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETPRINTERRORSTREAM(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(errorStream == (*printSystem).errorStream){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	(*printSystem).errorStream = errorStream;
+	(*printSystem).errorPath = "";
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_ERROR_STREAM_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETPRINTOUTPUTPATH(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!outputPath){
+		outputPath = "";
+	}
+	if(outputPath == (*printSystem).outputPath){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	(*printSystem).outputPath = outputPath;
+	(*printSystem).outputStream = NULL;
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_OUTPUT_PATH_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETPRINTERRORPATH(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!errorPath){
+		errorPath = "";
+	}
+	if(errorPath == (*printSystem).errorPath){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	(*printSystem).errorPath = errorPath;
+	(*printSystem).errorStream = NULL;
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_ERROR_PATH_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETPRINTOUTPUTCOLORS(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!colorStart) /*--*/ colorStart = "";
+	if(!colorEvent) /*--*/ colorEvent = "";
+	if(!colorOutput) /*-*/ colorOutput = "";
+	if(!colorError) /*--*/ colorError = "";
+	if(!colorFatal) /*--*/ colorFatal = "";
+	if(!colorEnd) /*----*/ colorEnd = "";
+	if(colorStart == (*printSystem).outputColorStart and colorEvent == (*printSystem).outputColorEvent and colorOutput == (*printSystem).outputColorOutput and colorError == (*printSystem).outputColorError and colorFatal == (*printSystem).outputColorFatal and colorEnd == (*printSystem).outputColorEnd){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	(*printSystem).outputColorStart = colorStart;
+	(*printSystem).outputColorEvent = colorEvent;
+	(*printSystem).outputColorOutput = colorOutput;
+	(*printSystem).outputColorError = colorError;
+	(*printSystem).outputColorFatal = colorFatal;
+	(*printSystem).outputColorEnd = colorEnd;
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_OUTPUT_COLORS_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETPRINTERRORCOLORS(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!colorStart) /*--*/ colorStart = "";
+	if(!colorEvent) /*--*/ colorEvent = "";
+	if(!colorOutput) /*-*/ colorOutput = "";
+	if(!colorError) /*--*/ colorError = "";
+	if(!colorFatal) /*--*/ colorFatal = "";
+	if(!colorEnd) /*----*/ colorEnd = "";
+	if(colorStart == (*printSystem).errorColorStart and colorEvent == (*printSystem).errorColorEvent and colorOutput == (*printSystem).errorColorOutput and colorError == (*printSystem).errorColorError and colorFatal == (*printSystem).errorColorFatal and colorEnd == (*printSystem).errorColorEnd){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	(*printSystem).errorColorStart = colorStart;
+	(*printSystem).errorColorEvent = colorEvent;
+	(*printSystem).errorColorOutput = colorOutput;
+	(*printSystem).errorColorError = colorError;
+	(*printSystem).errorColorFatal = colorFatal;
+	(*printSystem).errorColorEnd = colorEnd;
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_ERROR_COLORS_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETPRINTMULTITHREADING(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*printSystem).multithreaded){
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*printSystem).mutexSystem)){
+			code = FAILED_MUTEX_PRINT_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyMutex(&(*printSystem).mutexSystem)){
+			code = FAILED_MUTEX_PRINT_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setMutexMultithreading(&(*printSystem).mutexSystem, multithreaded);
+	(*printSystem).multithreaded = multithreaded;
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = SET_PRINT_MULTITHREADING_PRINT_OPERATION;
+		(*printSystem).code = code;
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTOUTPUT(){
+	FILE *openStream;
+	va_list arguments;
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!message or !*message){
+		code = BAD_INPUT_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	if(!openPrintOutputStream(printSystem)){
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	openStream = (*printSystem).openOutputStream;
+	setvbuf(openStream, NULL, _IOFBF, 0);
+	if(!lockStream(openStream, WRITE_LOCK_STREAM)){
+		closePrintErrorStream(printSystem);
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	va_start(arguments, message);
+	vfprintf(openStream, message, arguments);
+	fflush(openStream);
+	va_end(arguments);
+	unlockStream(openStream);
+	closePrintOutputStream(printSystem);
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = PRINT_OUTPUT_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTERROR(){
+	FILE *openStream;
+	va_list arguments;
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!message or !*message){
+		code = BAD_INPUT_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	if(!openPrintErrorStream(printSystem)){
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	openStream = (*printSystem).openErrorStream;
+	setvbuf(openStream, NULL, _IOFBF, 0);
+	if(!lockStream(openStream, WRITE_LOCK_STREAM)){
+		closePrintErrorStream(printSystem);
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	va_start(arguments, message);
+	vfprintf(openStream, message, arguments);
+	fflush(openStream);
+	va_end(arguments);
+	unlockStream(openStream);
+	closePrintErrorStream(printSystem);
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = PRINT_ERROR_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTTITLEDERROR(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!title) /*---*/ title = "";
+	if(!message) /*-*/ message = "";
+	if(!printUnlockedError(printSystem, "%s%s: %s%s:%s %s\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, title, (*printSystem).errorColorEnd, message)){
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = PRINT_TITLED_ERROR_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTTITLEDVALUEDERROR(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!title) /*---*/ title = "";
+	if(!message) /*-*/ message = "";
+	if(!printUnlockedError(printSystem, "%s%s: %s%s:%s %s %u\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, title, (*printSystem).errorColorEnd, message, value)){
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = PRINT_TITLED_VALUED_ERROR_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTTITLEDNAMEDERROR(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!title) /*---*/ title = "";
+	if(!message) /*-*/ message = "";
+	if(!name) /*----*/ name = "";
+	if(!printUnlockedError(printSystem, "%s%s: %s%s:%s %s %s\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, title, (*printSystem).errorColorEnd, message, name)){
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = PRINT_TITLED_NAMED_ERROR_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTTITLEDQUOTEDERROR(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!title) /*---------*/ title = "";
+	if(!quotedMessage) /*-*/ quotedMessage = "";
+	if(!message) /*-------*/ message = "";
+	if(!printUnlockedError(printSystem, "%s%s: %s%s:%s \"%s\" %s\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, title, (*printSystem).errorColorEnd, quotedMessage, message)){
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = PRINT_TITLED_QUOTED_ERROR_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTTITLEDFATALERROR(){
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!title) /*---*/ title = "";
+	if(!message) /*-*/ message = "";
+	if(!printUnlockedError(printSystem, "%s%s: %s%s:%s %s\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorFatal, title, (*printSystem).errorColorEnd, message)){
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	code = SUCCESS_PRINT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*printSystem).operation = PRINT_TITLED_FATAL_ERROR_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTUNACCOUNTEDFORPOINTERS(){
+	FILE *openStream;
+	MemoryManagementPointer *current;
+	MemoryManagementPointer *wall;
+	uint8 code;
+	if(!printSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	if(!memoryManagementSystem){
+		code = BAD_INPUT_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockMutex(&(*memoryManagementSystem).mutexSystem)){
+		code = FAILED_MUTEX_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	if((*memoryManagementSystem).pointerAllocated < 2){
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		code = NOTHING_DONE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	if(!openPrintErrorStream(printSystem)){
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	openStream = (*printSystem).openErrorStream;
+	setvbuf(openStream, NULL, _IOFBF, 0);
+	if(!lockStream(openStream, WRITE_LOCK_STREAM)){
+		closePrintErrorStream(printSystem);
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		code = FAILURE_PRINT_CODE;
+		jmp emergencyExit;
+	}
+	current = (*memoryManagementSystem).pointerStart + 1;
+	wall = current + (*memoryManagementSystem).pointerAllocated;
+	code = NOTHING_DONE_PRINT_CODE;
+	jmp printUnaccountedForPointerLoop;
+	printUnaccountedForPointerLoop:{
+		if(current < wall){
+			if((*current).dataToken){
+				const char *label = (*current).dataLabel;
+				if(!label){
+					label = "";
+				}
+				if(code != SUCCESS_PRINT_CODE){
+					fprintf(openStream, "%s%s: %s%s:%s\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, "unaccounted pointers", (*printSystem).errorColorEnd);
+				}
+				fprintf(openStream, "\t%s: line %u: %s\n", (*current).file, (*current).line, label);
+				code = SUCCESS_PRINT_CODE;
+			}
+			inc current;
+			jmp printUnaccountedForPointerLoop;
+		}
+		if(code == SUCCESS_PRINT_CODE){
+			fflush(openStream);
+		}
+		unlockStream(openStream);
+		closePrintErrorStream(printSystem);
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*printSystem).operation = PRINT_UNACCOUNTED_FOR_POINTERS_PRINT_OPERATION;
+		(*printSystem).code = code;
+		unlockMutex(&(*printSystem).mutexSystem);
+		if(code != SUCCESS_PRINT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PRINTUNLOCKEDOUTPUT(){
+	FILE *openStream;
+	va_list arguments;
+	if(!printSystem){
+		ret false;
+	}
+	if(!message or !*message){
+		ret false;
+	}
+	if(!openPrintOutputStream(printSystem)){
+		ret false;
+	}
+	openStream = (*printSystem).openOutputStream;
+	setvbuf(openStream, NULL, _IOFBF, 0);
+	if(!lockStream(openStream, WRITE_LOCK_STREAM)){
+		closePrintErrorStream(printSystem);
+		ret false;
+	}
+	va_start(arguments, message);
+	vfprintf(openStream, message, arguments);
+	fflush(openStream);
+	va_end(arguments);
+	unlockStream(openStream);
+	closePrintOutputStream(printSystem);
+	ret true;
+}
+PRINTUNLOCKEDERROR(){
+	FILE *openStream;
+	va_list arguments;
+	if(!printSystem){
+		ret false;
+	}
+	if(!message or !*message){
+		ret false;
+	}
+	if(!openPrintErrorStream(printSystem)){
+		ret false;
+	}
+	openStream = (*printSystem).openErrorStream;
+	setvbuf(openStream, NULL, _IOFBF, 0);
+	if(!lockStream(openStream, WRITE_LOCK_STREAM)){
+		closePrintErrorStream(printSystem);
+		ret false;
+	}
+	va_start(arguments, message);
+	vfprintf(openStream, message, arguments);
+	fflush(openStream);
+	va_end(arguments);
+	unlockStream(openStream);
+	closePrintErrorStream(printSystem);
+	ret true;
+}
+OPENPRINTOUTPUTSTREAM(){
+	if(!printSystem){
+		ret false;
+	}
+	if((!(*printSystem).outputStream and !*(*printSystem).outputPath) or (*printSystem).openOutputStream){
+		ret false;
+	}
+	if((*printSystem).outputStream){
+		const int fd = dup(fileno((*printSystem).outputStream));
+		if(fd == DUP_FAILURE){
+			ret false;
+		}
+		(*printSystem).openOutputStream = fdopen(fd, "a");
+	}else{
+		(*printSystem).openOutputStream = fopen((*printSystem).outputPath, "a");
+	}
+	(*printSystem).openOutputStreamToken = insertMemoryManagementPointer((*printSystem).memoryManagementSystem, (*printSystem).openOutputStream, "PrintSystem openPrintOutputStream() open output stream", &memoryManagementFclose);
+	if(!(*printSystem).openOutputStream){
+		ret false;
+	}
+	ret true;
+}
+OPENPRINTERRORSTREAM(){
+	if(!printSystem){
+		ret false;
+	}
+	if((!(*printSystem).errorStream and !*(*printSystem).errorPath) or (*printSystem).openErrorStream){
+		ret false;
+	}
+	if((*printSystem).errorStream){
+		const int fd = dup(fileno((*printSystem).errorStream));
+		if(fd == DUP_FAILURE){
+			ret false;
+		}
+		(*printSystem).openErrorStream = fdopen(fd, "a");
+	}else{
+		(*printSystem).openErrorStream = fopen((*printSystem).errorPath, "a");
+	}
+	(*printSystem).openErrorStreamToken = insertMemoryManagementPointer((*printSystem).memoryManagementSystem, (*printSystem).openErrorStream, "PrintSystem openPrintErrorStream() open error stream", &memoryManagementFclose);
+	if(!(*printSystem).openErrorStream){
+		ret false;
+	}
+	ret true;
+}
+CLOSEPRINTERRORSTREAM(){
+	if(!printSystem){
+		ret false;
+	}
+	if(!(*printSystem).openErrorStream){
+		ret false;
+	}
+	fclose((*printSystem).openErrorStream);
+	removeMemoryManagementPointer((*printSystem).memoryManagementSystem, (*printSystem).openErrorStreamToken);
+	(*printSystem).openErrorStream = NULL;
+	(*printSystem).openErrorStreamToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	ret true;
+}
+CLOSEPRINTOUTPUTSTREAM(){
+	if(!printSystem){
+		ret false;
+	}
+	if(!(*printSystem).openOutputStream){
+		ret false;
+	}
+	fclose((*printSystem).openOutputStream);
+	removeMemoryManagementPointer((*printSystem).memoryManagementSystem, (*printSystem).openOutputStreamToken);
+	(*printSystem).openOutputStream = NULL;
+	(*printSystem).openOutputStreamToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	ret true;
+}
+FINIPRINTSYSTEM(){
+	if(!printSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*printSystem).mutexSystem)){
+		ret false;
+	}
+	(*printSystem).multithreaded = false;
+	(*printSystem).code = NONE_PRINT_CODE;
+	(*printSystem).operation = NONE_PRINT_OPERATION;
+	closePrintErrorStream(printSystem);
+	closePrintOutputStream(printSystem);
+	(*printSystem).errorColorEnd = "";
+	(*printSystem).errorColorFatal = "";
+	(*printSystem).errorColorError = "";
+	(*printSystem).errorColorOutput = "";
+	(*printSystem).errorColorEvent = "";
+	(*printSystem).errorColorStart = "";
+	(*printSystem).outputColorEnd = "";
+	(*printSystem).outputColorFatal = "";
+	(*printSystem).outputColorError = "";
+	(*printSystem).outputColorOutput = "";
+	(*printSystem).outputColorEvent = "";
+	(*printSystem).outputColorStart = "";
+	(*printSystem).errorPath = "";
+	(*printSystem).errorStream = NULL;
+	(*printSystem).outputPath = "";
+	(*printSystem).outputStream = NULL;
+	(*printSystem).programName = "";
+	(*printSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+

@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! load-bmp-function.cold
 
 MIT License
 
@@ -21,11 +21,26 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#warning Complete the Load Bmp function.
 
-## -
--
+#include <pthread.h>
+#include <stdint.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/functions/load-bmp-function.hold"
+
+LOADBMP(){
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
 

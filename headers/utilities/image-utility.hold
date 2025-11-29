@@ -1,0 +1,93 @@
+
+/*! image-utility.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef IMAGE_UTILITY_HOLD
+#define IMAGE_UTILITY_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define ImageUtility /*---------------*/ ImageUtility
+
+#define NONE_IMAGE_RORATION /*--------*/ (0)
+#define DEGREES_90_IMAGE_RORATION /*--*/ (1)
+#define DEGREES_180_IMAGE_RORATION /*-*/ (2)
+#define DEGREES_270_IMAGE_RORATION /*-*/ (3)
+
+#define CREATEIMAGE() /*--------------*/ bool  createImage(Image *const image)
+#define CREATECIRCLEIMAGE() /*--------*/ bool  createCircleImage(Image *const image)
+#define CREATESQUIRCLEIMAGE() /*------*/ bool  createSquircleImage(Image *const image)
+#define FILLIMAGE() /*----------------*/ bool  fillImage(Image *const image)
+#define CROPIMAGE() /*----------------*/ bool  cropImage(Image *const image)
+#define RESIZEIMAGE() /*--------------*/ bool  resizeImage(Image *const image)
+#define SCALEIMAGE() /*---------------*/ bool  scaleImage(Image *const image)
+#define ROTATEIMAGE() /*--------------*/ bool  rotateImage(Image *const image)
+#define FLIPIMAGE() /*----------------*/ bool  flipImage(Image *const image)
+#define APPLYTWOPASSBOXBLURIMAGE() /*-*/ bool  applyTwoPassBoxBlurImage(Image *const image)
+#define COMPOSITEIMAGES() /*----------*/ bool  compositeImages(Image *const source, Image *const destination)
+#define COMPOSITEIMAGESOVER() /*------*/ bool  compositeImagesOver(void)
+#define COMPOSITEIMAGESAND() /*-------*/ bool  compositeImagesAnd(void)
+#define COMPOSITEIMAGESXOR() /*-------*/ bool  compositeImagesXor(void)
+#define COMPOSITEIMAGESIN() /*--------*/ bool  compositeImagesIn(void)
+#define COMPOSITEIMAGESOUT() /*-------*/ bool  compositeImagesOut(void)
+#define COMPOSITEIMAGESATOP() /*------*/ bool  compositeImagesAtop(void)
+
+def struct{
+	void * /*-*/ dataStart;
+	uint32 /*-*/ dataToken;
+	uint32 /*-*/ dataSize;
+	int32 /*--*/ x;
+	int32 /*--*/ y;
+	uint32 /*-*/ width;
+	uint32 /*-*/ height;
+} Image;
+
+CREATEIMAGE();
+CREATECIRCLEIMAGE();
+CREATESQUIRCLEIMAGE();
+FILLIMAGE();
+CROPIMAGE();
+RESIZEIMAGE();
+SCALEIMAGE();
+ROTATEIMAGE();
+FLIPIMAGE();
+APPLYTWOPASSBOXBLURIMAGE();
+COMPOSITEIMAGES();
+COMPOSITEIMAGESOVER();
+COMPOSITEIMAGESAND();
+COMPOSITEIMAGESXOR();
+COMPOSITEIMAGESIN();
+COMPOSITEIMAGESOUT();
+COMPOSITEIMAGESATOP();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

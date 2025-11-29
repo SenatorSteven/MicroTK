@@ -1,0 +1,91 @@
+
+/*! get-window-class-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <xcb/xinput.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/functions/get-window-class-function.hold"
+
+GETWINDOWCLASS(){
+	MemoryManagementSystem *memoryManagementSystem;
+	xcb_connection_t *connection;
+	if(!connectionSystem or !window){
+		ret false;
+	}
+	memoryManagementSystem = (*connectionSystem).memoryManagementSystem;
+	connection = (*connectionSystem).connection;
+	jmp getWindowClass;
+	getWindowClass:{
+		xcb_get_window_attributes_reply_t *const reply = xcb_wait_for_reply(connection, xcb_get_window_attributes(connection, window), NULL);
+		uint32 token = insertMemoryManagementPointer(memoryManagementSystem, reply, "getWindowClass() xcb_get_window_attributes() reply", &memoryManagementFree);
+		uint8 class;
+		if(!reply){
+			ret XCB_WINDOW_CLASS_COPY_FROM_PARENT;
+		}
+		class = (*reply)._class;
+		free(reply);
+		removeMemoryManagementPointer(memoryManagementSystem, token);
+		switch(class){
+			to XCB_WINDOW_CLASS_COPY_FROM_PARENT: /*-*/ jmp getWindowParent;
+			to XCB_WINDOW_CLASS_INPUT_OUTPUT: /*-----*/ ret XCB_WINDOW_CLASS_INPUT_OUTPUT;
+			to XCB_WINDOW_CLASS_INPUT_ONLY: /*-------*/ ret XCB_WINDOW_CLASS_INPUT_ONLY;
+			off: /*----------------------------------*/ ret XCB_WINDOW_CLASS_COPY_FROM_PARENT;
+		}
+	}
+	getWindowParent:{
+		xcb_query_tree_reply_t *const reply = xcb_wait_for_reply(connection, xcb_query_tree(connection, window), NULL);
+		uint32 token = insertMemoryManagementPointer(memoryManagementSystem, reply, "getWindowClass() xcb_query_tree() reply", &memoryManagementFree);
+		if(reply){
+			const xcb_window_t parent = (*reply).parent;
+			free(reply);
+			removeMemoryManagementPointer(memoryManagementSystem, token);
+			if(parent != window){
+				window = parent;
+				jmp getWindowClass;
+			}
+		}
+		ret XCB_WINDOW_CLASS_COPY_FROM_PARENT;
+	}
+}
+

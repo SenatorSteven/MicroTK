@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! get-event-timestamp-function.hold
 
 MIT License
 
@@ -21,11 +21,24 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef GET_EVENT_TIMESTAMP_FUNCTION_HOLD
+#define GET_EVENT_TIMESTAMP_FUNCTION_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define GETEVENTTIMESTAMP() /*-*/ xcb_timestamp_t  getEventTimestamp(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
+
+GETEVENTTIMESTAMP();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
 

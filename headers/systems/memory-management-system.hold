@@ -1,0 +1,116 @@
+
+/*! memory-management-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef MEMORY_MANAGEMENT_SYSTEM_HOLD
+#define MEMORY_MANAGEMENT_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define MemoryManagementSystem /*-------------------------------------------*/ MemoryManagementSystem
+
+#define NONE_MEMORY_MANAGEMENT_TOKEN /*-------------------------------------*/ (0)
+
+#define NONE_MEMORY_MANAGEMENT_OPERATION /*---------------------------------*/ (0)
+#define SET_MEMORY_MANAGEMENT_BLOCK_SIZE_MEMORY_MANAGEMENT_OPERATION /*-----*/ (1)
+#define SET_MEMORY_MANAGEMENT_MULTITHREADING_MEMORY_MANAGEMENT_OPERATION /*-*/ (2)
+#define INSERT_MEMORY_MANAGEMENT_POINTER_MEMORY_MANAGEMENT_OPERATION /*-----*/ (3)
+#define UPDATE_MEMORY_MANAGEMENT_POINTER_MEMORY_MANAGEMENT_OPERATION /*-----*/ (4)
+#define REMOVE_MEMORY_MANAGEMENT_POINTER_MEMORY_MANAGEMENT_OPERATION /*-----*/ (5)
+#define DESTROY_MEMORY_MANAGEMENT_POINTERS_MEMORY_MANAGEMENT_OPERATION /*---*/ (6)
+
+#define NONE_MEMORY_MANAGEMENT_CODE /*--------------------------------------*/ (0)
+#define SUCCESS_MEMORY_MANAGEMENT_CODE /*-----------------------------------*/ (1)
+#define NOTHING_DONE_MEMORY_MANAGEMENT_CODE /*------------------------------*/ (2)
+#define BAD_INPUT_MEMORY_MANAGEMENT_CODE /*---------------------------------*/ (3)
+#define UNSET_VALUE_MEMORY_MANAGEMENT_CODE /*-------------------------------*/ (4)
+#define FAILED_ALLOCATION_MEMORY_MANAGEMENT_CODE /*-------------------------*/ (5)
+#define FAILED_MUTEX_MEMORY_MANAGEMENT_CODE /*------------------------------*/ (6)
+
+#define INITMEMORYMANAGEMENTSYSTEM() /*-------------------------------------*/ bool    initMemoryManagementSystem(MemoryManagementSystem *const memoryManagementSystem)
+#define SETMEMORYMANAGEMENTBLOCKSIZE() /*-----------------------------------*/ bool    setMemoryManagementBlockSize(MemoryManagementSystem *const memoryManagementSystem, const uint blockSize)
+#define SETMEMORYMANAGEMENTMULTITHREADING() /*------------------------------*/ bool    setMemoryManagementMultithreading(MemoryManagementSystem *const memoryManagementSystem, bool multithreaded)
+#define INSERTMEMORYMANAGEMENTPOINTER() /*----------------------------------*/ uint32 _insertMemoryManagementPointer(MemoryManagementSystem *const memoryManagementSystem, const char *file, const uint line, void *const pointer, const char *label, bool (*const freeFunction)(void *const pointer))
+#define UPDATEMEMORYMANAGEMENTPOINTER() /*----------------------------------*/ bool    updateMemoryManagementPointer(MemoryManagementSystem *const memoryManagementSystem, const uint32 token, void *const pointer)
+#define REMOVEMEMORYMANAGEMENTPOINTER() /*----------------------------------*/ bool    removeMemoryManagementPointer(MemoryManagementSystem *const memoryManagementSystem, const uint32 token)
+#define DESTROYMEMORYMANAGEMENTPOINTERS() /*--------------------------------*/ bool    destroyMemoryManagementPointers(MemoryManagementSystem *const memoryManagementSystem)
+#define MEMORYMANAGEMENTFREE() /*-------------------------------------------*/ bool    memoryManagementFree(void *const pointer)
+#define MEMORYMANAGEMENTFCLOSE() /*-----------------------------------------*/ bool    memoryManagementFclose(void *const pointer)
+#define MEMORYMANAGEMENTCLOSEDIR() /*---------------------------------------*/ bool    memoryManagementClosedir(void *const pointer)
+#define MEMORYMANAGEMENTSHMCTL() /*-----------------------------------------*/ bool    memoryManagementShmctl(void *const pointer)
+#define MEMORYMANAGEMENTXCLOSEDISPLAY() /*----------------------------------*/ bool    memoryManagementXCloseDisplay(void *const pointer)
+#define MEMORYMANAGEMENTXCBDISCONNECT() /*----------------------------------*/ bool    memoryManagementXCBDisconnect(void *const pointer)
+#define FINIMEMORYMANAGEMENTSYSTEM() /*-------------------------------------*/ bool    finiMemoryManagementSystem(MemoryManagementSystem *const memoryManagementSystem)
+
+#define insertMemoryManagementPointer(system, pointer, label, free) /*------*/ (_insertMemoryManagementPointer(system, __FILE__, __LINE__, pointer, label, free))
+
+def struct{
+	const char * /*--------------*/ dataLabel;
+	uint64 * /*------------------*/ dataStart;
+	uint32 /*--------------------*/ dataToken;
+	uint32 /*--------------------*/ line;
+	const char * /*--------------*/ file;
+	bool /*----------------------*/ (*free)(void *const pointer);
+} MemoryManagementPointer;
+
+def struct{
+	MutexSystem /*---------------*/ mutexSystem;
+	MemoryManagementPointer * /*-*/ pointerStart;
+	uint32 /*--------------------*/ pointerSize;
+	uint32 /*--------------------*/ pointerAllocated;
+	uint32 * /*------------------*/ emptyPointerStart;
+	uint32 /*--------------------*/ emptyPointerSize;
+	uint32 /*--------------------*/ emptyPointerAllocated;
+	uint32 /*--------------------*/ blockSize;
+	uint8 /*---------------------*/ operation;
+	uint8 /*---------------------*/ code;
+	bool /*----------------------*/ multithreaded;
+	uint8 /*---------------------*/ pad0[1];
+} MemoryManagementSystem;
+
+INITMEMORYMANAGEMENTSYSTEM();
+SETMEMORYMANAGEMENTBLOCKSIZE();
+SETMEMORYMANAGEMENTMULTITHREADING();
+INSERTMEMORYMANAGEMENTPOINTER();
+UPDATEMEMORYMANAGEMENTPOINTER();
+REMOVEMEMORYMANAGEMENTPOINTER();
+DESTROYMEMORYMANAGEMENTPOINTERS();
+MEMORYMANAGEMENTFREE();
+MEMORYMANAGEMENTFCLOSE();
+MEMORYMANAGEMENTCLOSEDIR();
+MEMORYMANAGEMENTSHMCTL();
+MEMORYMANAGEMENTXCLOSEDISPLAY();
+MEMORYMANAGEMENTXCBDISCONNECT();
+FINIMEMORYMANAGEMENTSYSTEM();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

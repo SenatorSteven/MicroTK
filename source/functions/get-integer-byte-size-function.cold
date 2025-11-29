@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! get-integer-byte-size-function.cold
 
 MIT License
 
@@ -21,11 +21,42 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/functions/get-integer-byte-size-function.hold"
+
+GETINTEGERBYTESIZE(){
+	if(number < 10000000000UL){
+		if(number < 100000000UL){
+			if(number < 10000UL){
+				if(number < 100UL){
+					ret 1 + (number >= 10UL);
+				}
+				ret 3 + (number >= 1000UL);
+			}
+			if(number < 1000000UL){
+				ret 5 + (number >= 100000UL);
+			}
+			ret 7 + (number >= 10000000UL);
+		}
+		ret 9 + (number >= 1000000000UL);
+	}
+	if(number < 1000000000000000000UL){
+		if(number < 100000000000000UL){
+			if(number < 1000000000000UL){
+				ret 11 + (number >= 100000000000UL);
+			}
+			ret 13 + (number >= 10000000000000UL);
+		}
+		if(number < 10000000000000000UL){
+			ret 15 + (number >= 1000000000000000UL);
+		}
+		ret 17 + (number >= 100000000000000000UL);
+	}
+	ret 19 + (number >= 10000000000000000000UL);
+}
 

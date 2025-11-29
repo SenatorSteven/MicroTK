@@ -1,0 +1,150 @@
+
+/*! print-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef PRINT_SYSTEM_HOLD
+#define PRINT_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define PrintSystem /*----------------------------------------*/ PrintSystem
+
+#define NONE_PRINT_OPERATION /*-------------------------------*/ (0)
+#define SET_PRINT_MEMORY_MANAGEMENT_SYSTEM_PRINT_OPERATION /*-*/ (1)
+#define SET_PRINT_PROGRAM_NAME_PRINT_OPERATION /*-------------*/ (2)
+#define SET_PRINT_OUTPUT_STREAM_PRINT_OPERATION /*------------*/ (3)
+#define SET_PRINT_ERROR_STREAM_PRINT_OPERATION /*-------------*/ (4)
+#define SET_PRINT_OUTPUT_PATH_PRINT_OPERATION /*--------------*/ (5)
+#define SET_PRINT_ERROR_PATH_PRINT_OPERATION /*---------------*/ (6)
+#define SET_PRINT_OUTPUT_COLORS_PRINT_OPERATION /*------------*/ (7)
+#define SET_PRINT_ERROR_COLORS_PRINT_OPERATION /*-------------*/ (8)
+#define SET_PRINT_MULTITHREADING_PRINT_OPERATION /*-----------*/ (10)
+#define PRINT_OUTPUT_PRINT_OPERATION /*-----------------------*/ (11)
+#define PRINT_ERROR_PRINT_OPERATION /*------------------------*/ (12)
+#define PRINT_TITLED_ERROR_PRINT_OPERATION /*-----------------*/ (13)
+#define PRINT_TITLED_VALUED_ERROR_PRINT_OPERATION /*----------*/ (14)
+#define PRINT_TITLED_NAMED_ERROR_PRINT_OPERATION /*-----------*/ (15)
+#define PRINT_TITLED_QUOTED_ERROR_PRINT_OPERATION /*----------*/ (16)
+#define PRINT_TITLED_FATAL_ERROR_PRINT_OPERATION /*-----------*/ (17)
+#define PRINT_UNACCOUNTED_FOR_POINTERS_PRINT_OPERATION /*-----*/ (18)
+
+#define NONE_PRINT_CODE /*------------------------------------*/ (0)
+#define SUCCESS_PRINT_CODE /*---------------------------------*/ (1)
+#define NOTHING_DONE_PRINT_CODE /*----------------------------*/ (2)
+#define BAD_INPUT_PRINT_CODE /*-------------------------------*/ (3)
+#define FAILED_MUTEX_PRINT_CODE /*----------------------------*/ (4)
+#define FAILURE_PRINT_CODE /*---------------------------------*/ (5)
+
+#define INITPRINTSYSTEM() /*----------------------------------*/ bool  initPrintSystem(PrintSystem *const printSystem)
+#define SETPRINTMEMORYMANAGEMENTSYSTEM() /*-------------------*/ bool  setPrintMemoryManagementSystem(PrintSystem *const printSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETPRINTPROGRAMNAME() /*------------------------------*/ bool  setPrintProgramName(PrintSystem *const printSystem, const char *programName)
+#define SETPRINTOUTPUTSTREAM() /*-----------------------------*/ bool  setPrintOutputStream(PrintSystem *const printSystem, FILE *const outputStream)
+#define SETPRINTERRORSTREAM() /*------------------------------*/ bool  setPrintErrorStream(PrintSystem *const printSystem, FILE *const errorStream)
+#define SETPRINTOUTPUTPATH() /*-------------------------------*/ bool  setPrintOutputPath(PrintSystem *const printSystem, const char *outputPath)
+#define SETPRINTERRORPATH() /*--------------------------------*/ bool  setPrintErrorPath(PrintSystem *const printSystem, const char *errorPath)
+#define SETPRINTOUTPUTCOLORS() /*-----------------------------*/ bool  setPrintOutputColors(PrintSystem *const printSystem, const char *colorStart, const char *colorEvent, const char *colorOutput, const char *colorError, const char *colorFatal, const char *colorEnd)
+#define SETPRINTERRORCOLORS() /*------------------------------*/ bool  setPrintErrorColors(PrintSystem *const printSystem, const char *colorStart, const char *colorEvent, const char *colorOutput, const char *colorError, const char *colorFatal, const char *colorEnd)
+#define SETPRINTMULTITHREADING() /*---------------------------*/ bool  setPrintMultithreading(PrintSystem *const printSystem, bool multithreaded)
+#define PRINTOUTPUT() /*--------------------------------------*/ bool  printOutput(PrintSystem *const printSystem, const char *message, ...)
+#define PRINTERROR() /*---------------------------------------*/ bool  printError(PrintSystem *const printSystem, const char *message, ...)
+#define PRINTTITLEDERROR() /*---------------------------------*/ bool  printTitledError(PrintSystem *const printSystem, const char *title, const char *message)
+#define PRINTTITLEDVALUEDERROR() /*---------------------------*/ bool  printTitledValuedError(PrintSystem *const printSystem, const char *title, const char *message, const uint value)
+#define PRINTTITLEDNAMEDERROR() /*----------------------------*/ bool  printTitledNamedError(PrintSystem *const printSystem, const char *title, const char *message, const char *name)
+#define PRINTTITLEDQUOTEDERROR() /*---------------------------*/ bool  printTitledQuotedError(PrintSystem *const printSystem, const char *title, const char *quotedMessage, const char *message)
+#define PRINTTITLEDFATALERROR() /*----------------------------*/ bool  printTitledFatalError(PrintSystem *const printSystem, const char *title, const char *message)
+#define PRINTUNACCOUNTEDFORPOINTERS() /*----------------------*/ bool  printUnaccountedForPointers(PrintSystem *const printSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define PRINTUNLOCKEDOUTPUT() /*------------------------------*/ bool  printUnlockedOutput(PrintSystem *const printSystem, const char *message, ...)
+#define PRINTUNLOCKEDERROR() /*-------------------------------*/ bool  printUnlockedError(PrintSystem *const printSystem, const char *message, ...)
+#define OPENPRINTOUTPUTSTREAM() /*----------------------------*/ bool  openPrintOutputStream(PrintSystem *const printSystem)
+#define OPENPRINTERRORSTREAM() /*-----------------------------*/ bool  openPrintErrorStream(PrintSystem *const printSystem)
+#define CLOSEPRINTERRORSTREAM() /*----------------------------*/ bool  closePrintErrorStream(PrintSystem *const printSystem)
+#define CLOSEPRINTOUTPUTSTREAM() /*---------------------------*/ bool  closePrintOutputStream(PrintSystem *const printSystem)
+#define FINIPRINTSYSTEM() /*----------------------------------*/ bool  finiPrintSystem(PrintSystem *const printSystem)
+
+def struct{
+	MutexSystem /*--------------*/ mutexSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	const char * /*-------------*/ programName;
+	FILE * /*-------------------*/ outputStream;
+	const char * /*-------------*/ outputPath;
+	FILE * /*-------------------*/ errorStream;
+	const char * /*-------------*/ errorPath;
+	const char * /*-------------*/ outputColorStart;
+	const char * /*-------------*/ outputColorEvent;
+	const char * /*-------------*/ outputColorOutput;
+	const char * /*-------------*/ outputColorError;
+	const char * /*-------------*/ outputColorFatal;
+	const char * /*-------------*/ outputColorEnd;
+	const char * /*-------------*/ errorColorStart;
+	const char * /*-------------*/ errorColorEvent;
+	const char * /*-------------*/ errorColorOutput;
+	const char * /*-------------*/ errorColorError;
+	const char * /*-------------*/ errorColorFatal;
+	const char * /*-------------*/ errorColorEnd;
+	FILE * /*-------------------*/ openOutputStream;
+	FILE * /*-------------------*/ openErrorStream;
+	uint32 /*-------------------*/ openOutputStreamToken;
+	uint32 /*-------------------*/ openErrorStreamToken;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[5];
+} PrintSystem;
+
+INITPRINTSYSTEM();
+SETPRINTMEMORYMANAGEMENTSYSTEM();
+SETPRINTPROGRAMNAME();
+SETPRINTOUTPUTSTREAM();
+SETPRINTERRORSTREAM();
+SETPRINTOUTPUTPATH();
+SETPRINTERRORPATH();
+SETPRINTOUTPUTCOLORS();
+SETPRINTERRORCOLORS();
+SETPRINTMULTITHREADING();
+PRINTOUTPUT();
+PRINTERROR();
+PRINTTITLEDERROR();
+PRINTTITLEDVALUEDERROR();
+PRINTTITLEDNAMEDERROR();
+PRINTTITLEDQUOTEDERROR();
+PRINTTITLEDFATALERROR();
+PRINTUNACCOUNTEDFORPOINTERS();
+PRINTUNLOCKEDOUTPUT();
+PRINTUNLOCKEDERROR();
+OPENPRINTOUTPUTSTREAM();
+OPENPRINTERRORSTREAM();
+CLOSEPRINTERRORSTREAM();
+CLOSEPRINTOUTPUTSTREAM();
+FINIPRINTSYSTEM();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

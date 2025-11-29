@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! lock-stream-function.hold
 
 MIT License
 
@@ -21,11 +21,29 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef LOCK_STREAM_FUNCTION_HOLD
+#define LOCK_STREAM_FUNCTION_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define NONE_LOCK_STREAM /*-------*/ (0)
+#define READ_LOCK_STREAM /*-------*/ (1)
+#define WRITE_LOCK_STREAM /*------*/ (2)
+#define READ_WRITE_LOCK_STREAM /*-*/ (WRITE_LOCK_STREAM)
+
+#define LOCKSTREAM() /*-----------*/ bool  lockStream(FILE *const stream, const uint8 streamLock)
+
+LOCKSTREAM();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
 

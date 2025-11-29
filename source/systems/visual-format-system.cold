@@ -1,0 +1,256 @@
+
+/*! visual-format-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/visual-format-system.hold"
+
+INITVISUALFORMATSYSTEM(){
+	if(!visualFormatSystem){
+		ret false;
+	}
+	initMutexSystem(&(*visualFormatSystem).mutexSystem);
+	(*visualFormatSystem).memoryManagementSystem = NULL;
+	(*visualFormatSystem).connectionSystem = NULL;
+	(*visualFormatSystem).depth = 0;
+	(*visualFormatSystem).visual = XCB_NONE;
+	(*visualFormatSystem).colormap = XCB_NONE;
+	(*visualFormatSystem).multithreaded = false;
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SETVISUALFORMATMEMORYMANAGEMENTSYSTEM(){
+	if(!visualFormatSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*visualFormatSystem).mutexSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*visualFormatSystem).memoryManagementSystem){
+		unlockMutex(&(*visualFormatSystem).mutexSystem);
+		ret false;
+	}
+	(*visualFormatSystem).memoryManagementSystem = memoryManagementSystem;
+	unlockMutex(&(*visualFormatSystem).mutexSystem);
+	ret true;
+}
+SETVISUALFORMATCONNECTIONSYSTEM(){
+	if(!visualFormatSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*visualFormatSystem).mutexSystem)){
+		ret false;
+	}
+	if(connectionSystem == (*visualFormatSystem).connectionSystem){
+		unlockMutex(&(*visualFormatSystem).mutexSystem);
+		ret false;
+	}
+	(*visualFormatSystem).connectionSystem = connectionSystem;
+	unlockMutex(&(*visualFormatSystem).mutexSystem);
+	ret true;
+}
+SETVISUALFORMATMULTITHREADING(){
+	if(!visualFormatSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*visualFormatSystem).multithreaded){
+		ret false;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*visualFormatSystem).mutexSystem)){
+			ret false;
+		}
+	}else{
+		if(!destroyMutex(&(*visualFormatSystem).mutexSystem)){
+			ret false;
+		}
+	}
+	setMutexMultithreading(&(*visualFormatSystem).mutexSystem, multithreaded);
+	(*visualFormatSystem).multithreaded = multithreaded;
+	ret true;
+}
+REQUESTVISUALFORMAT(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	xcb_depth_iterator_t depthIterator;
+	xcb_visualtype_iterator_t visualIterator;
+	xcb_visualid_t visual;
+	xcb_colormap_t colormap;
+	if(!visualFormatSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*visualFormatSystem).mutexSystem)){
+		ret false;
+	}
+	connectionSystem = (*visualFormatSystem).connectionSystem;
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		unlockMutex(&(*visualFormatSystem).mutexSystem);
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !depth or visualClass > XCB_VISUAL_CLASS_DIRECT_COLOR){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockMutex(&(*visualFormatSystem).mutexSystem);
+		ret false;
+	}
+	connection = (*connectionSystem).connection;
+	depthIterator = xcb_screen_allowed_depths_iterator(xcb_setup_roots_iterator(xcb_get_setup(connection)).data + XDefaultScreen((*connectionSystem).display));
+	visual = XCB_NONE;
+	jmp findDepthLoop;
+	findDepthLoop:{
+		if(depthIterator.rem){
+			if((*depthIterator.data).depth == depth){
+				visualIterator = xcb_depth_visuals_iterator(depthIterator.data);
+				jmp findVisualLoop;
+			}
+			xcb_depth_next(&depthIterator);
+			jmp findDepthLoop;
+		}
+		ret false;
+	}
+	findVisualLoop:{
+		if(visualIterator.rem){
+			if((*visualIterator.data)._class == visualClass){
+				visual = (*visualIterator.data).visual_id;
+				jmp createColormap;
+			}
+			xcb_visualtype_next(&visualIterator);
+			jmp findVisualLoop;
+		}
+		ret false;
+	}
+	createColormap:{
+		xcb_void_cookie_t cookie;
+		xcb_generic_error_t *error;
+		uint32 token;
+		colormap = xcb_generate_id(connection);
+		cookie = xcb_create_colormap_checked(connection, XCB_COLORMAP_ALLOC_NONE, colormap, (*connectionSystem).rootWindow, visual);
+		error = xcb_request_check(connection, cookie);
+		token = insertMemoryManagementPointer((*visualFormatSystem).memoryManagementSystem, error, "VisualFormatSystem requestVisualFormat() xcb_create_colormap() error", &memoryManagementFree);
+		if(error){
+			free(error);
+			removeMemoryManagementPointer((*visualFormatSystem).memoryManagementSystem, token);
+			ret false;
+		}
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		if((*visualFormatSystem).colormap){
+			xcb_free_colormap(connection, (*visualFormatSystem).colormap);
+		}
+		(*visualFormatSystem).depth = depth;
+		(*visualFormatSystem).visual = visual;
+		(*visualFormatSystem).colormap = colormap;
+		ret true;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FINIVISUALFORMATSYSTEM(){
+	if(!visualFormatSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*visualFormatSystem).mutexSystem)){
+		ret false;
+	}
+	(*visualFormatSystem).multithreaded = false;
+	(*visualFormatSystem).colormap = XCB_NONE;
+	(*visualFormatSystem).visual = XCB_NONE;
+	(*visualFormatSystem).depth = 0;
+	(*visualFormatSystem).connectionSystem = NULL;
+	(*visualFormatSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+

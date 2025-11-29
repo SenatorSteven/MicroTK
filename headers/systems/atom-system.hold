@@ -1,0 +1,298 @@
+
+/*! atom-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef ATOM_SYSTEM_HOLD
+#define ATOM_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define AtomSystem /*---------------------------------------*/ AtomSystem
+
+#define NONE_ATOM /*----------------------------------------*/ (0)
+#define ICCCM_NAME_ATOM /*----------------------------------*/ (1)
+#define ICCCM_ICON_NAME_ATOM /*-----------------------------*/ (2)
+#define ICCCM_NORMAL_HINTS_ATOM /*--------------------------*/ (3)
+#define ICCCM_SIZE_HINTS_ATOM /*----------------------------*/ (4)
+#define ICCCM_HINTS_ATOM /*---------------------------------*/ (5)
+#define ICCCM_CLASS_ATOM /*---------------------------------*/ (6)
+#define ICCCM_TRANSIENT_FOR_ATOM /*-------------------------*/ (7)
+#define ICCCM_PROTOCOLS_ATOM /*-----------------------------*/ (8)
+#define ICCCM_TAKE_FOCUS_ATOM /*----------------------------*/ (9)
+#define ICCCM_DELETE_WINDOW_ATOM /*-------------------------*/ (10)
+#define ICCCM_COLORMAP_WINDOWS_ATOM /*----------------------*/ (11)
+#define ICCCM_COLORMAP_NOTIFY_ATOM /*-----------------------*/ (12)
+#define ICCCM_CLIENT_MACHINE_ATOM /*------------------------*/ (13)
+#define ICCCM_LOCALE_NAME_ATOM /*---------------------------*/ (14)
+#define ICCCM_WINDOW_ROLE_ATOM /*---------------------------*/ (15)
+#define ICCCM_COMMAND_ATOM /*-------------------------------*/ (16)
+#define ICCCM_CLIENT_LEADER_ATOM /*-------------------------*/ (17)
+#define ICCCM_STATE_ATOM /*---------------------------------*/ (18)
+#define ICCCM_CHANGE_STATE_ATOM /*--------------------------*/ (19)
+#define ICCCM_ICON_SIZE_ATOM /*-----------------------------*/ (20)
+#define ICCCM_SM_CLIENT_ID_ATOM /*--------------------------*/ (21)
+#define ICCCM_MANAGER_ATOM /*-------------------------------*/ (22)
+#define EWMH_SUPPORTED_ATOM /*------------------------------*/ (23)
+#define EWMH_CLIENT_LIST_ATOM /*----------------------------*/ (24)
+#define EWMH_CLIENT_LIST_STACKING_ATOM /*-------------------*/ (25)
+#define EWMH_NUMBER_OF_DESKTOPS_ATOM /*---------------------*/ (26)
+#define EWMH_DESKTOP_GEOMETRY_ATOM /*-----------------------*/ (27)
+#define EWMH_DESKTOP_VIEWPORT_ATOM /*-----------------------*/ (28)
+#define EWMH_CURRENT_DESKTOP_ATOM /*------------------------*/ (29)
+#define EWMH_DESKTOP_NAMES_ATOM /*--------------------------*/ (30)
+#define EWMH_ACTIVE_WINDOW_ATOM /*--------------------------*/ (31)
+#define EWMH_WORKAREA_ATOM /*-------------------------------*/ (32)
+#define EWMH_SUPPORTING_WM_CHECK_ATOM /*--------------------*/ (33)
+#define EWMH_VIRTUAL_ROOTS_ATOM /*--------------------------*/ (34)
+#define EWMH_DESKTOP_LAYOUT_ATOM /*-------------------------*/ (35)
+#define EWMH_SHOWING_DESKTOP_ATOM /*------------------------*/ (36)
+#define EWMH_CLOSE_WINDOW_ATOM /*---------------------------*/ (37)
+#define EWMH_MOVERESIZE_WINDOW_ATOM /*----------------------*/ (38)
+#define EWMH_MOVERESIZE_ATOM /*-----------------------------*/ (39)
+#define EWMH_RESTACK_WINDOW_ATOM /*-------------------------*/ (40)
+#define EWMH_REQUEST_FRAME_EXTENTS_ATOM /*------------------*/ (41)
+#define EWMH_NAME_ATOM /*-----------------------------------*/ (42)
+#define EWMH_VISIBLE_NAME_ATOM /*---------------------------*/ (43)
+#define EWMH_ICON_NAME_ATOM /*------------------------------*/ (44)
+#define EWMH_VISIBLE_ICON_NAME_ATOM /*----------------------*/ (45)
+#define EWMH_DESKTOP_ATOM /*--------------------------------*/ (46)
+#define EWMH_WINDOW_TYPE_ATOM /*----------------------------*/ (47)
+#define EWMH_WINDOW_TYPE_DESKTOP_ATOM /*--------------------*/ (48)
+#define EWMH_WINDOW_TYPE_DOCK_ATOM /*-----------------------*/ (49)
+#define EWMH_WINDOW_TYPE_TOOLBAR_ATOM /*--------------------*/ (50)
+#define EWMH_WINDOW_TYPE_MENU_ATOM /*-----------------------*/ (51)
+#define EWMH_WINDOW_TYPE_UTILITY_ATOM /*--------------------*/ (52)
+#define EWMH_WINDOW_TYPE_SPLASH_ATOM /*---------------------*/ (53)
+#define EWMH_WINDOW_TYPE_DIALOG_ATOM /*---------------------*/ (54)
+#define EWMH_WINDOW_TYPE_NORMAL_ATOM /*---------------------*/ (55)
+#define EWMH_STATE_ATOM /*----------------------------------*/ (56)
+#define EWMH_STATE_MODAL_ATOM /*----------------------------*/ (57)
+#define EWMH_STATE_STICKY_ATOM /*---------------------------*/ (58)
+#define EWMH_STATE_MAXIMIZED_HORZ_ATOM /*-------------------*/ (59)
+#define EWMH_STATE_MAXIMIZED_VERT_ATOM /*-------------------*/ (60)
+#define EWMH_STATE_SHADED_ATOM /*---------------------------*/ (61)
+#define EWMH_STATE_SKIP_TASKBAR_ATOM /*---------------------*/ (62)
+#define EWMH_STATE_SKIP_PAGER_ATOM /*-----------------------*/ (63)
+#define EWMH_STATE_HIDDEN_ATOM /*---------------------------*/ (64)
+#define EWMH_STATE_FULLSCREEN_ATOM /*-----------------------*/ (65)
+#define EWMH_STATE_ABOVE_ATOM /*----------------------------*/ (66)
+#define EWMH_STATE_BELOW_ATOM /*----------------------------*/ (67)
+#define EWMH_STATE_DEMANDS_ATTENTION_ATOM /*----------------*/ (68)
+#define EWMH_ALLOWED_ACTIONS_ATOM /*------------------------*/ (69)
+#define EWMH_ACTION_MOVE_ATOM /*----------------------------*/ (70)
+#define EWMH_ACTION_RESIZE_ATOM /*--------------------------*/ (71)
+#define EWMH_ACTION_MINIMIZE_ATOM /*------------------------*/ (72)
+#define EWMH_ACTION_SHADE_ATOM /*---------------------------*/ (73)
+#define EWMH_ACTION_STICK_ATOM /*---------------------------*/ (74)
+#define EWMH_ACTION_MAXIMIZE_HORZ_ATOM /*-------------------*/ (75)
+#define EWMH_ACTION_MAXIMIZE_VERT_ATOM /*-------------------*/ (76)
+#define EWMH_ACTION_FULLSCREEN_ATOM /*----------------------*/ (77)
+#define EWMH_ACTION_CHANGE_DESKTOP_ATOM /*------------------*/ (78)
+#define EWMH_ACTION_CLOSE_ATOM /*---------------------------*/ (79)
+#define EWMH_STRUT_ATOM /*----------------------------------*/ (80)
+#define EWMH_STRUT_PARTIAL_ATOM /*--------------------------*/ (81)
+#define EWMH_ICON_GEOMETRY_ATOM /*--------------------------*/ (82)
+#define EWMH_ICON_ATOM /*-----------------------------------*/ (83)
+#define EWMH_PID_ATOM /*------------------------------------*/ (84)
+#define EWMH_HANDLED_ICONS_ATOM /*--------------------------*/ (85)
+#define EWMH_USER_TIME_ATOM /*------------------------------*/ (86)
+#define EWMH_FRAME_EXTENTS_ATOM /*--------------------------*/ (87)
+#define EWMH_PING_ATOM /*-----------------------------------*/ (88)
+#define EWMH_SYNC_REQUEST_ATOM /*---------------------------*/ (89)
+#define EWMH_SYNC_REQUEST_COUNTER_ATOM /*-------------------*/ (90)
+#define EWMH_UTF8_STRING_ATOM /*----------------------------*/ (91)
+#define XEMBED_ATOM /*--------------------------------------*/ (92)
+#define XEMBED_INFO_ATOM /*---------------------------------*/ (93)
+#define XEMBED_SYSTEM_TRAY_ORIENTATION_ATOM /*--------------*/ (94)
+#define XEMBED_SYSTEM_TRAY_OPCODE_ATOM /*-------------------*/ (95)
+#define XEMBED_SYSTEM_TRAY_MESSAGE_DATA_ATOM /*-------------*/ (96)
+#define ROOT_PIXMAP_ID_ATOM /*------------------------------*/ (97)
+#define WINDOW_OPACITY_ATOM /*------------------------------*/ (98)
+#define WM_Sn_ATOM /*---------------------------------------*/ (99)
+#define CM_Sn_ATOM /*---------------------------------------*/ (100)
+#define ST_Sn_ATOM /*---------------------------------------*/ (101)
+
+#define NONE_ATOM_OPERATION /*------------------------------*/ (0)
+#define SET_ATOM_MEMORY_MANAGEMENT_SYSTEM_ATOM_OPERATION /*-*/ (1)
+#define SET_ATOM_PRINT_SYSTEM_ATOM_OPERATION /*-------------*/ (2)
+#define SET_ATOM_CONNECTION_SYSTEM_ATOM_OPERATION /*--------*/ (3)
+#define SET_ATOM_ATOM_OPERATION /*--------------------------*/ (4)
+#define SET_ATOM_MULTITHREADING_ATOM_OPERATION /*-----------*/ (5)
+#define REQUEST_ATOMS_ATOM_OPERATION /*---------------------*/ (6)
+#define GET_ATOM_ATOM_OPERATION /*--------------------------*/ (7)
+
+#define NONE_ATOM_CODE /*-----------------------------------*/ (0)
+#define SUCCESS_ATOM_CODE /*--------------------------------*/ (1)
+#define NOTHING_DONE_ATOM_CODE /*---------------------------*/ (2)
+#define BAD_INPUT_ATOM_CODE /*------------------------------*/ (3)
+#define UNSET_VALUE_ATOM_CODE /*----------------------------*/ (4)
+#define CLOSED_CONNECTION_ATOM_CODE /*----------------------*/ (5)
+#define FAILED_MUTEX_ATOM_CODE /*---------------------------*/ (6)
+
+#define INITATOMSYSTEM() /*---------------------------------*/ bool  initAtomSystem(AtomSystem *const atomSystem)
+#define SETATOMMEMORYMANAGEMENTSYSTEM() /*------------------*/ bool  setAtomMemoryManagementSystem(AtomSystem *const atomSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETATOMPRINTSYSTEM() /*-----------------------------*/ bool  setAtomPrintSystem(AtomSystem *const atomSystem, PrintSystem *const printSystem)
+#define SETATOMCONNECTIONSYSTEM() /*------------------------*/ bool  setAtomConnectionSystem(AtomSystem *const atomSystem, ConnectionSystem *const connectionSystem)
+#define SETATOMTREE() /*------------------------------------*/ bool  setAtomTree(AtomSystem *const atomSystem, bool createTree)
+#define SETATOMMULTITHREADING() /*--------------------------*/ bool  setAtomMultithreading(AtomSystem *const atomSystem, bool multithreaded)
+#define REQUESTATOMS() /*-----------------------------------*/ bool  requestAtoms(AtomSystem *const atomSystem)
+#define GETATOM() /*----------------------------------------*/ bool  getAtom(AtomSystem *const atomSystem, const uint8 atom, xcb_atom_t *const atomReturn)
+#define FINIATOMSYSTEM() /*---------------------------------*/ bool  finiAtomSystem(AtomSystem *const atomSystem)
+
+#define PRINTATOMLOG() /*-----------------------------------*/ bool  printAtomLog(AtomSystem *const atomSystem)
+
+def struct{
+	LockSystem /*---------------*/ lockSystem;
+	AvlTreeSystem /*------------*/ avlTreeSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	ConnectionSystem * /*-------*/ connectionSystem;
+	xcb_atom_t /*---------------*/ ICCCM_NAME;
+	xcb_atom_t /*---------------*/ ICCCM_ICON_NAME;
+	xcb_atom_t /*---------------*/ ICCCM_NORMAL_HINTS;
+	xcb_atom_t /*---------------*/ ICCCM_SIZE_HINTS;
+	xcb_atom_t /*---------------*/ ICCCM_HINTS;
+	xcb_atom_t /*---------------*/ ICCCM_CLASS;
+	xcb_atom_t /*---------------*/ ICCCM_TRANSIENT_FOR;
+	xcb_atom_t /*---------------*/ ICCCM_PROTOCOLS;
+	xcb_atom_t /*---------------*/ ICCCM_TAKE_FOCUS;
+	xcb_atom_t /*---------------*/ ICCCM_DELETE_WINDOW;
+	xcb_atom_t /*---------------*/ ICCCM_COLORMAP_WINDOWS;
+	xcb_atom_t /*---------------*/ ICCCM_COLORMAP_NOTIFY;
+	xcb_atom_t /*---------------*/ ICCCM_CLIENT_MACHINE;
+	xcb_atom_t /*---------------*/ ICCCM_LOCALE_NAME;
+	xcb_atom_t /*---------------*/ ICCCM_WINDOW_ROLE;
+	xcb_atom_t /*---------------*/ ICCCM_COMMAND;
+	xcb_atom_t /*---------------*/ ICCCM_CLIENT_LEADER;
+	xcb_atom_t /*---------------*/ ICCCM_STATE;
+	xcb_atom_t /*---------------*/ ICCCM_CHANGE_STATE;
+	xcb_atom_t /*---------------*/ ICCCM_ICON_SIZE;
+	xcb_atom_t /*---------------*/ ICCCM_SM_CLIENT_ID;
+	xcb_atom_t /*---------------*/ ICCCM_MANAGER;
+	xcb_atom_t /*---------------*/ EWMH_SUPPORTED;
+	xcb_atom_t /*---------------*/ EWMH_CLIENT_LIST;
+	xcb_atom_t /*---------------*/ EWMH_CLIENT_LIST_STACKING;
+	xcb_atom_t /*---------------*/ EWMH_NUMBER_OF_DESKTOPS;
+	xcb_atom_t /*---------------*/ EWMH_DESKTOP_GEOMETRY;
+	xcb_atom_t /*---------------*/ EWMH_DESKTOP_VIEWPORT;
+	xcb_atom_t /*---------------*/ EWMH_CURRENT_DESKTOP;
+	xcb_atom_t /*---------------*/ EWMH_DESKTOP_NAMES;
+	xcb_atom_t /*---------------*/ EWMH_ACTIVE_WINDOW;
+	xcb_atom_t /*---------------*/ EWMH_WORKAREA;
+	xcb_atom_t /*---------------*/ EWMH_SUPPORTING_WM_CHECK;
+	xcb_atom_t /*---------------*/ EWMH_VIRTUAL_ROOTS;
+	xcb_atom_t /*---------------*/ EWMH_DESKTOP_LAYOUT;
+	xcb_atom_t /*---------------*/ EWMH_SHOWING_DESKTOP;
+	xcb_atom_t /*---------------*/ EWMH_CLOSE_WINDOW;
+	xcb_atom_t /*---------------*/ EWMH_MOVERESIZE_WINDOW;
+	xcb_atom_t /*---------------*/ EWMH_MOVERESIZE;
+	xcb_atom_t /*---------------*/ EWMH_RESTACK_WINDOW;
+	xcb_atom_t /*---------------*/ EWMH_REQUEST_FRAME_EXTENTS;
+	xcb_atom_t /*---------------*/ EWMH_NAME;
+	xcb_atom_t /*---------------*/ EWMH_VISIBLE_NAME;
+	xcb_atom_t /*---------------*/ EWMH_ICON_NAME;
+	xcb_atom_t /*---------------*/ EWMH_VISIBLE_ICON_NAME;
+	xcb_atom_t /*---------------*/ EWMH_DESKTOP;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE_DESKTOP;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE_DOCK;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE_TOOLBAR;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE_MENU;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE_UTILITY;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE_SPLASH;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE_DIALOG;
+	xcb_atom_t /*---------------*/ EWMH_WINDOW_TYPE_NORMAL;
+	xcb_atom_t /*---------------*/ EWMH_STATE;
+	xcb_atom_t /*---------------*/ EWMH_STATE_MODAL;
+	xcb_atom_t /*---------------*/ EWMH_STATE_STICKY;
+	xcb_atom_t /*---------------*/ EWMH_STATE_MAXIMIZED_HORZ;
+	xcb_atom_t /*---------------*/ EWMH_STATE_MAXIMIZED_VERT;
+	xcb_atom_t /*---------------*/ EWMH_STATE_SHADED;
+	xcb_atom_t /*---------------*/ EWMH_STATE_SKIP_TASKBAR;
+	xcb_atom_t /*---------------*/ EWMH_STATE_SKIP_PAGER;
+	xcb_atom_t /*---------------*/ EWMH_STATE_HIDDEN;
+	xcb_atom_t /*---------------*/ EWMH_STATE_FULLSCREEN;
+	xcb_atom_t /*---------------*/ EWMH_STATE_ABOVE;
+	xcb_atom_t /*---------------*/ EWMH_STATE_BELOW;
+	xcb_atom_t /*---------------*/ EWMH_STATE_DEMANDS_ATTENTION;
+	xcb_atom_t /*---------------*/ EWMH_ALLOWED_ACTIONS;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_MOVE;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_RESIZE;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_MINIMIZE;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_SHADE;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_STICK;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_MAXIMIZE_HORZ;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_MAXIMIZE_VERT;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_FULLSCREEN;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_CHANGE_DESKTOP;
+	xcb_atom_t /*---------------*/ EWMH_ACTION_CLOSE;
+	xcb_atom_t /*---------------*/ EWMH_STRUT;
+	xcb_atom_t /*---------------*/ EWMH_STRUT_PARTIAL;
+	xcb_atom_t /*---------------*/ EWMH_ICON_GEOMETRY;
+	xcb_atom_t /*---------------*/ EWMH_ICON;
+	xcb_atom_t /*---------------*/ EWMH_PID;
+	xcb_atom_t /*---------------*/ EWMH_HANDLED_ICONS;
+	xcb_atom_t /*---------------*/ EWMH_USER_TIME;
+	xcb_atom_t /*---------------*/ EWMH_FRAME_EXTENTS;
+	xcb_atom_t /*---------------*/ EWMH_PING;
+	xcb_atom_t /*---------------*/ EWMH_SYNC_REQUEST;
+	xcb_atom_t /*---------------*/ EWMH_SYNC_REQUEST_COUNTER;
+	xcb_atom_t /*---------------*/ EWMH_UTF8_STRING;
+	xcb_atom_t /*---------------*/ XEMBED;
+	xcb_atom_t /*---------------*/ XEMBED_INFO;
+	xcb_atom_t /*---------------*/ XEMBED_SYSTEM_TRAY_ORIENTATION;
+	xcb_atom_t /*---------------*/ XEMBED_SYSTEM_TRAY_OPCODE;
+	xcb_atom_t /*---------------*/ XEMBED_SYSTEM_TRAY_MESSAGE_DATA;
+	xcb_atom_t /*---------------*/ ROOT_PIXMAP_ID;
+	xcb_atom_t /*---------------*/ WINDOW_OPACITY;
+	xcb_atom_t /*---------------*/ WM_Sn;
+	xcb_atom_t /*---------------*/ CM_Sn;
+	xcb_atom_t /*---------------*/ ST_Sn;
+	bool /*---------------------*/ createTree;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+} AtomSystem;
+
+INITATOMSYSTEM();
+SETATOMMEMORYMANAGEMENTSYSTEM();
+SETATOMPRINTSYSTEM();
+SETATOMCONNECTIONSYSTEM();
+SETATOMTREE();
+SETATOMMULTITHREADING();
+REQUESTATOMS();
+GETATOM();
+FINIATOMSYSTEM();
+PRINTATOMLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

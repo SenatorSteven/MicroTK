@@ -1,0 +1,629 @@
+
+/*! keyboard-layout-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning ║
+#warning ╠═══ Check if the parsing of the string is done properly based on a particular source instead of wholesale trusting setxkbmap.
+#warning ║
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <xcb/xkb.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/keyboard-layout-system.hold"
+#include "../../headers/functions/copy-memory-function.hold"
+#include "../../headers/functions/find-substring-function.hold"
+
+INITKEYBOARDLAYOUTSYSTEM(){
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	initMutexSystem(&(*keyboardLayoutSystem).mutexSystem);
+	(*keyboardLayoutSystem).memoryManagementSystem = NULL;
+	(*keyboardLayoutSystem).printSystem = NULL;
+	(*keyboardLayoutSystem).connectionSystem = NULL;
+	(*keyboardLayoutSystem).keyboardLayoutDataStart = NULL;
+	(*keyboardLayoutSystem).keyboardLayoutDataToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*keyboardLayoutSystem).keyboardLayoutDataSize = 0;
+	(*keyboardLayoutSystem).keyboardLayoutAmount = 0;
+	(*keyboardLayoutSystem).currentKeyboardLayout = 0;
+	(*keyboardLayoutSystem).operation = NONE_KEYBOARD_LAYOUT_OPERATION;
+	(*keyboardLayoutSystem).code = NONE_KEYBOARD_LAYOUT_CODE;
+	(*keyboardLayoutSystem).multithreaded = false;
+	ret true;
+}
+SETKEYBOARDLAYOUTMEMORYMANAGEMENTSYSTEM(){
+	uint8 code;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*keyboardLayoutSystem).memoryManagementSystem){
+		code = NOTHING_DONE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	if(memoryManagementSystem){
+		(*keyboardLayoutSystem).keyboardLayoutDataToken = insertMemoryManagementPointer(memoryManagementSystem, (*keyboardLayoutSystem).keyboardLayoutDataStart, "KeyboardLayoutSystem setKeyboardLayoutMemoryManagementSystem() keyboard layout data pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, (*keyboardLayoutSystem).keyboardLayoutDataToken);
+	}
+	(*keyboardLayoutSystem).memoryManagementSystem = memoryManagementSystem;
+	code = SUCCESS_KEYBOARD_LAYOUT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*keyboardLayoutSystem).operation = SET_KEYBOARD_LAYOUT_MEMORY_MANAGEMENT_SYSTEM_KEYBOARD_LAYOUT_OPERATION;
+		(*keyboardLayoutSystem).code = code;
+		unlockMutex(&(*keyboardLayoutSystem).mutexSystem);
+		if(code != SUCCESS_KEYBOARD_LAYOUT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETKEYBOARDLAYOUTPRINTSYSTEM(){
+	uint8 code;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	if(printSystem == (*keyboardLayoutSystem).printSystem){
+		code = NOTHING_DONE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	(*keyboardLayoutSystem).printSystem = printSystem;
+	code = SUCCESS_KEYBOARD_LAYOUT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*keyboardLayoutSystem).operation = SET_KEYBOARD_LAYOUT_PRINT_SYSTEM_KEYBOARD_LAYOUT_OPERATION;
+		(*keyboardLayoutSystem).code = code;
+		unlockMutex(&(*keyboardLayoutSystem).mutexSystem);
+		if(code != SUCCESS_KEYBOARD_LAYOUT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETKEYBOARDLAYOUTCONNECTIONSYSTEM(){
+	uint8 code;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	if(connectionSystem == (*keyboardLayoutSystem).connectionSystem){
+		code = NOTHING_DONE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	(*keyboardLayoutSystem).connectionSystem = connectionSystem;
+	code = SUCCESS_KEYBOARD_LAYOUT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*keyboardLayoutSystem).operation = SET_KEYBOARD_LAYOUT_CONNECTION_SYSTEM_KEYBOARD_LAYOUT_OPERATION;
+		(*keyboardLayoutSystem).code = code;
+		unlockMutex(&(*keyboardLayoutSystem).mutexSystem);
+		if(code != SUCCESS_KEYBOARD_LAYOUT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETCURRENTKEYBOARDLAYOUT(){
+	uint8 code;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	if(currentKeyboardLayout == (*keyboardLayoutSystem).currentKeyboardLayout){
+		code = NOTHING_DONE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	(*keyboardLayoutSystem).currentKeyboardLayout = currentKeyboardLayout;
+	code = SUCCESS_KEYBOARD_LAYOUT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*keyboardLayoutSystem).operation = SET_CURRENT_KEYBOARD_LAYOUT_KEYBOARD_LAYOUT_OPERATION;
+		(*keyboardLayoutSystem).code = code;
+		unlockMutex(&(*keyboardLayoutSystem).mutexSystem);
+		if(code != SUCCESS_KEYBOARD_LAYOUT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETKEYBOARDLAYOUTMULTITHREADING(){
+	uint8 code;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*keyboardLayoutSystem).multithreaded){
+		code = NOTHING_DONE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*keyboardLayoutSystem).mutexSystem)){
+			code = FAILED_MUTEX_KEYBOARD_LAYOUT_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyMutex(&(*keyboardLayoutSystem).mutexSystem)){
+			code = FAILED_MUTEX_KEYBOARD_LAYOUT_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setMutexMultithreading(&(*keyboardLayoutSystem).mutexSystem, multithreaded);
+	(*keyboardLayoutSystem).multithreaded = multithreaded;
+	code = SUCCESS_KEYBOARD_LAYOUT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*keyboardLayoutSystem).operation = SET_KEYBOARD_LAYOUT_MULTITHREADING_KEYBOARD_LAYOUT_OPERATION;
+		(*keyboardLayoutSystem).code = code;
+		if(code != SUCCESS_KEYBOARD_LAYOUT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+REQUESTKEYBOARDLAYOUTS(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	xcb_xkb_get_names_reply_t *nameReply;
+	uint32 nameToken;
+	xcb_xkb_get_names_value_list_t valueList;
+	uint layoutAmount;
+	xcb_get_atom_name_reply_t *stringAtomReply;
+	uint32 stringAtomToken;
+	char *stringStart;
+	uint stringSize;
+	uint8 code;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	connectionSystem = (*keyboardLayoutSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	jmp getKeyboardLayoutData;
+	getKeyboardLayoutData:{
+		nameReply = xcb_wait_for_reply(connection, xcb_xkb_get_names(connection, XCB_XKB_ID_USE_CORE_KBD, XCB_XKB_NAME_DETAIL_SYMBOLS | XCB_XKB_NAME_DETAIL_GROUP_NAMES), NULL);
+		nameToken = insertMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, nameReply, "KeyboardLayoutSystem requestKeyboardLayouts() xcb_xkb_get_state() reply", &memoryManagementFree);
+		if(!nameReply){
+			unlockLock(&(*connectionSystem).lockSystem);
+			code = FAILED_ALLOCATION_KEYBOARD_LAYOUT_CODE;
+			jmp emergencyExit;
+		}
+		xcb_xkb_get_names_value_list_unpack(xcb_xkb_get_names_value_list(nameReply), (*nameReply).nTypes, (*nameReply).indicators, (*nameReply).virtualMods, (*nameReply).groupNames, (*nameReply).nKeys, (*nameReply).nKeyAliases, (*nameReply).nRadioGroups, (*nameReply).which, &valueList);
+		layoutAmount = xcb_xkb_get_names_value_list_groups_length(nameReply, &valueList);
+		if(!layoutAmount){
+			free(nameReply);
+			removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, nameToken);
+			unlockLock(&(*connectionSystem).lockSystem);
+			code = FAILURE_KEYBOARD_LAYOUT_CODE;
+			jmp emergencyExit;
+		}
+		jmp getKeyboardLayoutString;
+	}
+	getKeyboardLayoutString:{
+		stringAtomReply = xcb_wait_for_reply(connection, xcb_get_atom_name(connection, valueList.symbolsName), NULL);
+		stringAtomToken = insertMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, stringAtomReply, "KeyboardLayoutSystem requestKeyboardLayouts() xcb_get_atom_name() reply", &memoryManagementFree);
+		stringStart = NULL;
+		stringSize = 0;
+		if(stringAtomReply){
+			stringStart = xcb_get_atom_name_name(stringAtomReply);
+			stringSize = xcb_get_atom_name_name_length(stringAtomReply);
+		}
+		if(!stringStart or !stringSize){
+			free(stringAtomReply);
+			removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, stringAtomToken);
+			free(nameReply);
+			removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, nameToken);
+			unlockLock(&(*connectionSystem).lockSystem);
+			code = FAILURE_KEYBOARD_LAYOUT_CODE;
+			jmp emergencyExit;
+		}
+		jmp getKeyboardLayouts;
+	}
+	getKeyboardLayouts:{
+		xcb_atom_t *layoutNameStart = xcb_xkb_get_names_value_list_groups(&valueList);
+		xcb_atom_t *layoutNameCurrent = layoutNameStart;
+		xcb_atom_t *const layoutNameWall = layoutNameCurrent + layoutAmount;
+		char *entryStart = stringStart;
+		uint entrySize = findSubstring(stringStart, stringSize, "+", lengthof("+"), 1) - entryStart;
+		void *keyboardLayoutDataStart = NULL;
+		uint32 keyboardLayoutDataToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+		uint keyboardLayoutDataSize = 0;
+		stringStart += entrySize + lengthof("+");
+		stringSize -= entrySize + lengthof("+");
+		jmp getKeyboardLayoutLoop;
+		getKeyboardLayoutLoop:{
+			if(layoutNameCurrent < layoutNameWall){
+				xcb_get_atom_name_reply_t *const atomReply = xcb_wait_for_reply(connection, xcb_get_atom_name(connection, *layoutNameCurrent), NULL);
+				uint32 atomToken = insertMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, atomReply, "KeyboardLayoutSystem requestKeyboardLayouts() xcb_get_atom_name() reply", &memoryManagementFree);
+				char *nameStart;
+				uint nameSize;
+				char *simpleNameStart;
+				uint simpleNameSize;
+				char *layoutStart;
+				uint layoutSize;
+				char *variantStart;
+				uint variantSize;
+				uint layoutDataSize = 0;
+				if(atomReply){
+					nameSize = xcb_get_atom_name_name_length(atomReply);
+					if(nameSize){
+						char *substring;
+						nameStart = xcb_get_atom_name_name(atomReply);
+						simpleNameStart = nameStart;
+						simpleNameSize = nameSize;
+						substring = findSubstring(simpleNameStart, simpleNameSize, "(", lengthof("("), 1);
+						if(substring){
+							simpleNameSize = substring - simpleNameStart - lengthof(" ");
+						}
+						entryStart = stringStart;
+						entrySize = stringSize;
+						substring = findSubstring(entryStart, entrySize, "+", lengthof("+"), 1);
+						if(substring){
+							entrySize = substring - entryStart;
+							stringStart += lengthof("+");
+							stringSize -= lengthof("+");
+						}
+						stringStart += entrySize;
+						stringSize -= entrySize;
+						substring = findSubstring(entryStart, entrySize, ":", lengthof(":"), 1);
+						if(substring){
+							entrySize = substring - entryStart;
+						}
+						layoutStart = entryStart;
+						layoutSize = entrySize;
+						variantStart = NULL;
+						variantSize = 0;
+						substring = findSubstring(layoutStart, layoutSize, "(", lengthof("("), 1);
+						if(substring){
+							layoutSize = substring - layoutStart;
+							variantStart = substring + lengthof("(");
+							variantSize = entryStart + entrySize - variantStart - lengthof(")");
+						}
+						layoutDataSize = nameSize + !!nameSize + simpleNameSize + !!simpleNameSize + layoutSize + !!layoutSize + variantSize + !!variantSize;
+					}
+				}
+				if(layoutDataSize or !keyboardLayoutDataSize){
+					void *temp;
+					if(!keyboardLayoutDataSize){
+						keyboardLayoutDataSize += layoutAmount * 5 * sizeof(uint32);
+					}
+					keyboardLayoutDataSize += layoutDataSize;
+					temp = realloc(keyboardLayoutDataStart, keyboardLayoutDataSize * sizeof(uint8));
+					if(!keyboardLayoutDataToken){
+						keyboardLayoutDataToken = insertMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, temp, "KeyboardLayoutSystem requestKeyboardLayouts() keyboard layout data pointer", &memoryManagementFree);
+					}else{
+						updateMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, keyboardLayoutDataToken, temp);
+					}
+					if(!temp){
+						free(atomReply);
+						removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, atomToken);
+						free(keyboardLayoutDataStart);
+						removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, keyboardLayoutDataToken);
+						free(stringAtomReply);
+						removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, stringAtomToken);
+						free(nameReply);
+						removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, nameToken);
+						unlockLock(&(*connectionSystem).lockSystem);
+						code = FAILURE_KEYBOARD_LAYOUT_CODE;
+						jmp emergencyExit;
+					}
+					keyboardLayoutDataStart = temp;
+				}
+				{
+					uint32 *const layoutData = (uint32 *)keyboardLayoutDataStart + (layoutNameCurrent - layoutNameStart) * 5;
+					*(layoutData + 0) = !!layoutDataSize * keyboardLayoutDataSize - layoutDataSize;
+					if(layoutDataSize){
+						char *stringCurrent = (char *)keyboardLayoutDataStart + *(layoutData + 0);
+						*(layoutData + 1) = nameSize;
+						*(layoutData + 2) = simpleNameSize;
+						*(layoutData + 3) = layoutSize;
+						*(layoutData + 4) = variantSize;
+						if(nameSize){
+							copyMemory(nameStart, stringCurrent, nameSize);
+							stringCurrent += nameSize;
+							*stringCurrent = '\0';
+							inc stringCurrent;
+						}
+						if(simpleNameSize){
+							copyMemory(simpleNameStart, stringCurrent, simpleNameSize);
+							stringCurrent += simpleNameSize;
+							*stringCurrent = '\0';
+							inc stringCurrent;
+						}
+						if(layoutSize){
+							copyMemory(layoutStart, stringCurrent, layoutSize);
+							stringCurrent += layoutSize;
+							*stringCurrent = '\0';
+							inc stringCurrent;
+						}
+						if(variantSize){
+							copyMemory(variantStart, stringCurrent, variantSize);
+							stringCurrent += variantSize;
+							*stringCurrent = '\0';
+							inc stringCurrent;
+						}
+					}
+				}
+				free(atomReply);
+				removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, atomToken);
+				inc layoutNameCurrent;
+				jmp getKeyboardLayoutLoop;
+			}
+			(*keyboardLayoutSystem).keyboardLayoutDataStart = keyboardLayoutDataStart;
+			(*keyboardLayoutSystem).keyboardLayoutDataToken = keyboardLayoutDataToken;
+			(*keyboardLayoutSystem).keyboardLayoutDataSize = keyboardLayoutDataSize;
+			(*keyboardLayoutSystem).keyboardLayoutAmount = layoutAmount;
+			free(stringAtomReply);
+			removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, stringAtomToken);
+			free(nameReply);
+			removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, nameToken);
+			unlockLock(&(*connectionSystem).lockSystem);
+			code = SUCCESS_KEYBOARD_LAYOUT_CODE;
+			jmp emergencyExit;
+		}
+	}
+	emergencyExit:{
+		(*keyboardLayoutSystem).operation = REQUEST_KEYBOARD_LAYOUTS_KEYBOARD_LAYOUT_OPERATION;
+		(*keyboardLayoutSystem).code = code;
+		unlockMutex(&(*keyboardLayoutSystem).mutexSystem);
+		if(code != SUCCESS_KEYBOARD_LAYOUT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+REQUESTCURRENTKEYBOARDLAYOUT(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	xcb_xkb_get_state_reply_t *reply;
+	uint32 token;
+	uint8 currentKeyboardLayout;
+	uint8 code;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	connectionSystem = (*keyboardLayoutSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	reply = xcb_wait_for_reply(connection, xcb_xkb_get_state(connection, XCB_XKB_ID_USE_CORE_KBD), NULL);
+	token = insertMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, reply, "KeyboardLayoutSystem requestCurrentKeyboardLayout() xcb_xkb_get_state() reply", &memoryManagementFree);
+	unlockLock(&(*connectionSystem).lockSystem);
+	if(!reply){
+		code = FAILED_ALLOCATION_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	currentKeyboardLayout = (*reply).group;
+	free(reply);
+	removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, token);
+	if(currentKeyboardLayout == (*keyboardLayoutSystem).currentKeyboardLayout){
+		code = NOTHING_DONE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	(*keyboardLayoutSystem).currentKeyboardLayout = currentKeyboardLayout;
+	code = SUCCESS_KEYBOARD_LAYOUT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*keyboardLayoutSystem).operation = REQUEST_CURRENT_KEYBOARD_LAYOUT_KEYBOARD_LAYOUT_OPERATION;
+		(*keyboardLayoutSystem).code = code;
+		unlockMutex(&(*keyboardLayoutSystem).mutexSystem);
+		if(code != SUCCESS_KEYBOARD_LAYOUT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+CHANGECURRENTKEYBOARDLAYOUT(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	xcb_void_cookie_t cookie;
+	xcb_generic_error_t *error;
+	uint32 token;
+	uint8 code;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	connectionSystem = (*keyboardLayoutSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	cookie = xcb_xkb_latch_lock_state_checked(connection, XCB_XKB_ID_USE_CORE_KBD, XCB_NONE, XCB_NONE, true, group, XCB_NONE, XCB_NONE, XCB_NONE);
+	error = xcb_request_check(connection, cookie);
+	token = insertMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, error, "KeyboardLayoutSystem changeCurrentKeyboardLayout() xcb_xkb_latch_lock_state() error", &memoryManagementFree);
+	unlockLock(&(*connectionSystem).lockSystem);
+	if(error){
+		free(error);
+		removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, token);
+		code = FAILURE_KEYBOARD_LAYOUT_CODE;
+		jmp emergencyExit;
+	}
+	code = SUCCESS_KEYBOARD_LAYOUT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*keyboardLayoutSystem).operation = CHANGE_CURRENT_KEYBOARD_LAYOUT_KEYBOARD_LAYOUT_OPERATION;
+		(*keyboardLayoutSystem).code = code;
+		unlockMutex(&(*keyboardLayoutSystem).mutexSystem);
+		if(code != SUCCESS_KEYBOARD_LAYOUT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+FINIKEYBOARDLAYOUTSYSTEM(){
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	(*keyboardLayoutSystem).multithreaded = false;
+	(*keyboardLayoutSystem).code = NONE_KEYBOARD_LAYOUT_CODE;
+	(*keyboardLayoutSystem).operation = NONE_KEYBOARD_LAYOUT_OPERATION;
+	(*keyboardLayoutSystem).currentKeyboardLayout = 0;
+	(*keyboardLayoutSystem).keyboardLayoutAmount = 0;
+	free((*keyboardLayoutSystem).keyboardLayoutDataStart);
+	removeMemoryManagementPointer((*keyboardLayoutSystem).memoryManagementSystem, (*keyboardLayoutSystem).keyboardLayoutDataToken);
+	(*keyboardLayoutSystem).keyboardLayoutDataSize = 0;
+	(*keyboardLayoutSystem).keyboardLayoutDataToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*keyboardLayoutSystem).keyboardLayoutDataStart = NULL;
+	(*keyboardLayoutSystem).connectionSystem = NULL;
+	(*keyboardLayoutSystem).printSystem = NULL;
+	(*keyboardLayoutSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+PRINTKEYBOARDLAYOUTLOG(){
+	const char *operation;
+	const char *code;
+	PrintSystem *printSystem;
+	bool success;
+	if(!keyboardLayoutSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*keyboardLayoutSystem).mutexSystem)){
+		ret false;
+	}
+	printSystem = (*keyboardLayoutSystem).printSystem;
+	success = false;
+	if(!printSystem){
+		jmp emergencyExit;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		jmp emergencyExit;
+	}
+	switch((*keyboardLayoutSystem).operation){
+		to NONE_KEYBOARD_LAYOUT_OPERATION: /*-----------------------------------------*/ operation = NULL; /*--------------------------------------*/ brk;
+		to SET_KEYBOARD_LAYOUT_MEMORY_MANAGEMENT_SYSTEM_KEYBOARD_LAYOUT_OPERATION: /*-*/ operation = "setKeyboardLayoutMemoryManagementSystem"; /*-*/ brk;
+		to SET_KEYBOARD_LAYOUT_PRINT_SYSTEM_KEYBOARD_LAYOUT_OPERATION: /*-------------*/ operation = "setKeyboardLayoutPrintSystem"; /*------------*/ brk;
+		to SET_KEYBOARD_LAYOUT_CONNECTION_SYSTEM_KEYBOARD_LAYOUT_OPERATION: /*--------*/ operation = "setKeyboardLayoutConnectionSystem"; /*-------*/ brk;
+		to SET_CURRENT_KEYBOARD_LAYOUT_KEYBOARD_LAYOUT_OPERATION: /*------------------*/ operation = "setCurrentKeyboardLayout"; /*----------------*/ brk;
+		to SET_KEYBOARD_LAYOUT_MULTITHREADING_KEYBOARD_LAYOUT_OPERATION: /*-----------*/ operation = "setKeyboardLayoutMultithreading"; /*---------*/ brk;
+		to REQUEST_KEYBOARD_LAYOUTS_KEYBOARD_LAYOUT_OPERATION: /*---------------------*/ operation = "requestKeyboardLayouts"; /*------------------*/ brk;
+		to REQUEST_CURRENT_KEYBOARD_LAYOUT_KEYBOARD_LAYOUT_OPERATION: /*--------------*/ operation = "requestCurrentKeyboardLayout"; /*------------*/ brk;
+		to CHANGE_CURRENT_KEYBOARD_LAYOUT_KEYBOARD_LAYOUT_OPERATION: /*---------------*/ operation = "changeCurrentKeyboardLayout"; /*-------------*/ brk;
+		off: /*-----------------------------------------------------------------------*/ operation = "<operation>"; /*-----------------------------*/ brk;
+	}
+	switch((*keyboardLayoutSystem).code){
+		to NONE_KEYBOARD_LAYOUT_CODE: /*----------------------------------------------*/ code = NULL; /*-------------------------------------------*/ brk;
+		to SUCCESS_KEYBOARD_LAYOUT_CODE: /*-------------------------------------------*/ code = "success"; /*--------------------------------------*/ brk;
+		to NOTHING_DONE_KEYBOARD_LAYOUT_CODE: /*--------------------------------------*/ code = "nothing done"; /*---------------------------------*/ brk;
+		to UNSET_VALUE_KEYBOARD_LAYOUT_CODE: /*---------------------------------------*/ code = "unset value"; /*----------------------------------*/ brk;
+		to CLOSED_CONNECTION_KEYBOARD_LAYOUT_CODE: /*---------------------------------*/ code = "closed connection"; /*----------------------------*/ brk;
+		to FAILED_ALLOCATION_KEYBOARD_LAYOUT_CODE: /*---------------------------------*/ code = "failed allocation"; /*----------------------------*/ brk;
+		to FAILED_MUTEX_KEYBOARD_LAYOUT_CODE: /*--------------------------------------*/ code = "failed mutex"; /*---------------------------------*/ brk;
+		to FAILURE_KEYBOARD_LAYOUT_CODE: /*-------------------------------------------*/ code = "failure"; /*--------------------------------------*/ brk;
+		off: /*-----------------------------------------------------------------------*/ code = "<code>"; /*---------------------------------------*/ brk;
+	}
+	if(operation and code){
+		if((*keyboardLayoutSystem).code == SUCCESS_KEYBOARD_LAYOUT_CODE){
+			if(printUnlockedOutput(printSystem, "%s%s: [%ssuccess%s%s] keyboard layout system:%s %s() reported \"%s\"\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorEvent, (*printSystem).outputColorEnd, (*printSystem).outputColorStart, (*printSystem).outputColorEnd, operation, code)){
+				success = true;
+			}
+		}else{
+			if(printUnlockedError(printSystem, "%s%s: [%sfailure%s%s] keyboard layout system:%s %s() reported \"%s\"\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, (*printSystem).errorColorEnd, (*printSystem).errorColorStart, (*printSystem).errorColorEnd, operation, code)){
+				success = true;
+			}
+		}
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	jmp emergencyExit;
+	emergencyExit:{
+		unlockMutex(&(*keyboardLayoutSystem).mutexSystem);
+		if(!success){
+			ret false;
+		}
+		ret true;
+	}
+}
+

@@ -1,0 +1,403 @@
+
+/*! shortcut-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Enable multithreading.
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/stack-system.hold"
+#include "../../headers/systems/shortcut-system.hold"
+#include "../../headers/functions/set-memory-function.hold"
+
+INITSHORTCUTSYSTEM(){
+	if(!shortcutSystem){
+		ret false;
+	}
+	(*shortcutSystem).memoryManagementSystem = NULL;
+	(*shortcutSystem).shortcutStart = NULL;
+	(*shortcutSystem).shortcutToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*shortcutSystem).shortcutSize = 0;
+	(*shortcutSystem).shortcutAllocated = 0;
+	(*shortcutSystem).shortcutBlockSize = 0;
+	(*shortcutSystem).codeListStart = NULL;
+	(*shortcutSystem).codeListToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*shortcutSystem).codeListSize = 0;
+	initStackSystem(&(*shortcutSystem).stackSystem);
+	ret true;
+}
+SETSHORTCUTMEMORYMANAGEMENTSYSTEM(){
+	if(!shortcutSystem or memoryManagementSystem == (*shortcutSystem).memoryManagementSystem){
+		ret false;
+	}
+	if(memoryManagementSystem){
+		(*shortcutSystem).shortcutToken = insertMemoryManagementPointer(memoryManagementSystem, (*shortcutSystem).shortcutStart, "ShortcutSystem setShortcutMemoryManagementSystem() shortcut list pointer", &memoryManagementFree);
+		(*shortcutSystem).codeListToken = insertMemoryManagementPointer(memoryManagementSystem, (*shortcutSystem).codeListStart, "ShortcutSystem setShortcutMemoryManagementSystem() shortcut code list pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*shortcutSystem).memoryManagementSystem, (*shortcutSystem).shortcutToken);
+		removeMemoryManagementPointer((*shortcutSystem).memoryManagementSystem, (*shortcutSystem).codeListToken);
+	}
+	setStackMemoryManagementSystem(&(*shortcutSystem).stackSystem, memoryManagementSystem);
+	(*shortcutSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETSHORTCUTAMOUNT(){
+	if(!shortcutSystem or (*shortcutSystem).shortcutAllocated - (*shortcutSystem).stackSystem.elementAllocated or amount == (*shortcutSystem).codeListSize){
+		ret false;
+	}
+	(*shortcutSystem).codeListSize = amount;
+	ret true;
+}
+SETSHORTCUTBLOCKSIZE(){
+	if(!shortcutSystem or blockSize == (*shortcutSystem).shortcutBlockSize){
+		ret false;
+	}
+	(*shortcutSystem).shortcutBlockSize = blockSize;
+	setStackBlockSize(&(*shortcutSystem).stackSystem, blockSize);
+	setStackElementWidth(&(*shortcutSystem).stackSystem, sizeof(uint));
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+INSERTSHORTCUT(){
+	uint offset;
+	ShortcutNode *node;
+	if(!shortcutSystem or !(*shortcutSystem).shortcutBlockSize or !(*shortcutSystem).codeListSize or state > RELEASE_SHORTCUT_STATE){
+		ret false;
+	}
+	jmp insertShortcut;
+	insertShortcut:{
+		if((*shortcutSystem).shortcutAllocated == (*shortcutSystem).shortcutSize){
+			void *temp;
+			(*shortcutSystem).shortcutSize += (*shortcutSystem).shortcutBlockSize;
+			temp = realloc((*shortcutSystem).shortcutStart, (*shortcutSystem).shortcutSize * sizeof(ShortcutNode));
+			if(!(*shortcutSystem).shortcutToken){
+				(*shortcutSystem).shortcutToken = insertMemoryManagementPointer((*shortcutSystem).memoryManagementSystem, temp, "ShortcutSystem insertShortcut() shortcut list pointer", &memoryManagementFree);
+			}else{
+				updateMemoryManagementPointer((*shortcutSystem).memoryManagementSystem, (*shortcutSystem).shortcutToken, temp);
+			}
+			if(!temp){
+				(*shortcutSystem).shortcutSize -= (*shortcutSystem).shortcutBlockSize;
+				ret false;
+			}
+			if(!(*shortcutSystem).shortcutAllocated){
+				node = (*shortcutSystem).shortcutStart;
+				(*node).code = 0;
+				(*node).modifier = 0;
+				(*node).ignoredModifier = 0;
+				(*node).state = 0;
+				(*node).nextOffset = 0;
+				inc (*shortcutSystem).shortcutAllocated;
+				jmp insertShortcut;
+			}
+			(*shortcutSystem).shortcutStart = temp;
+		}
+		if(!((*shortcutSystem).shortcutAllocated - (*shortcutSystem).stackSystem.elementAllocated)){
+			void *const temp = realloc((*shortcutSystem).codeListStart, 2 * (*shortcutSystem).codeListSize * sizeof(uint32));
+			if(!(*shortcutSystem).codeListToken){
+				(*shortcutSystem).codeListToken = insertMemoryManagementPointer((*shortcutSystem).memoryManagementSystem, temp, "ShortcutSystem insertShortcut() shortcut code list pointer", &memoryManagementFree);
+			}else{
+				updateMemoryManagementPointer((*shortcutSystem).memoryManagementSystem, (*shortcutSystem).codeListToken, temp);
+			}
+			if(!temp){
+				ret false;
+			}
+			(*shortcutSystem).codeListStart = temp;
+			setMemory((*shortcutSystem).codeListStart, 2 * (*shortcutSystem).codeListSize, sizeof(uint32), 0);
+		}
+		if(!popStackElement(&(*shortcutSystem).stackSystem, &offset)){
+			offset = (*shortcutSystem).shortcutAllocated;
+			inc (*shortcutSystem).shortcutAllocated;
+		}
+		node = (*shortcutSystem).shortcutStart + offset;
+		(*node).code = code;
+		(*node).modifier = modifier;
+		(*node).ignoredModifier = ignoredModifier;
+		(*node).state = state;
+		(*node).nextOffset = 0;
+		if(!*((*shortcutSystem).codeListStart + code)){
+			*((*shortcutSystem).codeListStart + code) = offset;
+		}else{
+			(*((*shortcutSystem).shortcutStart + *((*shortcutSystem).codeListStart + (*shortcutSystem).codeListSize + code))).nextOffset = offset;
+		}
+		*((*shortcutSystem).codeListStart + (*shortcutSystem).codeListSize + code) = offset;
+		ret true;
+	}
+}
+REMOVESHORTCUT(){
+	ShortcutNode *start;
+	uint shortcutAllocated;
+	ShortcutNode *current;
+	ShortcutNode *previous;
+	bool hasRemovedShortcut;
+	if(!shortcutSystem or !((*shortcutSystem).shortcutAllocated - (*shortcutSystem).stackSystem.elementAllocated)){
+		ret false;
+	}
+	start = (*shortcutSystem).shortcutStart;
+	shortcutAllocated = (*shortcutSystem).shortcutAllocated;
+	current = start + *((*shortcutSystem).codeListStart + code);
+	previous = NULL;
+	hasRemovedShortcut = false;
+	jmp removeShortcutLoop;
+	removeShortcutLoop:{
+		if(current > start){
+			if((*current).modifier == (modifier & ~(*current).ignoredModifier)){
+				if(*((*shortcutSystem).codeListStart + code) == *((*shortcutSystem).codeListStart + (*shortcutSystem).codeListSize + code)){
+					*((*shortcutSystem).codeListStart + (*shortcutSystem).codeListSize) = 0;
+				}
+				if(!previous){
+					*((*shortcutSystem).codeListStart + code) = (*current).nextOffset;
+				}else{
+					(*previous).nextOffset = (*current).nextOffset;
+				}
+				if(current == start + shortcutAllocated - 1){
+					dec shortcutAllocated;
+				}else{
+					uint element = current - start;
+					pushStackElement(&(*shortcutSystem).stackSystem, &element);
+				}
+				hasRemovedShortcut = true;
+			}
+			previous = current;
+			current = start + (*current).nextOffset;
+			jmp removeShortcutLoop;
+		}
+		(*shortcutSystem).shortcutAllocated = shortcutAllocated;
+		if(!hasRemovedShortcut){
+			ret false;
+		}
+		if(!((*shortcutSystem).shortcutAllocated - (*shortcutSystem).stackSystem.elementAllocated)){
+			removeAllShortcuts(shortcutSystem);
+		}
+		ret true;
+	}
+}
+
+
+
+
+
+
+
+
+
+/*! update post-counter shortcuts */
+
+REMOVEALLSHORTCUTS(){
+	if(!shortcutSystem or !(*shortcutSystem).shortcutStart){
+		ret false;
+	}
+	removeAllStackElements(&(*shortcutSystem).stackSystem);
+	free((*shortcutSystem).shortcutStart);
+	removeMemoryManagementPointer((*shortcutSystem).memoryManagementSystem, (*shortcutSystem).shortcutToken);
+	(*shortcutSystem).shortcutStart = NULL;
+	(*shortcutSystem).shortcutToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*shortcutSystem).shortcutSize = 0;
+	(*shortcutSystem).shortcutAllocated = 0;
+	free((*shortcutSystem).codeListStart);
+	removeMemoryManagementPointer((*shortcutSystem).memoryManagementSystem, (*shortcutSystem).codeListToken);
+	(*shortcutSystem).codeListStart = NULL;
+	(*shortcutSystem).codeListToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+TRAVERSEMATCHINGSHORTCUTS(){
+	ShortcutNode *start;
+	ShortcutNode *current;
+	bool hasFoundShortcut;
+	if(!shortcutSystem or !((*shortcutSystem).shortcutAllocated - (*shortcutSystem).stackSystem.elementAllocated) or code >= (*shortcutSystem).codeListSize or state > RELEASE_SHORTCUT_STATE or !function){
+		ret false;
+	}
+	start = (*shortcutSystem).shortcutStart;
+	current = start + *((*shortcutSystem).codeListStart + code);
+	jmp traverseMatchingShortcutLoop;
+	traverseMatchingShortcutLoop:{
+		if(current > start){
+			if((*current).state == state and (*current).modifier == (modifier & ~(*current).ignoredModifier)){
+				if(!(*function)(shortcutSystem, current, argument)){
+					ret false;
+				}
+				hasFoundShortcut = true;
+			}
+			current = start + (*current).nextOffset;
+			jmp traverseMatchingShortcutLoop;
+		}
+		if(!hasFoundShortcut){
+			ret false;
+		}
+		ret true;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*! how will the removing be done? do it in a callback fashion? */
+
+#define INSERTCOUNTERSHORTCUT() /*-----------*/ bool  insertCounterShortcut(ShortcutSystem *const shortcutSystem, const uint8 code, const uint16 modifier, const uint16 ignoredModifier)
+#define TRAVERSEREMOVEDCOUNTERSHORTCUTS() /*-*/ bool  traverseRemovedCounterShortcuts(ShortcutSystem *const shortcutSystem, const uint8 code, const uint16 modifier, const uint16 ignoredModifier, bool (*function)(ShortcutSystem *const shortcutSystem, const uint8 code, const uint16 modifier, const uint16 ignoredModifier, void *const argument), void *const argument)
+
+INSERTCOUNTERSHORTCUT();
+TRAVERSEREMOVEDCOUNTERSHORTCUTS();
+
+INSERTCOUNTERSHORTCUT(){
+	if(!shortcutSystem){
+		ret false;
+	}
+	(void)code;
+	(void)modifier;
+	(void)ignoredModifier;
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+TRAVERSEREMOVEDCOUNTERSHORTCUTS(){
+	if(!shortcutSystem){
+		ret false;
+	}
+	(void)code;
+	(void)modifier;
+	(void)ignoredModifier;
+	(void)function;
+	(void)argument;
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FINISHORTCUTSYSTEM(){
+	if(!shortcutSystem){
+		ret false;
+	}
+	removeAllShortcuts(shortcutSystem);
+	(*shortcutSystem).memoryManagementSystem = NULL;
+	finiStackSystem(&(*shortcutSystem).stackSystem);
+	(*shortcutSystem).shortcutBlockSize = 0;
+	(*shortcutSystem).codeListSize = 0;
+	ret true;
+}
+

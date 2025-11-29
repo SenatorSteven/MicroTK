@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! select-randr-events-function.hold
 
 MIT License
 
@@ -21,11 +21,24 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef SELECT_RANDR_EVENTS_FUNCTION_HOLD
+#define SELECT_RANDR_EVENTS_FUNCTION_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define SELECTRANDREVENTS() /*-*/ bool  selectRandrEvents(ConnectionSystem *const connectionSystem, const xcb_window_t window, const uint16 eventMask)
+
+SELECTRANDREVENTS();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
 

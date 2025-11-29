@@ -1,0 +1,71 @@
+
+/*! icccm.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef ICCCM_HOLD
+#define ICCCM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../cold/cold.hold"
+#endif
+
+#define WITHDRAWN_STATE /*----------------------*/ (0)
+#define NORMAL_STATE /*-------------------------*/ (1)
+#define ICONIC_STATE /*-------------------------*/ (3)
+
+#define NONE_NORMAL_HINT /*---------------------*/ (b(0000000000))
+#define USER_POSITION_NORMAL_HINT /*------------*/ (b(0000000001))
+#define USER_SIZE_NORMAL_HINT /*----------------*/ (b(0000000010))
+#define PROGRAM_POSITION_NORMAL_HINT /*---------*/ (b(0000000100))
+#define PROGRAM_SIZE_NORMAL_HINT /*-------------*/ (b(0000001000))
+#define PROGRAM_MINIMUM_SIZE_NORMAL_HINT /*-----*/ (b(0000010000))
+#define PROGRAM_MAXIMUM_SIZE_NORMAL_HINT /*-----*/ (b(0000100000))
+#define PROGRAM_RESIZE_INCREMENT_NORMAL_HINT /*-*/ (b(0001000000))
+#define PROGRAM_ASPECT_NORMAL_HINT /*-----------*/ (b(0010000000))
+#define PROGRAM_BASE_SIZE_NORMAL_HINT /*--------*/ (b(0100000000))
+#define PROGRAM_WINDOW_GRAVITY_NORMAL_HINT /*---*/ (b(1000000000))
+
+#define NONE_HINT /*----------------------------*/ (b(000000000))
+#define INPUT_HINT /*---------------------------*/ (b(000000001))
+#define STATE_HINT /*---------------------------*/ (b(000000010))
+#define ICON_PIXMAP_HINT /*---------------------*/ (b(000000100))
+#define ICON_WINDOW_HINT /*---------------------*/ (b(000001000))
+#define ICON_POSITION_HINT /*-------------------*/ (b(000010000))
+#define ICON_MASK_HINT /*-----------------------*/ (b(000100000))
+#define WINDOW_GROUP_HINT /*--------------------*/ (b(001000000))
+#define URGENCY_HINT /*-------------------------*/ (b(100000000))
+
+#undef  NONE_CLIENT_PROTOCOL
+#define NONE_CLIENT_PROTOCOL /*-----------------*/ (b(0000))
+#define TAKE_FOCUS_CLIENT_PROTOCOL /*-----------*/ (b(0001))
+#define DELETE_WINDOW_CLIENT_PROTOCOL /*--------*/ (b(0010))
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../cold/hot.hold"
+#endif
+
+#endif
+

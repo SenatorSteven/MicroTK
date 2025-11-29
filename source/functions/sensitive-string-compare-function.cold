@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! sensitive-string-compare-function.cold
 
 MIT License
 
@@ -21,11 +21,29 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/functions/sensitive-string-compare-function.hold"
+
+SENSITIVESTRINGCOMPARE(){
+	if(!string0 or !string1){
+		ret false;
+	}
+	jmp sensitiveStringCompareLoop;
+	sensitiveStringCompareLoop:{
+		if(*string0 != *string1){
+			ret false;
+		}
+		if(*string0){
+			inc string0;
+			inc string1;
+			jmp sensitiveStringCompareLoop;
+		}
+		ret true;
+	}
+}
 

@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! get-highest-bit-function.cold
 
 MIT License
 
@@ -21,11 +21,20 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/functions/get-highest-bit-function.hold"
+
+GETHIGHESTBIT(){
+	variable |= variable >> 1;
+	variable |= variable >> 2;
+	variable |= variable >> 4;
+	variable |= variable >> 8;
+	variable |= variable >> 16;
+	variable |= variable >> 32;
+	ret (variable & b4(1000000000000000, 0000000000000000, 0000000000000000, 0000000000000000)) | ((variable + 1) >> 1);
+}
 

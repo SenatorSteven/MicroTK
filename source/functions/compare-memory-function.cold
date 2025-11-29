@@ -1,0 +1,102 @@
+
+/*! compare-memory-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#include <stdint.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/functions/compare-memory-function.hold"
+
+COMPAREMEMORY(){
+	const void *memory0Current;
+	const void *memory0Wall;
+	const void *memory1Current;
+	uint64 amount;
+	bool flag;
+	if(!memory0Start or !memory1Start or !byteAmount){
+		ret false;
+	}
+	memory0Current = memory0Start;
+	memory1Current = memory1Start;
+	jmp checkMisalignment;
+	checkMisalignment:{
+		uint64 misalignmentAmount = (uint64)memory0Current & (sizeof(uint64) - 1);
+		if(misalignmentAmount and (uint64)memory1Current & (sizeof(uint64) - 1)){
+			flag = true;
+			if(misalignmentAmount > byteAmount){
+				misalignmentAmount = byteAmount;
+				flag = false;
+			}
+			byteAmount -= misalignmentAmount;
+			amount = misalignmentAmount;
+			jmp small;
+		}
+		jmp preLargeLoop;
+	}
+	preLargeLoop:{
+		amount = byteAmount;
+		memory0Wall = (uint64 *)memory0Current + amount / sizeof(uint64);
+		flag = false;
+		jmp largeLoop;
+	}
+	largeLoop:{
+		if((uint64 *)memory0Current < (uint64 *)memory0Wall){
+			if(*(uint64 *)memory0Current != *(uint64 *)memory1Current){
+				ret false;
+			}
+			memory0Current = (uint64 *)memory0Current + 1;
+			memory1Current = (uint64 *)memory1Current + 1;
+			jmp largeLoop;
+		}
+		jmp small;
+	}
+	small:{
+		if(amount & sizeof(uint8)){
+			if(*(uint8 *)memory0Current != *(uint8 *)memory1Current){
+				ret false;
+			}
+			memory0Current = (uint8 *)memory0Current + sizeof(uint8);
+			memory1Current = (uint8 *)memory1Current + sizeof(uint8);
+		}
+		if(amount & sizeof(uint16)){
+			if(*(uint16 *)memory0Current != *(uint16 *)memory1Current){
+				ret false;
+			}
+			memory0Current = (uint8 *)memory0Current + sizeof(uint16);
+			memory1Current = (uint8 *)memory1Current + sizeof(uint16);
+		}
+		if(amount & sizeof(uint32)){
+			if(*(uint32 *)memory0Current != *(uint32 *)memory1Current){
+				ret false;
+			}
+			memory0Current = (uint8 *)memory0Current + sizeof(uint32);
+			memory1Current = (uint8 *)memory1Current + sizeof(uint32);
+		}
+		if(flag){
+			jmp preLargeLoop;
+		}
+		ret true;
+	}
+}
+

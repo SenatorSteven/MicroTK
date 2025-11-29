@@ -1,0 +1,210 @@
+
+/*! input-device-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#warning Complete the Input Device system.
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <xcb/xinput.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/input-device-system.hold"
+
+INITINPUTDEVICESYSTEM(){
+	if(!inputDeviceSystem){
+		ret false;
+	}
+	(*inputDeviceSystem).memoryManagementSystem = NULL;
+	(*inputDeviceSystem).connectionSystem = NULL;
+	(*inputDeviceSystem).inputDeviceStart = NULL;
+	(*inputDeviceSystem).inputDeviceToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*inputDeviceSystem).inputDeviceSize = 0;
+	ret true;
+}
+SETINPUTDEVICEMEMORYMANAGEMENTSYSTEM(){
+	if(!inputDeviceSystem or memoryManagementSystem == (*inputDeviceSystem).memoryManagementSystem){
+		ret false;
+	}
+	if(memoryManagementSystem){
+		(*inputDeviceSystem).inputDeviceToken = insertMemoryManagementPointer(memoryManagementSystem, (*inputDeviceSystem).inputDeviceStart, "InputDeviceSystem setInputDeviceMemoryManagementSystem() input device pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*inputDeviceSystem).memoryManagementSystem, (*inputDeviceSystem).inputDeviceToken);
+	}
+	(*inputDeviceSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETINPUTDEVICECONNECTIONSYSTEM(){
+	if(!inputDeviceSystem or connectionSystem == (*inputDeviceSystem).connectionSystem){
+		ret false;
+	}
+	(*inputDeviceSystem).connectionSystem = connectionSystem;
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+/*!
+	support multiple types and classes
+*/
+
+REQUESTINPUTDEVICES(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	uint size;
+	uint allocated;
+	uint blockSize;
+	xcb_input_device_id_t *start;
+	uint32 token;
+	if(!inputDeviceSystem or !connectionIsOpen((*inputDeviceSystem).connectionSystem)){
+		ret false;
+	}
+	connectionSystem = (*inputDeviceSystem).connectionSystem;
+	connection = (*connectionSystem).connection;
+	size = 0;
+	allocated = 0;
+	blockSize = 4;
+	start = NULL;
+	token = NONE_MEMORY_MANAGEMENT_TOKEN;
+	jmp getDevices;
+	getDevices:{
+		xcb_input_xi_query_device_reply_t *const reply = xcb_wait_for_reply(connection, xcb_input_xi_query_device_unchecked(connection, XCB_INPUT_DEVICE_ALL), NULL);
+		uint32 replyToken = insertMemoryManagementPointer((*inputDeviceSystem).memoryManagementSystem, reply, "InputDeviceSystem requestInputDevices() xcb_input_xi_query_device() reply", &memoryManagementFree);
+		xcb_input_xi_device_info_iterator_t deviceInfo;
+		if(!reply){
+			ret false;
+		}
+		deviceInfo = xcb_input_xi_query_device_infos_iterator(reply);
+		jmp findDeviceTypeLoop;
+		findDeviceTypeLoop:{
+			if(deviceInfo.rem){
+				if((*deviceInfo.data).type == type){
+					xcb_input_device_class_iterator_t deviceClass = xcb_input_xi_device_info_classes_iterator(deviceInfo.data);
+					jmp findDeviceClassLoop;
+					findDeviceClassLoop:{
+						if(deviceClass.rem){
+							if((*deviceClass.data).type == class){
+								if(allocated == size){
+									void *temp;
+									size += blockSize;
+									temp = realloc(start, size * sizeof(xcb_input_device_id_t));
+									if(!token){
+										token = insertMemoryManagementPointer((*inputDeviceSystem).memoryManagementSystem, temp, "InputDeviceSystem requestInputDevices() input device pointer", &memoryManagementFree);
+									}else{
+										updateMemoryManagementPointer((*inputDeviceSystem).memoryManagementSystem, token, temp);
+									}
+									if(!temp){
+										free(start);
+										removeMemoryManagementPointer((*inputDeviceSystem).memoryManagementSystem, token);
+										ret false;
+									}
+									start = temp;
+								}
+								*(start + allocated) = (*deviceInfo.data).deviceid;
+								inc allocated;
+							}
+							xcb_input_device_class_next(&deviceClass);
+							jmp findDeviceClassLoop;
+						}
+					}
+				}
+				xcb_input_xi_device_info_next(&deviceInfo);
+				jmp findDeviceTypeLoop;
+			}
+			free(reply);
+			removeMemoryManagementPointer((*inputDeviceSystem).memoryManagementSystem, replyToken);
+			jmp replaceInputDevices;
+		}
+	}
+	replaceInputDevices:{
+		destroyInputDevices(inputDeviceSystem);
+		(*inputDeviceSystem).inputDeviceSize = allocated;
+		(*inputDeviceSystem).inputDeviceStart = start;
+		(*inputDeviceSystem).inputDeviceToken = token;
+		jmp trimMemory;
+	}
+	trimMemory:{
+		if((*inputDeviceSystem).inputDeviceSize){
+			void *const temp = realloc((*inputDeviceSystem).inputDeviceStart, (*inputDeviceSystem).inputDeviceSize * sizeof(xcb_input_device_id_t));
+			updateMemoryManagementPointer((*inputDeviceSystem).memoryManagementSystem, (*inputDeviceSystem).inputDeviceToken, temp);
+			if(temp){
+				(*inputDeviceSystem).inputDeviceStart = temp;
+			}
+		}
+		ret true;
+	}
+}
+
+
+
+
+
+
+
+
+
+DESTROYINPUTDEVICES(){
+	if(!inputDeviceSystem){
+		ret false;
+	}
+	free((*inputDeviceSystem).inputDeviceStart);
+	removeMemoryManagementPointer((*inputDeviceSystem).memoryManagementSystem, (*inputDeviceSystem).inputDeviceToken);
+	(*inputDeviceSystem).inputDeviceStart = NULL;
+	(*inputDeviceSystem).inputDeviceToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*inputDeviceSystem).inputDeviceSize = 0;
+	ret true;
+}
+FINIINPUTDEVICESYSTEM(){
+	if(!inputDeviceSystem){
+		ret false;
+	}
+	destroyInputDevices(inputDeviceSystem);
+	(*inputDeviceSystem).connectionSystem = NULL;
+	(*inputDeviceSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+

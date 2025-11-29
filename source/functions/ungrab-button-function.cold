@@ -1,0 +1,81 @@
+
+/*! ungrab-button-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xinput.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/functions/ungrab-button-function.hold"
+
+UNGRABBUTTON(){
+	xcb_connection_t *connection;
+	if(!connectionIsOpen(connectionSystem) or !window or !button){
+		ret false;
+	}
+	connection = (*connectionSystem).connection;
+	modifier &= XCB_MOD_MASK_SHIFT | XCB_MOD_MASK_LOCK | XCB_MOD_MASK_CONTROL | XCB_MOD_MASK_1 | XCB_MOD_MASK_2 | XCB_MOD_MASK_3 | XCB_MOD_MASK_4 | XCB_MOD_MASK_5;
+	if(additionalModifier & XCB_MOD_MASK_ANY){
+		additionalModifier |= b(1111111111111111);
+	}
+	additionalModifier &= XCB_MOD_MASK_SHIFT | XCB_MOD_MASK_LOCK | XCB_MOD_MASK_CONTROL | XCB_MOD_MASK_1 | XCB_MOD_MASK_2 | XCB_MOD_MASK_3 | XCB_MOD_MASK_4 | XCB_MOD_MASK_5;
+	additionalModifier &= ~modifier;
+	jmp ungrabButton;
+	ungrabButton:{
+		const xcb_void_cookie_t cookie = xcb_ungrab_button_checked(connection, window, button, modifier);
+		xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+		uint32 token = insertMemoryManagementPointer((*connectionSystem).memoryManagementSystem, error, "ungrabButton() error", &memoryManagementFree);
+		if(error){
+			free(error);
+			removeMemoryManagementPointer((*connectionSystem).memoryManagementSystem, token);
+			ret false;
+		}
+		jmp ungrabAdditionalButtons;
+	}
+	ungrabAdditionalButtons:{
+		uint16 additionalCurrent = additionalModifier;
+		jmp ungrabAdditionalButtonLoop;
+		ungrabAdditionalButtonLoop:{
+			if(additionalCurrent){
+				xcb_ungrab_button_checked(connection, window, button, modifier | additionalCurrent);
+				additionalCurrent = (additionalCurrent - 1) & additionalModifier;
+				jmp ungrabAdditionalButtonLoop;
+			}
+			ret true;
+		}
+	}
+}
+

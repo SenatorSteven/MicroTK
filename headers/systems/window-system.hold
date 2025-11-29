@@ -1,0 +1,169 @@
+
+/*! window-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef WINDOW_SYSTEM_HOLD
+#define WINDOW_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define WindowSystem /*-----------------------------------------*/ WindowSystem
+
+#define ALL_WINDOWS /*------------------------------------------*/ (NULL)
+
+#define NONE_WINDOW_POSITION /*---------------------------------*/ (0)
+#define TOP_WINDOW_POSITION /*----------------------------------*/ (1)
+#define BOTTOM_WINDOW_POSITION /*-------------------------------*/ (2)
+#define LEFT_WINDOW_POSITION /*---------------------------------*/ (3)
+#define RIGHT_WINDOW_POSITION /*--------------------------------*/ (4)
+
+#define NONE_WINDOW_DESKTOP /*----------------------------------*/ (0xFFFFFFFE)
+
+#define NONE_WINDOW_USER_TIME /*--------------------------------*/ (0xFFFFFFFF)
+
+#define NONE_WINDOW_STACK_MODE /*-------------------------------*/ (0)
+#define ABOVE_WINDOW_STACK_MODE /*------------------------------*/ (1)
+#define BELOW_WINDOW_STACK_MODE /*------------------------------*/ (2)
+
+#define NONE_WINDOW_OPERATION /*--------------------------------*/ (0)
+#define SET_WINDOW_MEMORY_MANAGEMENT_SYSTEM_WINDOW_OPERATION /*-*/ (1)
+#define SET_WINDOW_PRINT_SYSTEM_WINDOW_OPERATION /*-------------*/ (2)
+#define SET_WINDOW_CONNECTION_SYSTEM_WINDOW_OPERATION /*--------*/ (3)
+#define SET_WINDOW_ATOM_SYSTEM_WINDOW_OPERATION /*--------------*/ (4)
+#define SET_WINDOW_BLOCK_SIZE_WINDOW_OPERATION /*---------------*/ (5)
+#define SET_WINDOW_MULTITHREADING_WINDOW_OPERATION /*-----------*/ (6)
+#define CREATE_WINDOW_WINDOW_OPERATION /*-----------------------*/ (7)
+#define CHANGE_WINDOW_EVENT_MASK_WINDOW_OPERATION /*------------*/ (8)
+#define CHANGE_WINDOW_PROPERTIES_WINDOW_OPERATION /*------------*/ (9)
+#define CONFIGURE_WINDOW_WINDOW_OPERATION /*--------------------*/ (10)
+#define DRAW_WINDOW_BUFFER_WINDOW_OPERATION /*------------------*/ (11)
+#define SWAP_WINDOW_BUFFER_WINDOW_OPERATION /*------------------*/ (12)
+#define MAP_WINDOW_WINDOW_OPERATION /*--------------------------*/ (13)
+#define RECONFIGURE_WINDOW_WINDOW_OPERATION /*------------------*/ (14)
+#define UNMAP_WINDOW_WINDOW_OPERATION /*------------------------*/ (15)
+#define DESTROY_WINDOW_WINDOW_OPERATION /*----------------------*/ (16)
+#define FIND_WINDOW_WINDOW_OPERATION /*-------------------------*/ (17)
+
+#define NONE_WINDOW_CODE /*-------------------------------------*/ (0)
+#define SUCCESS_WINDOW_CODE /*----------------------------------*/ (1)
+#define NOTHING_DONE_WINDOW_CODE /*-----------------------------*/ (2)
+#define BAD_INPUT_WINDOW_CODE /*--------------------------------*/ (3)
+#define UNSET_VALUE_WINDOW_CODE /*------------------------------*/ (4)
+#define CLOSED_CONNECTION_WINDOW_CODE /*------------------------*/ (5)
+#define FAILED_ALLOCATION_WINDOW_CODE /*------------------------*/ (6)
+#define FAILED_MUTEX_WINDOW_CODE /*-----------------------------*/ (7)
+#define FAILURE_WINDOW_CODE /*----------------------------------*/ (8)
+
+#define INITWINDOWSYSTEM() /*-----------------------------------*/ bool  initWindowSystem(WindowSystem *const windowSystem)
+#define SETWINDOWPRINTSYSTEM() /*-------------------------------*/ bool  setWindowPrintSystem(WindowSystem *const windowSystem, PrintSystem *const printSystem)
+#define SETWINDOWMEMORYMANAGEMENTSYSTEM() /*--------------------*/ bool  setWindowMemoryManagementSystem(WindowSystem *const windowSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETWINDOWCONNECTIONSYSTEM() /*--------------------------*/ bool  setWindowConnectionSystem(WindowSystem *const windowSystem, ConnectionSystem *const connectionSystem)
+#define SETWINDOWATOMSYSTEM() /*--------------------------------*/ bool  setWindowAtomSystem(WindowSystem *const windowSystem, AtomSystem *const atomSystem)
+#define SETWINDOWBLOCKSIZE() /*---------------------------------*/ bool  setWindowBlockSize(WindowSystem *const windowSystem, const uint blockSize)
+#define SETWINDOWMULTITHREADING() /*----------------------------*/ bool  setWindowMultithreading(WindowSystem *const windowSystem, bool multithreaded)
+#define CREATEWINDOW() /*---------------------------------------*/ bool  createWindow(WindowSystem *const windowSystem, const uint amount, const int x, const int y, const uint width, const uint height, const uint border, const uint8 depth, const xcb_visualid_t visual, const xcb_colormap_t colormap, const bool overrideRedirect)
+#define CHANGEWINDOWEVENTMASK() /*------------------------------*/ bool  changeWindowEventMask(WindowSystem *const windowSystem, WindowInfo *const windowInfo, const uint32 eventMask)
+#define CHANGEWINDOWPROPERTIES() /*-----------------------------*/ bool  changeWindowProperties(WindowSystem *const windowSystem, WindowInfo *const windowInfo, const char *const name, const char *const iconName, const char *const className, const uint classNameSize, const uint minimumWidth, const uint minimumHeight, const uint maximumWidth, const uint maximumHeight, const uint widthIncrement, const uint heightIncrement, const uint minimumAspectNumerator, const uint minimumAspectDenominarator, const uint maximumAspectNumerator, const uint maximumAspectDenominarator, const uint baseWidth, const uint baseHeight, const uint8 windowGravity, const uint8 position, const int positionX, const int positionY, const uint positionWidth, const uint positionHeight, bool takesInput, const uint8 initialState, const xcb_pixmap_t iconPixmap, const xcb_window_t iconWindow, const int iconX, const int iconY, const xcb_pixmap_t iconMask, const xcb_window_t windowGroup, bool urgent, const uint8 windowProtocol, const uint8 windowType, const uint16 windowState, const uint32 *const icon, const uint iconSize, const uint32 desktop)
+#define CONFIGUREWINDOW() /*------------------------------------*/ bool  configureWindow(WindowSystem *const windowSystem, WindowInfo *const windowInfo, const int x, const int y, const uint width, const uint height, const uint border, const uint8 stackMode)
+#define DRAWWINDOWBUFFER() /*-----------------------------------*/ bool  drawWindowBuffer(WindowSystem *const windowSystem, WindowInfo *const windowInfo, bool (*drawFunction)(WindowSystem *const windowSystem, WindowInfo *const windowInfo, const xcb_pixmap_t buffer, void *const argument), void *const argument)
+#define SWAPWINDOWBUFFER() /*-----------------------------------*/ bool  swapWindowBuffer(WindowSystem *const windowSystem, WindowInfo *const windowInfo)
+#define MAPWINDOW() /*------------------------------------------*/ bool  mapWindow(WindowSystem *const windowSystem, WindowInfo *const windowInfo, const uint32 stackMode, const uint32 userTime)
+#define RECONFIGUREWINDOW() /*----------------------------------*/ bool  reconfigureWindow(WindowSystem *const windowSystem, WindowInfo *const windowInfo, const int x, const int y, const uint width, const uint height, const uint border)
+#define UNMAPWINDOW() /*----------------------------------------*/ bool  unmapWindow(WindowSystem *const windowSystem, WindowInfo *const windowInfo)
+#define DESTROYWINDOW() /*--------------------------------------*/ bool  destroyWindow(WindowSystem *const windowSystem, WindowInfo *const windowInfo)
+#define ISVALIDWINDOW() /*--------------------------------------*/ bool  isValidWindow(WindowSystem *const windowSystem, WindowInfo *const windowInfo)
+#define FINDWINDOW() /*-----------------------------------------*/ bool  findWindow(WindowSystem *const windowSystem, const xcb_window_t window, WindowInfo *const windowInfoReturn)
+#define FINIWINDOWSYSTEM() /*-----------------------------------*/ bool  finiWindowSystem(WindowSystem *const windowSystem)
+
+#define PRINTWINDOWLOG() /*-------------------------------------*/ bool  printWindowLog(WindowSystem *const windowSystem)
+
+def struct{
+	uint32 /*-------------------*/ offset;
+	xcb_window_t /*-------------*/ window;
+	xcb_pixmap_t /*-------------*/ buffer0;
+	xcb_pixmap_t /*-------------*/ buffer1;
+	xcb_gcontext_t /*-----------*/ gc;
+	xcb_visualid_t /*-----------*/ visual;
+	xcb_colormap_t /*-----------*/ colormap;
+	int32 /*--------------------*/ x;
+	int32 /*--------------------*/ y;
+	uint32 /*-------------------*/ width;
+	uint32 /*-------------------*/ height;
+	uint32 /*-------------------*/ border;
+	uint8 /*--------------------*/ depth;
+	bool /*---------------------*/ mapped;
+	bool /*---------------------*/ inUse;
+	uint8 /*--------------------*/ pad0[1];
+} WindowInfo;
+
+def struct{
+	MutexSystem /*--------------*/ mutexSystem;
+	StackSystem /*--------------*/ stackSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	ConnectionSystem * /*-------*/ connectionSystem;
+	AtomSystem * /*-------------*/ atomSystem;
+	WindowInfo * /*-------------*/ windowStart;
+	uint32 /*-------------------*/ windowToken;
+	uint32 /*-------------------*/ windowSize;
+	uint32 /*-------------------*/ windowAllocated;
+	uint32 /*-------------------*/ windowBlockSize;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[5];
+} WindowSystem;
+
+INITWINDOWSYSTEM();
+SETWINDOWMEMORYMANAGEMENTSYSTEM();
+SETWINDOWPRINTSYSTEM();
+SETWINDOWCONNECTIONSYSTEM();
+SETWINDOWATOMSYSTEM();
+SETWINDOWBLOCKSIZE();
+SETWINDOWMULTITHREADING();
+CREATEWINDOW();
+CHANGEWINDOWEVENTMASK();
+CHANGEWINDOWPROPERTIES();
+CONFIGUREWINDOW();
+DRAWWINDOWBUFFER();
+SWAPWINDOWBUFFER();
+MAPWINDOW();
+RECONFIGUREWINDOW();
+UNMAPWINDOW();
+DESTROYWINDOW();
+ISVALIDWINDOW();
+FINDWINDOW();
+FINIWINDOWSYSTEM();
+PRINTWINDOWLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

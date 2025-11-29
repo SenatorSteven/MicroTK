@@ -1,0 +1,373 @@
+
+/*! memory-management-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#include <dirent.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/shm.h>
+#include <xcb/xcb.h>
+#include <X11/Xlib.h>
+#include <X11/Xlib-xcb.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/dirent.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/sys-shm.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+
+INITMEMORYMANAGEMENTSYSTEM(){
+	if(!memoryManagementSystem){
+		ret false;
+	}
+	initMutexSystem(&(*memoryManagementSystem).mutexSystem);
+	(*memoryManagementSystem).pointerStart = NULL;
+	(*memoryManagementSystem).pointerSize = 0;
+	(*memoryManagementSystem).pointerAllocated = 0;
+	(*memoryManagementSystem).emptyPointerStart = NULL;
+	(*memoryManagementSystem).emptyPointerSize = 0;
+	(*memoryManagementSystem).emptyPointerAllocated = 0;
+	(*memoryManagementSystem).blockSize = 0;
+	(*memoryManagementSystem).operation = NONE_MEMORY_MANAGEMENT_OPERATION;
+	(*memoryManagementSystem).code = NONE_MEMORY_MANAGEMENT_CODE;
+	(*memoryManagementSystem).multithreaded = false;
+	ret true;
+}
+SETMEMORYMANAGEMENTBLOCKSIZE(){
+	uint8 code;
+	if(!memoryManagementSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*memoryManagementSystem).mutexSystem)){
+		ret false;
+	}
+	if(blockSize == (*memoryManagementSystem).blockSize){
+		code = NOTHING_DONE_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	(*memoryManagementSystem).blockSize = blockSize;
+	code = SUCCESS_MEMORY_MANAGEMENT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*memoryManagementSystem).operation = SET_MEMORY_MANAGEMENT_BLOCK_SIZE_MEMORY_MANAGEMENT_OPERATION;
+		(*memoryManagementSystem).code = code;
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		if(code != SUCCESS_MEMORY_MANAGEMENT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETMEMORYMANAGEMENTMULTITHREADING(){
+	uint8 code;
+	if(!memoryManagementSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*memoryManagementSystem).multithreaded){
+		code = NOTHING_DONE_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*memoryManagementSystem).mutexSystem)){
+			code = FAILED_MUTEX_MEMORY_MANAGEMENT_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyMutex(&(*memoryManagementSystem).mutexSystem)){
+			code = FAILED_MUTEX_MEMORY_MANAGEMENT_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setMutexMultithreading(&(*memoryManagementSystem).mutexSystem, multithreaded);
+	(*memoryManagementSystem).multithreaded = multithreaded;
+	code = SUCCESS_MEMORY_MANAGEMENT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*memoryManagementSystem).operation = SET_MEMORY_MANAGEMENT_MULTITHREADING_MEMORY_MANAGEMENT_OPERATION;
+		(*memoryManagementSystem).code = code;
+		if(code != SUCCESS_MEMORY_MANAGEMENT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+INSERTMEMORYMANAGEMENTPOINTER(){
+	uint32 token;
+	uint8 code;
+	if(!memoryManagementSystem){
+		ret NONE_MEMORY_MANAGEMENT_TOKEN;
+	}
+	if(!lockMutex(&(*memoryManagementSystem).mutexSystem)){
+		ret NONE_MEMORY_MANAGEMENT_TOKEN;
+	}
+	if(!pointer){
+		code = BAD_INPUT_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	jmp insertPointer;
+	insertPointer:{
+		MemoryManagementPointer *current;
+		if((*memoryManagementSystem).emptyPointerAllocated){
+			token = *((*memoryManagementSystem).emptyPointerStart + dec (*memoryManagementSystem).emptyPointerAllocated);
+		}else{
+			if((*memoryManagementSystem).pointerAllocated == (*memoryManagementSystem).pointerSize){
+				void *temp;
+				if(!(*memoryManagementSystem).blockSize){
+					code = UNSET_VALUE_MEMORY_MANAGEMENT_CODE;
+					jmp emergencyExit;
+				}
+				(*memoryManagementSystem).pointerSize += (*memoryManagementSystem).blockSize;
+				if(!(temp = realloc((*memoryManagementSystem).pointerStart, (*memoryManagementSystem).pointerSize * sizeof(MemoryManagementPointer)))){
+					(*memoryManagementSystem).pointerSize -= (*memoryManagementSystem).blockSize;
+					code = FAILED_ALLOCATION_MEMORY_MANAGEMENT_CODE;
+					jmp emergencyExit;
+				}
+				(*memoryManagementSystem).pointerStart = temp;
+				if(!(*memoryManagementSystem).pointerAllocated){
+					current = (*memoryManagementSystem).pointerStart;
+					(*current).file = "";
+					(*current).line = 0;
+					(*current).dataLabel = "";
+					(*current).dataStart = NULL;
+					(*current).dataToken = 0xFFFFFFFF;
+					(*current).free = NULL;
+					inc (*memoryManagementSystem).pointerAllocated;
+					jmp insertPointer;
+				}
+			}
+			token = (*memoryManagementSystem).pointerAllocated;
+			inc (*memoryManagementSystem).pointerAllocated;
+		}
+		if(!file){
+			file = "";
+		}
+		if(!label){
+			label = "";
+		}
+		current = (*memoryManagementSystem).pointerStart + token;
+		(*current).file = file;
+		(*current).line = line;
+		(*current).dataLabel = label;
+		(*current).dataStart = pointer;
+		(*current).dataToken = token;
+		(*current).free = freeFunction;
+		code = SUCCESS_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*memoryManagementSystem).operation = INSERT_MEMORY_MANAGEMENT_POINTER_MEMORY_MANAGEMENT_OPERATION;
+		(*memoryManagementSystem).code = code;
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		if(code != SUCCESS_MEMORY_MANAGEMENT_CODE){
+			ret NONE_MEMORY_MANAGEMENT_TOKEN;
+		}
+		ret token;
+	}
+}
+UPDATEMEMORYMANAGEMENTPOINTER(){
+	MemoryManagementPointer *current;
+	uint8 code;
+	if(!memoryManagementSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*memoryManagementSystem).mutexSystem)){
+		ret false;
+	}
+	if(!token or token >= (*memoryManagementSystem).pointerAllocated){
+		code = BAD_INPUT_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	current = (*memoryManagementSystem).pointerStart + token;
+	if(!(*current).dataToken){
+		code = NOTHING_DONE_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	(*current).dataStart = pointer;
+	code = SUCCESS_MEMORY_MANAGEMENT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*memoryManagementSystem).operation = UPDATE_MEMORY_MANAGEMENT_POINTER_MEMORY_MANAGEMENT_OPERATION;
+		(*memoryManagementSystem).code = code;
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		if(code != SUCCESS_MEMORY_MANAGEMENT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+REMOVEMEMORYMANAGEMENTPOINTER(){
+	MemoryManagementPointer *current;
+	uint8 code;
+	if(!memoryManagementSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*memoryManagementSystem).mutexSystem)){
+		ret false;
+	}
+	if(!token or token >= (*memoryManagementSystem).pointerAllocated){
+		code = BAD_INPUT_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	current = (*memoryManagementSystem).pointerStart + token;
+	if(!(*current).dataToken){
+		code = NOTHING_DONE_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	if(token == (*memoryManagementSystem).pointerAllocated - 1){
+		dec (*memoryManagementSystem).pointerAllocated;
+	}else{
+		if((*memoryManagementSystem).emptyPointerAllocated == (*memoryManagementSystem).emptyPointerSize){
+			void *temp;
+			if(!(*memoryManagementSystem).blockSize){
+				code = UNSET_VALUE_MEMORY_MANAGEMENT_CODE;
+				jmp emergencyExit;
+			}
+			(*memoryManagementSystem).emptyPointerSize += (*memoryManagementSystem).blockSize;
+			if(!(temp = realloc((*memoryManagementSystem).emptyPointerStart, (*memoryManagementSystem).emptyPointerSize * sizeof(uint32)))){
+				(*memoryManagementSystem).emptyPointerSize -= (*memoryManagementSystem).blockSize;
+				code = FAILED_ALLOCATION_MEMORY_MANAGEMENT_CODE;
+				jmp emergencyExit;
+			}
+			(*memoryManagementSystem).emptyPointerStart = temp;
+		}
+		(*current).dataToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+		*((*memoryManagementSystem).emptyPointerStart + (*memoryManagementSystem).emptyPointerAllocated) = token;
+		inc (*memoryManagementSystem).emptyPointerAllocated;
+	}
+	code = SUCCESS_MEMORY_MANAGEMENT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*memoryManagementSystem).operation = REMOVE_MEMORY_MANAGEMENT_POINTER_MEMORY_MANAGEMENT_OPERATION;
+		(*memoryManagementSystem).code = code;
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		if(code != SUCCESS_MEMORY_MANAGEMENT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+DESTROYMEMORYMANAGEMENTPOINTERS(){
+	uint8 code;
+	if(!memoryManagementSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*memoryManagementSystem).mutexSystem)){
+		ret false;
+	}
+	if(!(*memoryManagementSystem).pointerStart and !(*memoryManagementSystem).pointerSize and !(*memoryManagementSystem).pointerAllocated and !(*memoryManagementSystem).emptyPointerStart and !(*memoryManagementSystem).emptyPointerSize and !(*memoryManagementSystem).emptyPointerAllocated){
+		code = NOTHING_DONE_MEMORY_MANAGEMENT_CODE;
+		jmp emergencyExit;
+	}
+	free((*memoryManagementSystem).pointerStart);
+	(*memoryManagementSystem).pointerStart = NULL;
+	(*memoryManagementSystem).pointerSize = 0;
+	(*memoryManagementSystem).pointerAllocated = 0;
+	free((*memoryManagementSystem).emptyPointerStart);
+	(*memoryManagementSystem).emptyPointerStart = NULL;
+	(*memoryManagementSystem).emptyPointerSize = 0;
+	(*memoryManagementSystem).emptyPointerAllocated = 0;
+	code = SUCCESS_MEMORY_MANAGEMENT_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*memoryManagementSystem).operation = DESTROY_MEMORY_MANAGEMENT_POINTERS_MEMORY_MANAGEMENT_OPERATION;
+		(*memoryManagementSystem).code = code;
+		unlockMutex(&(*memoryManagementSystem).mutexSystem);
+		if(code != SUCCESS_MEMORY_MANAGEMENT_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+MEMORYMANAGEMENTFREE(){
+	if(!pointer){
+		ret false;
+	}
+	free(pointer);
+	ret true;
+}
+MEMORYMANAGEMENTFCLOSE(){
+	if(!pointer){
+		ret false;
+	}
+	fclose(pointer);
+	ret true;
+}
+MEMORYMANAGEMENTCLOSEDIR(){
+	if(!pointer){
+		ret false;
+	}
+	closedir(pointer);
+	ret true;
+}
+MEMORYMANAGEMENTSHMCTL(){
+	int64 shmID;
+	if(!pointer){
+		ret false;
+	}
+	shmID = (int64)pointer;
+	if(shmID == SHMGET_FAILURE or shmctl(shmID, IPC_RMID, NULL) == SHMCTL_FAILURE){
+		ret false;
+	}
+	ret true;
+}
+MEMORYMANAGEMENTXCLOSEDISPLAY(){
+	if(!pointer){
+		ret false;
+	}
+	xcb_flush(XGetXCBConnection(pointer));
+	XFlush(pointer);
+	XCloseDisplay(pointer);
+	ret true;
+}
+MEMORYMANAGEMENTXCBDISCONNECT(){
+	if(!pointer){
+		ret false;
+	}
+	xcb_flush(pointer);
+	xcb_disconnect(pointer);
+	ret true;
+}
+FINIMEMORYMANAGEMENTSYSTEM(){
+	if(!memoryManagementSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*memoryManagementSystem).mutexSystem)){
+		ret false;
+	}
+	(*memoryManagementSystem).multithreaded = false;
+	(*memoryManagementSystem).blockSize = 0;
+	destroyMemoryManagementPointers(memoryManagementSystem);
+	(*memoryManagementSystem).code = NONE_MEMORY_MANAGEMENT_CODE;
+	(*memoryManagementSystem).operation = NONE_MEMORY_MANAGEMENT_OPERATION;
+	ret true;
+}
+

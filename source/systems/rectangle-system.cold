@@ -1,0 +1,701 @@
+
+/*! rectangle-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/rectangle-system.hold"
+
+INITRECTANGLESYSTEM(){
+	if(!rectangleSystem){
+		ret false;
+	}
+	initMutexSystem(&(*rectangleSystem).mutexSystem);
+	(*rectangleSystem).printSystem = NULL;
+	(*rectangleSystem).x = 0;
+	(*rectangleSystem).y = 0;
+	(*rectangleSystem).xOffset = 0;
+	(*rectangleSystem).yOffset = 0;
+	(*rectangleSystem).width = 0;
+	(*rectangleSystem).height = 0;
+	(*rectangleSystem).horizontalPadding = 0;
+	(*rectangleSystem).verticalPadding = 0;
+	(*rectangleSystem).horizontalMargin = 0;
+	(*rectangleSystem).verticalMargin = 0;
+	(*rectangleSystem).cornerRadiusTopLeft = 0;
+	(*rectangleSystem).cornerRadiusTopRight = 0;
+	(*rectangleSystem).cornerRadiusBottomLeft = 0;
+	(*rectangleSystem).cornerRadiusBottomRight = 0;
+	(*rectangleSystem).foreground = 0x00000000;
+	(*rectangleSystem).background = 0x00000000;
+	(*rectangleSystem).selectedForeground = 0x00000000;
+	(*rectangleSystem).selectedBackground = 0x00000000;
+	(*rectangleSystem).xType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).yType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).xOffsetType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).yOffsetType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).widthType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).heightType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).horizontalPaddingType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).verticalPaddingType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).horizontalMarginType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).verticalMarginType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).placement = NONE_RECTANGLE_PLACEMENT;
+	(*rectangleSystem).horizontalAlignment = NONE_RECTANGLE_HORIZONTAL_ALIGNMENT;
+	(*rectangleSystem).verticalAlignment = NONE_RECTANGLE_VERTICAL_ALIGNMENT;
+	(*rectangleSystem).clipChildren = false;
+	(*rectangleSystem).operation = NONE_RECTANGLE_OPERATION;
+	(*rectangleSystem).code = NONE_RECTANGLE_CODE;
+	(*rectangleSystem).multithreaded = false;
+	ret true;
+}
+SETRECTANGLEPRINTSYSTEM(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(printSystem == (*rectangleSystem).printSystem){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).printSystem = printSystem;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_PRINT_SYSTEM_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEPOSITION(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(x == (*rectangleSystem).x and xType == (*rectangleSystem).xType and y == (*rectangleSystem).y and yType == (*rectangleSystem).yType){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).x = x;
+	(*rectangleSystem).y = y;
+	(*rectangleSystem).xType = xType;
+	(*rectangleSystem).yType = yType;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_POSITION_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEOFFSET(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(xOffset == (*rectangleSystem).xOffset and xOffsetType == (*rectangleSystem).xOffsetType and yOffset == (*rectangleSystem).yOffset and yOffsetType == (*rectangleSystem).yOffsetType){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).xOffset = xOffset;
+	(*rectangleSystem).yOffset = yOffset;
+	(*rectangleSystem).xOffsetType = xOffsetType;
+	(*rectangleSystem).yOffsetType = yOffsetType;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_OFFSET_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLESIZE(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(width == (*rectangleSystem).width and widthType == (*rectangleSystem).widthType and height == (*rectangleSystem).height and heightType == (*rectangleSystem).heightType){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).width = width;
+	(*rectangleSystem).height = height;
+	(*rectangleSystem).widthType = widthType;
+	(*rectangleSystem).heightType = heightType;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_SIZE_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEPADDING(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(horizontalPadding == (*rectangleSystem).horizontalPadding and horizontalPaddingType == (*rectangleSystem).horizontalPaddingType and verticalPadding == (*rectangleSystem).verticalPadding and verticalPaddingType == (*rectangleSystem).verticalPaddingType){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).horizontalPadding = horizontalPadding;
+	(*rectangleSystem).verticalPadding = verticalPadding;
+	(*rectangleSystem).horizontalPaddingType = horizontalPaddingType;
+	(*rectangleSystem).verticalPaddingType = verticalPaddingType;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_PADDING_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEMARGIN(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(horizontalMargin == (*rectangleSystem).horizontalMargin and horizontalMarginType == (*rectangleSystem).horizontalMarginType and verticalMargin == (*rectangleSystem).verticalMargin and verticalMarginType == (*rectangleSystem).verticalMarginType){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).horizontalMargin = horizontalMargin;
+	(*rectangleSystem).verticalMargin = verticalMargin;
+	(*rectangleSystem).horizontalMarginType = horizontalMarginType;
+	(*rectangleSystem).verticalMarginType = verticalMarginType;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_MARGIN_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEPLACEMENT(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(placement == (*rectangleSystem).placement){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).placement = placement;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_PLACEMENT_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEALIGNMENT(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(horizontalAlignment == (*rectangleSystem).horizontalAlignment and verticalAlignment == (*rectangleSystem).verticalAlignment){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).horizontalAlignment = horizontalAlignment;
+	(*rectangleSystem).verticalAlignment = verticalAlignment;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_ALIGNMENT_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLECLIPPING(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	clipChildren = !!clipChildren;
+	if(clipChildren == (*rectangleSystem).clipChildren){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).clipChildren = clipChildren;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_CLIPPING_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLECORNERRADIUS(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(cornerRadiusTopLeft == (*rectangleSystem).cornerRadiusTopLeft and cornerRadiusTopRight == (*rectangleSystem).cornerRadiusTopRight and cornerRadiusBottomLeft == (*rectangleSystem).cornerRadiusBottomLeft and cornerRadiusBottomRight == (*rectangleSystem).cornerRadiusBottomRight){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).cornerRadiusTopLeft = cornerRadiusTopLeft;
+	(*rectangleSystem).cornerRadiusTopRight = cornerRadiusTopRight;
+	(*rectangleSystem).cornerRadiusBottomLeft = cornerRadiusBottomLeft;
+	(*rectangleSystem).cornerRadiusBottomRight = cornerRadiusBottomRight;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_CORNER_RADIUS_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEFOREGROUND(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(foreground == (*rectangleSystem).foreground){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).foreground = foreground;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_FOREGROUND_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEBACKGROUND(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(background == (*rectangleSystem).background){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).background = background;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_BACKGROUND_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLESELECTEDFOREGROUND(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(selectedForeground == (*rectangleSystem).selectedForeground){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).selectedForeground = selectedForeground;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_SELECTED_FOREGROUND_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLESELECTEDBACKGROUND(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(selectedBackground == (*rectangleSystem).selectedBackground){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	(*rectangleSystem).selectedBackground = selectedBackground;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_SELECTED_BACKGROUND_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETRECTANGLEMULTITHREADING(){
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*rectangleSystem).multithreaded){
+		code = NOTHING_DONE_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*rectangleSystem).mutexSystem)){
+			code = FAILED_MUTEX_RECTANGLE_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyMutex(&(*rectangleSystem).mutexSystem)){
+			code = FAILED_MUTEX_RECTANGLE_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setMutexMultithreading(&(*rectangleSystem).mutexSystem, multithreaded);
+	(*rectangleSystem).multithreaded = multithreaded;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = SET_RECTANGLE_MULTITHREADING_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+GETRECTANGLERECTANGLE(){
+	int x;
+	int y;
+	int xOffset;
+	int yOffset;
+	uint width;
+	uint height;
+	uint horizontalPadding;
+	uint verticalPadding;
+	uint horizontalMargin;
+	uint verticalMargin;
+	uint8 code;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	if(!rectangleReturn){
+		code = BAD_INPUT_RECTANGLE_CODE;
+		jmp emergencyExit;
+	}
+	x = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).x, (*rectangleSystem).xType, HORIZONTAL_RECTANGLE_AXIS, parentRectangleWidth, rootRectanglePixelWidth, rootRectangleMillimeterWidth);
+	y = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).y, (*rectangleSystem).yType, VERTICAL_RECTANGLE_AXIS, parentRectangleHeight, rootRectanglePixelHeight, rootRectangleMillimeterHeight);
+	xOffset = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).xOffset, (*rectangleSystem).xOffsetType, HORIZONTAL_RECTANGLE_AXIS, parentRectangleWidth, rootRectanglePixelWidth, rootRectangleMillimeterWidth);
+	yOffset = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).yOffset, (*rectangleSystem).yOffsetType, VERTICAL_RECTANGLE_AXIS, parentRectangleHeight, rootRectanglePixelHeight, rootRectangleMillimeterHeight);
+	width = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).width, (*rectangleSystem).widthType, HORIZONTAL_RECTANGLE_AXIS, parentRectangleWidth, rootRectanglePixelWidth, rootRectangleMillimeterWidth);
+	height = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).height, (*rectangleSystem).heightType, VERTICAL_RECTANGLE_AXIS, parentRectangleHeight, rootRectanglePixelHeight, rootRectangleMillimeterHeight);
+	horizontalPadding = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).horizontalPadding, (*rectangleSystem).horizontalPaddingType, HORIZONTAL_RECTANGLE_AXIS, parentRectangleWidth, rootRectanglePixelWidth, rootRectangleMillimeterWidth);
+	verticalPadding = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).verticalPadding, (*rectangleSystem).verticalPaddingType, VERTICAL_RECTANGLE_AXIS, parentRectangleHeight, rootRectanglePixelHeight, rootRectangleMillimeterHeight);
+	horizontalMargin = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).horizontalMargin, (*rectangleSystem).horizontalMarginType, HORIZONTAL_RECTANGLE_AXIS, parentRectangleWidth, rootRectanglePixelWidth, rootRectangleMillimeterWidth);
+	verticalMargin = getRectangleTypedNumber(rectangleSystem, (*rectangleSystem).verticalMargin, (*rectangleSystem).verticalMarginType, VERTICAL_RECTANGLE_AXIS, parentRectangleHeight, rootRectanglePixelHeight, rootRectangleMillimeterHeight);
+	if((*rectangleSystem).placement >= LEFT_RECTANGLE_PLACEMENT){
+		height = parentRectangleHeight;
+	}elif((*rectangleSystem).placement >= TOP_RECTANGLE_PLACEMENT){
+		width = parentRectangleWidth;
+	}
+	if((*rectangleSystem).placement == LEFT_RECTANGLE_PLACEMENT){
+		x = 0 * (parentRectangleWidth - width) / 2;
+	}elif((*rectangleSystem).placement == RIGHT_RECTANGLE_PLACEMENT){
+		x = 2 * (parentRectangleWidth - width) / 2;
+	}elif((*rectangleSystem).horizontalAlignment){
+		x = ((*rectangleSystem).horizontalAlignment - 1) * (parentRectangleWidth - width) / 2;
+	}
+	if((*rectangleSystem).placement == TOP_RECTANGLE_PLACEMENT){
+		y = 0 * (parentRectangleHeight - height) / 2;
+	}elif((*rectangleSystem).placement == BOTTOM_RECTANGLE_PLACEMENT){
+		y = 2 * (parentRectangleHeight - height) / 2;
+	}elif((*rectangleSystem).verticalAlignment){
+		y = ((*rectangleSystem).verticalAlignment - 1) * (parentRectangleHeight - height) / 2;
+	}
+	(*rectangleReturn).rootRectanglePixelWidth = rootRectanglePixelWidth;
+	(*rectangleReturn).rootRectanglePixelHeight = rootRectanglePixelHeight;
+	(*rectangleReturn).rootRectangleMillimeterWidth = rootRectangleMillimeterWidth;
+	(*rectangleReturn).rootRectangleMillimeterHeight = rootRectangleMillimeterHeight;
+	(*rectangleReturn).x = x + xOffset;
+	(*rectangleReturn).y = y + yOffset;
+	(*rectangleReturn).width = width;
+	(*rectangleReturn).height = height;
+	(*rectangleReturn).horizontalPadding = horizontalPadding;
+	(*rectangleReturn).verticalPadding = verticalPadding;
+	(*rectangleReturn).horizontalMargin = horizontalMargin;
+	(*rectangleReturn).verticalMargin = verticalMargin;
+	(*rectangleReturn).cornerRadiusTopLeft = (*rectangleSystem).cornerRadiusTopLeft;
+	(*rectangleReturn).cornerRadiusTopRight = (*rectangleSystem).cornerRadiusTopRight;
+	(*rectangleReturn).cornerRadiusBottomLeft = (*rectangleSystem).cornerRadiusBottomLeft;
+	(*rectangleReturn).cornerRadiusBottomRight = (*rectangleSystem).cornerRadiusBottomRight;
+	(*rectangleReturn).foreground = (*rectangleSystem).foreground;
+	(*rectangleReturn).background = (*rectangleSystem).background;
+	(*rectangleReturn).selectedForeground = (*rectangleSystem).selectedForeground;
+	(*rectangleReturn).selectedBackground = (*rectangleSystem).selectedBackground;
+	(*rectangleReturn).placement = (*rectangleSystem).placement;
+	(*rectangleReturn).horizontalAlignment = (*rectangleSystem).horizontalAlignment;
+	(*rectangleReturn).verticalAlignment = (*rectangleSystem).verticalAlignment;
+	(*rectangleReturn).clipChildren = (*rectangleSystem).clipChildren;
+	code = SUCCESS_RECTANGLE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*rectangleSystem).operation = GET_RECTANGLE_RECTANGLE_RECTANGLE_OPERATION;
+		(*rectangleSystem).code = code;
+		if(code != SUCCESS_RECTANGLE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+GETRECTANGLETYPEDNUMBER(){
+	if(!rectangleSystem){
+		ret 0;
+	}
+	switch(type){
+		to NONE_RECTANGLE_NUMBER_TYPE: /*-------*/ ret 0;
+		to INTEGER_RECTANGLE_NUMBER_TYPE: /*----*/ ret number;
+		to PERCENTAGE_RECTANGLE_NUMBER_TYPE: /*-*/ ret number * parentSize / 100;
+		to MILLIMETER_RECTANGLE_NUMBER_TYPE: /*-*/ brk;
+		off: /*---------------------------------*/ ret 0;
+	}
+	if(!axis or axis > VERTICAL_RECTANGLE_AXIS or !rootRectangleMillimeterSize){
+		ret 0;
+	}
+	ret number * rootRectanglePixelSize / rootRectangleMillimeterSize;
+}
+FINIRECTANGLESYSTEM(){
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	(*rectangleSystem).multithreaded = false;
+	(*rectangleSystem).code = NONE_RECTANGLE_CODE;
+	(*rectangleSystem).operation = NONE_RECTANGLE_OPERATION;
+	(*rectangleSystem).clipChildren = false;
+	(*rectangleSystem).verticalAlignment = NONE_RECTANGLE_VERTICAL_ALIGNMENT;
+	(*rectangleSystem).horizontalAlignment = NONE_RECTANGLE_HORIZONTAL_ALIGNMENT;
+	(*rectangleSystem).placement = NONE_RECTANGLE_PLACEMENT;
+	(*rectangleSystem).verticalMarginType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).horizontalMarginType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).verticalPaddingType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).horizontalPaddingType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).heightType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).widthType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).yOffsetType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).xOffsetType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).yType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).xType = NONE_RECTANGLE_NUMBER_TYPE;
+	(*rectangleSystem).selectedBackground = 0x00000000;
+	(*rectangleSystem).selectedForeground = 0x00000000;
+	(*rectangleSystem).background = 0x00000000;
+	(*rectangleSystem).foreground = 0x00000000;
+	(*rectangleSystem).cornerRadiusBottomRight = 0;
+	(*rectangleSystem).cornerRadiusBottomLeft = 0;
+	(*rectangleSystem).cornerRadiusTopRight = 0;
+	(*rectangleSystem).cornerRadiusTopLeft = 0;
+	(*rectangleSystem).verticalMargin = 0;
+	(*rectangleSystem).horizontalMargin = 0;
+	(*rectangleSystem).verticalPadding = 0;
+	(*rectangleSystem).horizontalPadding = 0;
+	(*rectangleSystem).height = 0;
+	(*rectangleSystem).width = 0;
+	(*rectangleSystem).yOffset = 0;
+	(*rectangleSystem).xOffset = 0;
+	(*rectangleSystem).y = 0;
+	(*rectangleSystem).x = 0;
+	(*rectangleSystem).printSystem = NULL;
+	ret true;
+}
+PRINTRECTANGLELOG(){
+	const char *operation;
+	const char *code;
+	PrintSystem *printSystem;
+	bool success;
+	if(!rectangleSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*rectangleSystem).mutexSystem)){
+		ret false;
+	}
+	printSystem = (*rectangleSystem).printSystem;
+	success = false;
+	if(!printSystem){
+		jmp emergencyExit;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		jmp emergencyExit;
+	}
+	switch((*rectangleSystem).operation){
+		to NONE_RECTANGLE_OPERATION: /*------------------------------*/ operation = NULL; /*-----------------------------*/ brk;
+		to SET_RECTANGLE_PRINT_SYSTEM_RECTANGLE_OPERATION: /*--------*/ operation = "setRectanglePrintSystem"; /*--------*/ brk;
+		to SET_RECTANGLE_POSITION_RECTANGLE_OPERATION: /*------------*/ operation = "setRectanglePosition"; /*-----------*/ brk;
+		to SET_RECTANGLE_OFFSET_RECTANGLE_OPERATION: /*--------------*/ operation = "setRectangleOffset"; /*-------------*/ brk;
+		to SET_RECTANGLE_SIZE_RECTANGLE_OPERATION: /*----------------*/ operation = "setRectangleSize"; /*---------------*/ brk;
+		to SET_RECTANGLE_PADDING_RECTANGLE_OPERATION: /*-------------*/ operation = "setRectanglePadding"; /*------------*/ brk;
+		to SET_RECTANGLE_MARGIN_RECTANGLE_OPERATION: /*--------------*/ operation = "setRectangleMargin"; /*-------------*/ brk;
+		to SET_RECTANGLE_PLACEMENT_RECTANGLE_OPERATION: /*-----------*/ operation = "setRectanglePlacement"; /*----------*/ brk;
+		to SET_RECTANGLE_ALIGNMENT_RECTANGLE_OPERATION: /*-----------*/ operation = "setRectangleAlignment"; /*----------*/ brk;
+		to SET_RECTANGLE_CLIPPING_RECTANGLE_OPERATION: /*------------*/ operation = "setRectangleClipping"; /*-----------*/ brk;
+		to SET_RECTANGLE_CORNER_RADIUS_RECTANGLE_OPERATION: /*-------*/ operation = "setRectangleCornerRadius"; /*-------*/ brk;
+		to SET_RECTANGLE_FOREGROUND_RECTANGLE_OPERATION: /*----------*/ operation = "setRectangleForeground"; /*---------*/ brk;
+		to SET_RECTANGLE_BACKGROUND_RECTANGLE_OPERATION: /*----------*/ operation = "setRectangleBackground"; /*---------*/ brk;
+		to SET_RECTANGLE_SELECTED_FOREGROUND_RECTANGLE_OPERATION: /*-*/ operation = "setRectangleSelectedForeground"; /*-*/ brk;
+		to SET_RECTANGLE_SELECTED_BACKGROUND_RECTANGLE_OPERATION: /*-*/ operation = "setRectangleSelectedBackground"; /*-*/ brk;
+		to SET_RECTANGLE_MULTITHREADING_RECTANGLE_OPERATION: /*------*/ operation = "setRectangleMultithreading"; /*-----*/ brk;
+		to GET_RECTANGLE_RECTANGLE_RECTANGLE_OPERATION: /*-----------*/ operation = "getRectangleRectangle"; /*----------*/ brk;
+		off: /*------------------------------------------------------*/ operation = "<operation>"; /*--------------------*/ brk;
+	}
+	switch((*rectangleSystem).code){
+		to NONE_RECTANGLE_CODE: /*-----------------------------------*/ code = NULL; /*----------------------------------*/ brk;
+		to SUCCESS_RECTANGLE_CODE: /*--------------------------------*/ code = "success"; /*-----------------------------*/ brk;
+		to NOTHING_DONE_RECTANGLE_CODE: /*---------------------------*/ code = "nothing done"; /*------------------------*/ brk;
+		to BAD_INPUT_RECTANGLE_CODE: /*------------------------------*/ code = "bad input"; /*---------------------------*/ brk;
+		to FAILED_MUTEX_RECTANGLE_CODE: /*---------------------------*/ code = "failed mutex"; /*------------------------*/ brk;
+		off: /*------------------------------------------------------*/ code = "<code>"; /*------------------------------*/ brk;
+	}
+	if(operation and code){
+		if((*rectangleSystem).code == SUCCESS_RECTANGLE_CODE){
+			if(printUnlockedOutput(printSystem, "%s%s: [%ssuccess%s%s] rectangle system:%s %s() reported \"%s\"\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorEvent, (*printSystem).outputColorEnd, (*printSystem).outputColorStart, (*printSystem).outputColorEnd, operation, code)){
+				success = true;
+			}
+		}else{
+			if(printUnlockedError(printSystem, "%s%s: [%sfailure%s%s] rectangle system:%s %s() reported \"%s\"\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, (*printSystem).errorColorEnd, (*printSystem).errorColorStart, (*printSystem).errorColorEnd, operation, code)){
+				success = true;
+			}
+		}
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	jmp emergencyExit;
+	emergencyExit:{
+		unlockMutex(&(*rectangleSystem).mutexSystem);
+		if(!success){
+			ret false;
+		}
+		ret true;
+	}
+}
+

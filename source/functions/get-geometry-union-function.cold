@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! get-geometry-union-function.cold
 
 MIT License
 
@@ -21,11 +21,57 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/functions/get-geometry-union-function.hold"
+
+GETGEOMETRYUNION(){
+	int leftX;
+	int topY;
+	if(!xReturn and !yReturn and !widthReturn and !heightReturn){
+		ret false;
+	}
+	if(x0 < x1){
+		leftX = x0;
+	}else{
+		leftX = x1;
+	}
+	if(y0 < y1){
+		topY = y0;
+	}else{
+		topY = y1;
+	}
+	if(xReturn){
+		*xReturn = leftX;
+	}
+	if(yReturn){
+		*yReturn = topY;
+	}
+	if(widthReturn){
+		const int rightX0 = x0 + width0;
+		const int rightX1 = x1 + width1;
+		int rightX;
+		if(rightX0 > rightX1){
+			rightX = rightX0;
+		}else{
+			rightX = rightX1;
+		}
+		*widthReturn = (rightX > leftX) * (rightX - leftX);
+	}
+	if(heightReturn){
+		const int bottomY0 = y0 + height0;
+		const int bottomY1 = y1 + height1;
+		int bottomY;
+		if(bottomY0 > bottomY1){
+			bottomY = bottomY0;
+		}else{
+			bottomY = bottomY1;
+		}
+		*heightReturn = (bottomY > topY) * (bottomY - topY);
+	}
+	ret true;
+}
 

@@ -1,0 +1,344 @@
+
+/*! consume-same-events-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning NOT PASSING the System check: wrap the event system around a connection lock.
+#warning Add counter to check if n events have come though - for use with &xcb_wait_for_event.
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/composite.h>
+#include <xcb/damage.h>
+#include <xcb/randr.h>
+#include <xcb/render.h>
+#include <xcb/shape.h>
+#include <xcb/xfixes.h>
+#include <xcb/xinput.h>
+#include <xcb/xkb.h>
+#include <xcb/xtest.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/functions/consume-same-events-function.hold"
+
+CONSUMESAMEEVENTS(){
+	uint8 eventType;
+	uint8 type;
+	xcb_generic_event_t *event;
+	uint32 eventToken;
+	if((eventFunction != &xcb_poll_for_event and eventFunction != &xcb_wait_for_event) or !firstEvent){
+		ret false;
+	}
+	eventType = 0;
+	type = 0;
+	event = NULL;
+	eventToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	if(((*firstEvent).response_type & b(01111111)) < XCB_GE_GENERIC){
+		eventType = 1;
+		type = (*firstEvent).response_type & b(01111111);
+		jmp eventLoop;
+	}
+	if(isConnectionEventDamage(connectionSystem, firstEvent)){
+		eventType = 2;
+		type = getConnectionDamageResponseType(connectionSystem, firstEvent);
+		jmp eventLoop;
+	}
+	if(isConnectionEventInput(connectionSystem, firstEvent)){
+		eventType = 3;
+		type = getConnectionInputResponseType(connectionSystem, firstEvent);
+		jmp eventLoop;
+	}
+	if(isConnectionEventRandr(connectionSystem, firstEvent)){
+		eventType = 4;
+		type = getConnectionRandrResponseType(connectionSystem, firstEvent);
+		jmp eventLoop;
+	}
+	if(isConnectionEventShape(connectionSystem, firstEvent)){
+		eventType = 5;
+		type = getConnectionShapeResponseType(connectionSystem, firstEvent);
+		jmp eventLoop;
+	}
+	if(isConnectionEventXfixes(connectionSystem, firstEvent)){
+		eventType = 6;
+		type = getConnectionXfixesResponseType(connectionSystem, firstEvent);
+		jmp eventLoop;
+	}
+	if(isConnectionEventXkb(connectionSystem, firstEvent)){
+		eventType = 7;
+		type = getConnectionXkbResponseType(connectionSystem, firstEvent);
+		jmp eventLoop;
+	}
+	if(!eventType){
+		ret false;
+	}
+	jmp eventLoop;
+	eventLoop:{
+		free(event);
+		removeMemoryManagementPointer((*connectionSystem).memoryManagementSystem, eventToken);
+		event = NULL;
+		eventToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+		jmp poolWaitForEvent;
+	}
+	poolWaitForEvent:{
+		event = (*eventFunction)((*connectionSystem).connection);
+		eventToken = insertMemoryManagementPointer((*connectionSystem).memoryManagementSystem, event, "consumeSameEvents() event pointer", &memoryManagementFree);
+		if(event){
+			jmp switchEvent;
+		}
+		if(xcb_connection_has_error((*connectionSystem).connection)){
+			jmp emergencyExit;
+		}
+		if(eventFunction == &xcb_poll_for_event){
+			jmp emergencyExit;
+		}
+		jmp poolWaitForEvent;
+	}
+	switchEvent:{
+		#define XCB_ONE /*-*/ (1)
+		switch((*event).response_type & b(01111111)){
+			to XCB_NONE: /*------------------------*/ jmp emergencyExit;
+			to XCB_ONE: /*-------------------------*/ jmp emergencyExit;
+			to XCB_KEY_PRESS: /*-------------------*/ jmp baseEvent;
+			to XCB_KEY_RELEASE: /*-----------------*/ jmp baseEvent;
+			to XCB_BUTTON_PRESS: /*----------------*/ jmp baseEvent;
+			to XCB_BUTTON_RELEASE: /*--------------*/ jmp baseEvent;
+			to XCB_MOTION_NOTIFY: /*---------------*/ jmp baseEvent;
+			to XCB_ENTER_NOTIFY: /*----------------*/ jmp baseEvent;
+			to XCB_LEAVE_NOTIFY: /*----------------*/ jmp baseEvent;
+			to XCB_FOCUS_IN: /*--------------------*/ jmp baseEvent;
+			to XCB_FOCUS_OUT: /*-------------------*/ jmp baseEvent;
+			to XCB_KEYMAP_NOTIFY: /*---------------*/ jmp baseEvent;
+			to XCB_EXPOSE: /*----------------------*/ jmp baseEvent;
+			to XCB_GRAPHICS_EXPOSURE: /*-----------*/ jmp baseEvent;
+			to XCB_NO_EXPOSURE: /*-----------------*/ jmp baseEvent;
+			to XCB_VISIBILITY_NOTIFY: /*-----------*/ jmp baseEvent;
+			to XCB_CREATE_NOTIFY: /*---------------*/ jmp baseEvent;
+			to XCB_DESTROY_NOTIFY: /*--------------*/ jmp baseEvent;
+			to XCB_UNMAP_NOTIFY: /*----------------*/ jmp baseEvent;
+			to XCB_MAP_NOTIFY: /*------------------*/ jmp baseEvent;
+			to XCB_MAP_REQUEST: /*-----------------*/ jmp baseEvent;
+			to XCB_REPARENT_NOTIFY: /*-------------*/ jmp baseEvent;
+			to XCB_CONFIGURE_NOTIFY: /*------------*/ jmp baseEvent;
+			to XCB_CONFIGURE_REQUEST: /*-----------*/ jmp baseEvent;
+			to XCB_GRAVITY_NOTIFY: /*--------------*/ jmp baseEvent;
+			to XCB_RESIZE_REQUEST: /*--------------*/ jmp baseEvent;
+			to XCB_CIRCULATE_NOTIFY: /*------------*/ jmp baseEvent;
+			to XCB_CIRCULATE_REQUEST: /*-----------*/ jmp baseEvent;
+			to XCB_PROPERTY_NOTIFY: /*-------------*/ jmp baseEvent;
+			to XCB_SELECTION_CLEAR: /*-------------*/ jmp baseEvent;
+			to XCB_SELECTION_REQUEST: /*-----------*/ jmp baseEvent;
+			to XCB_SELECTION_NOTIFY: /*------------*/ jmp baseEvent;
+			to XCB_COLORMAP_NOTIFY: /*-------------*/ jmp baseEvent;
+			to XCB_CLIENT_MESSAGE: /*--------------*/ jmp baseEvent;
+			to XCB_MAPPING_NOTIFY: /*--------------*/ jmp baseEvent;
+			to XCB_GE_GENERIC: /*------------------*/ jmp genericEvent;
+			off: /*--------------------------------*/ jmp extensionEvent;
+		}
+		#undef  XCB_ONE
+	}
+	genericEvent:{
+		if(isConnectionEventInput(connectionSystem, event)) /*-----*/ jmp switchInputEvent;
+		jmp emergencyExit;
+	}
+	extensionEvent:{
+		if(isConnectionEventComposite(connectionSystem, event)) /*-*/ jmp switchCompositeEvent;
+		if(isConnectionEventDamage(connectionSystem, event)) /*----*/ jmp switchDamageEvent;
+		if(isConnectionEventRandr(connectionSystem, event)) /*-----*/ jmp switchRandrEvent;
+		if(isConnectionEventRender(connectionSystem, event)) /*----*/ jmp switchRenderEvent;
+		if(isConnectionEventShape(connectionSystem, event)) /*-----*/ jmp switchShapeEvent;
+		if(isConnectionEventTest(connectionSystem, event)) /*------*/ jmp switchTestEvent;
+		if(isConnectionEventXfixes(connectionSystem, event)) /*----*/ jmp switchXfixesEvent;
+		if(isConnectionEventXkb(connectionSystem, event)) /*-------*/ jmp switchXkbEvent;
+		jmp emergencyExit;
+	}
+	switchCompositeEvent:{
+		switch(getConnectionCompositeResponseType(connectionSystem, event)){
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+	}
+	switchDamageEvent:{
+		switch(getConnectionDamageResponseType(connectionSystem, event)){
+			to XCB_DAMAGE_NOTIFY: /*---------------*/ jmp damageEvent;
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+	}
+	switchInputEvent:{
+		#define XCB_INPUT_ZERO /*-*/ (0)
+		switch(getConnectionInputResponseType(connectionSystem, event)){
+			to XCB_INPUT_ZERO: /*------------------*/ jmp emergencyExit;
+			to XCB_INPUT_DEVICE_CHANGED: /*--------*/ jmp inputEvent;
+			to XCB_INPUT_KEY_PRESS: /*-------------*/ jmp inputEvent;
+			to XCB_INPUT_KEY_RELEASE: /*-----------*/ jmp inputEvent;
+			to XCB_INPUT_BUTTON_PRESS: /*----------*/ jmp inputEvent;
+			to XCB_INPUT_BUTTON_RELEASE: /*--------*/ jmp inputEvent;
+			to XCB_INPUT_MOTION: /*----------------*/ jmp inputEvent;
+			to XCB_INPUT_ENTER: /*-----------------*/ jmp inputEvent;
+			to XCB_INPUT_LEAVE: /*-----------------*/ jmp inputEvent;
+			to XCB_INPUT_FOCUS_IN: /*--------------*/ jmp inputEvent;
+			to XCB_INPUT_FOCUS_OUT: /*-------------*/ jmp inputEvent;
+			to XCB_INPUT_HIERARCHY: /*-------------*/ jmp inputEvent;
+			to XCB_INPUT_PROPERTY: /*--------------*/ jmp inputEvent;
+			to XCB_INPUT_RAW_KEY_PRESS: /*---------*/ jmp inputEvent;
+			to XCB_INPUT_RAW_KEY_RELEASE: /*-------*/ jmp inputEvent;
+			to XCB_INPUT_RAW_BUTTON_PRESS: /*------*/ jmp inputEvent;
+			to XCB_INPUT_RAW_BUTTON_RELEASE: /*----*/ jmp inputEvent;
+			to XCB_INPUT_RAW_MOTION: /*------------*/ jmp inputEvent;
+			to XCB_INPUT_TOUCH_BEGIN: /*-----------*/ jmp inputEvent;
+			to XCB_INPUT_TOUCH_UPDATE: /*----------*/ jmp inputEvent;
+			to XCB_INPUT_TOUCH_END: /*-------------*/ jmp inputEvent;
+			to XCB_INPUT_TOUCH_OWNERSHIP: /*-------*/ jmp inputEvent;
+			to XCB_INPUT_RAW_TOUCH_BEGIN: /*-------*/ jmp inputEvent;
+			to XCB_INPUT_RAW_TOUCH_UPDATE: /*------*/ jmp inputEvent;
+			to XCB_INPUT_RAW_TOUCH_END: /*---------*/ jmp inputEvent;
+			to XCB_INPUT_BARRIER_HIT: /*-----------*/ jmp inputEvent;
+			to XCB_INPUT_BARRIER_LEAVE: /*---------*/ jmp inputEvent;
+			to XCB_INPUT_GESTURE_PINCH_BEGIN: /*---*/ jmp inputEvent;
+			to XCB_INPUT_GESTURE_PINCH_UPDATE: /*--*/ jmp inputEvent;
+			to XCB_INPUT_GESTURE_PINCH_END: /*-----*/ jmp inputEvent;
+			to XCB_INPUT_GESTURE_SWIPE_BEGIN: /*---*/ jmp inputEvent;
+			to XCB_INPUT_GESTURE_SWIPE_UPDATE: /*--*/ jmp inputEvent;
+			to XCB_INPUT_GESTURE_SWIPE_END: /*-----*/ jmp inputEvent;
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+		#undef  XCB_INPUT_ZERO
+	}
+	switchRandrEvent:{
+		switch(getConnectionRandrResponseType(connectionSystem, event)){
+			to XCB_RANDR_SCREEN_CHANGE_NOTIFY: /*--*/ jmp randrEvent;
+			to XCB_RANDR_NOTIFY: /*----------------*/ jmp randrEvent;
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+	}
+	switchRenderEvent:{
+		switch(getConnectionRenderResponseType(connectionSystem, event)){
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+	}
+	switchShapeEvent:{
+		switch(getConnectionShapeResponseType(connectionSystem, event)){
+			to XCB_SHAPE_NOTIFY: /*----------------*/ jmp shapeEvent;
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+	}
+	switchTestEvent:{
+		switch(getConnectionTestResponseType(connectionSystem, event)){
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+	}
+	switchXfixesEvent:{
+		switch(getConnectionXfixesResponseType(connectionSystem, event)){
+			to XCB_XFIXES_SELECTION_NOTIFY: /*-----*/ jmp xfixesEvent;
+			to XCB_XFIXES_CURSOR_NOTIFY: /*--------*/ jmp xfixesEvent;
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+	}
+	switchXkbEvent:{
+		switch(getConnectionXkbResponseType(connectionSystem, event)){
+			to XCB_XKB_NEW_KEYBOARD_NOTIFY: /*-----*/ jmp xkbEvent;
+			to XCB_XKB_MAP_NOTIFY: /*--------------*/ jmp xkbEvent;
+			to XCB_XKB_STATE_NOTIFY: /*------------*/ jmp xkbEvent;
+			to XCB_XKB_CONTROLS_NOTIFY: /*---------*/ jmp xkbEvent;
+			to XCB_XKB_INDICATOR_STATE_NOTIFY: /*--*/ jmp xkbEvent;
+			to XCB_XKB_INDICATOR_MAP_NOTIFY: /*----*/ jmp xkbEvent;
+			to XCB_XKB_NAMES_NOTIFY: /*------------*/ jmp xkbEvent;
+			to XCB_XKB_COMPAT_MAP_NOTIFY: /*-------*/ jmp xkbEvent;
+			to XCB_XKB_BELL_NOTIFY: /*-------------*/ jmp xkbEvent;
+			to XCB_XKB_ACTION_MESSAGE: /*----------*/ jmp xkbEvent;
+			to XCB_XKB_ACCESS_X_NOTIFY: /*---------*/ jmp xkbEvent;
+			to XCB_XKB_EXTENSION_DEVICE_NOTIFY: /*-*/ jmp xkbEvent;
+			off: /*--------------------------------*/ jmp emergencyExit;
+		}
+	}
+	baseEvent:{
+		if(eventType != 1 or ((*event).response_type & b(01111111)) != type){
+			jmp emergencyExit;
+		}
+		jmp eventLoop;
+	}
+	damageEvent:{
+		if(eventType != 2 or getConnectionDamageResponseType(connectionSystem, event) != type){
+			jmp emergencyExit;
+		}
+		jmp eventLoop;
+	}
+	inputEvent:{
+		if(eventType != 3 or getConnectionInputResponseType(connectionSystem, event) != type){
+			jmp emergencyExit;
+		}
+		jmp eventLoop;
+	}
+	randrEvent:{
+		if(eventType != 4 or getConnectionRandrResponseType(connectionSystem, event) != type){
+			jmp emergencyExit;
+		}
+		jmp eventLoop;
+	}
+	shapeEvent:{
+		if(eventType != 5 or getConnectionShapeResponseType(connectionSystem, event) != type){
+			jmp emergencyExit;
+		}
+		jmp eventLoop;
+	}
+	xfixesEvent:{
+		if(eventType != 6 or getConnectionXfixesResponseType(connectionSystem, event) != type){
+			jmp emergencyExit;
+		}
+		jmp eventLoop;
+	}
+	xkbEvent:{
+		if(eventType != 7 or getConnectionXkbResponseType(connectionSystem, event) != type){
+			jmp emergencyExit;
+		}
+		jmp eventLoop;
+	}
+	emergencyExit:{
+		if(eventReturn){
+			*eventReturn = event;
+		}else{
+			free(event);
+		}
+		if(eventTokenReturn){
+			*eventTokenReturn = eventToken;
+		}else{
+			removeMemoryManagementPointer((*connectionSystem).memoryManagementSystem, eventToken);
+		}
+		ret true;
+	}
+}
+

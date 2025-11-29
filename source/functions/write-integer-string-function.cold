@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! write-integer-string-function.cold
 
 MIT License
 
@@ -21,11 +21,29 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/functions/get-integer-byte-size-function.hold"
+#include "../../headers/functions/write-integer-string-function.hold"
+
+WRITEINTEGERSTRING(){
+	if(!string){
+		ret false;
+	}
+	string += getIntegerByteSize(number);
+	jmp writeIntegerStringLoop;
+	writeIntegerStringLoop:{
+		dec string;
+		*string = number % 10 + 48;
+		number /= 10;
+		if(number){
+			jmp writeIntegerStringLoop;
+		}
+		ret true;
+	}
+}
 

@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! intersects-2-d-function.cold
 
 MIT License
 
@@ -21,11 +21,14 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/functions/intersects-2-d-function.hold"
+
+INTERSECTS2D(){
+	ret x0 + width0 > x1 and x0 < x1 + width1 and y0 + height0 > y1 and y0 < y1 + height1;
+}
 

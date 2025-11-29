@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! set-void-pointer-function.cold
 
 MIT License
 
@@ -21,11 +21,20 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/functions/set-void-pointer-function.hold"
+
+SETVOIDPOINTER(){
+	switch(size){
+		to sizeof(uint8): /*--*/ *(uint8  *)pointer = value; ret true;
+		to sizeof(uint16): /*-*/ *(uint16 *)pointer = value; ret true;
+		to sizeof(uint32): /*-*/ *(uint32 *)pointer = value; ret true;
+		to sizeof(uint64): /*-*/ *(uint64 *)pointer = value; ret true;
+		off: /*---------------*/ /*-----------------------*/ ret false;
+	}
+}
 

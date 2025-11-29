@@ -1,0 +1,786 @@
+
+/*! atom-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning ║
+#warning ╠═══ Explore the failure states of requestAtoms(). Consider copying a struct over to replace the old one if successful, otherwise change nothing beyond the operation and code.
+#warning ║
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/avl-tree-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/atom-system.hold"
+#include "../../headers/functions/get-integer-byte-size-function.hold"
+#include "../../headers/functions/write-integer-string-function.hold"
+
+INITATOMSYSTEM(){
+	if(!atomSystem){
+		ret false;
+	}
+	initLockSystem(&(*atomSystem).lockSystem);
+	initAvlTreeSystem(&(*atomSystem).avlTreeSystem);
+	(*atomSystem).memoryManagementSystem = NULL;
+	(*atomSystem).printSystem = NULL;
+	(*atomSystem).connectionSystem = NULL;
+	(*atomSystem).ICCCM_NAME = XCB_NONE;
+	(*atomSystem).ICCCM_ICON_NAME = XCB_NONE;
+	(*atomSystem).ICCCM_NORMAL_HINTS = XCB_NONE;
+	(*atomSystem).ICCCM_SIZE_HINTS = XCB_NONE;
+	(*atomSystem).ICCCM_HINTS = XCB_NONE;
+	(*atomSystem).ICCCM_CLASS = XCB_NONE;
+	(*atomSystem).ICCCM_TRANSIENT_FOR = XCB_NONE;
+	(*atomSystem).ICCCM_PROTOCOLS = XCB_NONE;
+	(*atomSystem).ICCCM_TAKE_FOCUS = XCB_NONE;
+	(*atomSystem).ICCCM_DELETE_WINDOW = XCB_NONE;
+	(*atomSystem).ICCCM_COLORMAP_WINDOWS = XCB_NONE;
+	(*atomSystem).ICCCM_COLORMAP_NOTIFY = XCB_NONE;
+	(*atomSystem).ICCCM_CLIENT_MACHINE = XCB_NONE;
+	(*atomSystem).ICCCM_LOCALE_NAME = XCB_NONE;
+	(*atomSystem).ICCCM_WINDOW_ROLE = XCB_NONE;
+	(*atomSystem).ICCCM_COMMAND = XCB_NONE;
+	(*atomSystem).ICCCM_CLIENT_LEADER = XCB_NONE;
+	(*atomSystem).ICCCM_STATE = XCB_NONE;
+	(*atomSystem).ICCCM_CHANGE_STATE = XCB_NONE;
+	(*atomSystem).ICCCM_ICON_SIZE = XCB_NONE;
+	(*atomSystem).ICCCM_SM_CLIENT_ID = XCB_NONE;
+	(*atomSystem).ICCCM_MANAGER = XCB_NONE;
+	(*atomSystem).EWMH_SUPPORTED = XCB_NONE;
+	(*atomSystem).EWMH_CLIENT_LIST = XCB_NONE;
+	(*atomSystem).EWMH_CLIENT_LIST_STACKING = XCB_NONE;
+	(*atomSystem).EWMH_NUMBER_OF_DESKTOPS = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP_GEOMETRY = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP_VIEWPORT = XCB_NONE;
+	(*atomSystem).EWMH_CURRENT_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP_NAMES = XCB_NONE;
+	(*atomSystem).EWMH_ACTIVE_WINDOW = XCB_NONE;
+	(*atomSystem).EWMH_WORKAREA = XCB_NONE;
+	(*atomSystem).EWMH_SUPPORTING_WM_CHECK = XCB_NONE;
+	(*atomSystem).EWMH_VIRTUAL_ROOTS = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP_LAYOUT = XCB_NONE;
+	(*atomSystem).EWMH_SHOWING_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_CLOSE_WINDOW = XCB_NONE;
+	(*atomSystem).EWMH_MOVERESIZE_WINDOW = XCB_NONE;
+	(*atomSystem).EWMH_MOVERESIZE = XCB_NONE;
+	(*atomSystem).EWMH_RESTACK_WINDOW = XCB_NONE;
+	(*atomSystem).EWMH_REQUEST_FRAME_EXTENTS = XCB_NONE;
+	(*atomSystem).EWMH_NAME = XCB_NONE;
+	(*atomSystem).EWMH_VISIBLE_NAME = XCB_NONE;
+	(*atomSystem).EWMH_ICON_NAME = XCB_NONE;
+	(*atomSystem).EWMH_VISIBLE_ICON_NAME = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_DOCK = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_TOOLBAR = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_MENU = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_UTILITY = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_SPLASH = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_DIALOG = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_NORMAL = XCB_NONE;
+	(*atomSystem).EWMH_STATE = XCB_NONE;
+	(*atomSystem).EWMH_STATE_MODAL = XCB_NONE;
+	(*atomSystem).EWMH_STATE_STICKY = XCB_NONE;
+	(*atomSystem).EWMH_STATE_MAXIMIZED_HORZ = XCB_NONE;
+	(*atomSystem).EWMH_STATE_MAXIMIZED_VERT = XCB_NONE;
+	(*atomSystem).EWMH_STATE_SHADED = XCB_NONE;
+	(*atomSystem).EWMH_STATE_SKIP_TASKBAR = XCB_NONE;
+	(*atomSystem).EWMH_STATE_SKIP_PAGER = XCB_NONE;
+	(*atomSystem).EWMH_STATE_HIDDEN = XCB_NONE;
+	(*atomSystem).EWMH_STATE_FULLSCREEN = XCB_NONE;
+	(*atomSystem).EWMH_STATE_ABOVE = XCB_NONE;
+	(*atomSystem).EWMH_STATE_BELOW = XCB_NONE;
+	(*atomSystem).EWMH_STATE_DEMANDS_ATTENTION = XCB_NONE;
+	(*atomSystem).EWMH_ALLOWED_ACTIONS = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_MOVE = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_RESIZE = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_MINIMIZE = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_SHADE = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_STICK = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_MAXIMIZE_HORZ = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_MAXIMIZE_VERT = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_FULLSCREEN = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_CHANGE_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_CLOSE = XCB_NONE;
+	(*atomSystem).EWMH_STRUT = XCB_NONE;
+	(*atomSystem).EWMH_STRUT_PARTIAL = XCB_NONE;
+	(*atomSystem).EWMH_ICON_GEOMETRY = XCB_NONE;
+	(*atomSystem).EWMH_ICON = XCB_NONE;
+	(*atomSystem).EWMH_PID = XCB_NONE;
+	(*atomSystem).EWMH_HANDLED_ICONS = XCB_NONE;
+	(*atomSystem).EWMH_USER_TIME = XCB_NONE;
+	(*atomSystem).EWMH_FRAME_EXTENTS = XCB_NONE;
+	(*atomSystem).EWMH_PING = XCB_NONE;
+	(*atomSystem).EWMH_SYNC_REQUEST = XCB_NONE;
+	(*atomSystem).EWMH_SYNC_REQUEST_COUNTER = XCB_NONE;
+	(*atomSystem).EWMH_UTF8_STRING = XCB_NONE;
+	(*atomSystem).XEMBED = XCB_NONE;
+	(*atomSystem).XEMBED_INFO = XCB_NONE;
+	(*atomSystem).XEMBED_SYSTEM_TRAY_ORIENTATION = XCB_NONE;
+	(*atomSystem).XEMBED_SYSTEM_TRAY_OPCODE = XCB_NONE;
+	(*atomSystem).XEMBED_SYSTEM_TRAY_MESSAGE_DATA = XCB_NONE;
+	(*atomSystem).ROOT_PIXMAP_ID = XCB_NONE;
+	(*atomSystem).WINDOW_OPACITY = XCB_NONE;
+	(*atomSystem).WM_Sn = XCB_NONE;
+	(*atomSystem).CM_Sn = XCB_NONE;
+	(*atomSystem).ST_Sn = XCB_NONE;
+	(*atomSystem).createTree = false;
+	(*atomSystem).operation = NONE_ATOM_OPERATION;
+	(*atomSystem).code = NONE_ATOM_CODE;
+	(*atomSystem).multithreaded = false;
+	ret true;
+}
+SETATOMMEMORYMANAGEMENTSYSTEM(){
+	uint8 code;
+	if(!atomSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*atomSystem).lockSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*atomSystem).memoryManagementSystem){
+		code = NOTHING_DONE_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	setAvlTreeMemoryManagementSystem(&(*atomSystem).avlTreeSystem, memoryManagementSystem);
+	(*atomSystem).memoryManagementSystem = memoryManagementSystem;
+	code = SUCCESS_ATOM_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*atomSystem).operation = SET_ATOM_MEMORY_MANAGEMENT_SYSTEM_ATOM_OPERATION;
+		(*atomSystem).code = code;
+		unlockLock(&(*atomSystem).lockSystem);
+		if(code != SUCCESS_ATOM_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETATOMPRINTSYSTEM(){
+	uint8 code;
+	if(!atomSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*atomSystem).lockSystem)){
+		ret false;
+	}
+	if(printSystem == (*atomSystem).printSystem){
+		code = NOTHING_DONE_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	(*atomSystem).printSystem = printSystem;
+	code = SUCCESS_ATOM_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*atomSystem).operation = SET_ATOM_PRINT_SYSTEM_ATOM_OPERATION;
+		(*atomSystem).code = code;
+		unlockLock(&(*atomSystem).lockSystem);
+		if(code != SUCCESS_ATOM_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETATOMCONNECTIONSYSTEM(){
+	uint8 code;
+	if(!atomSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*atomSystem).lockSystem)){
+		ret false;
+	}
+	if(connectionSystem == (*atomSystem).connectionSystem){
+		code = NOTHING_DONE_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	(*atomSystem).connectionSystem = connectionSystem;
+	code = SUCCESS_ATOM_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*atomSystem).operation = SET_ATOM_CONNECTION_SYSTEM_ATOM_OPERATION;
+		(*atomSystem).code = code;
+		unlockLock(&(*atomSystem).lockSystem);
+		if(code != SUCCESS_ATOM_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETATOMTREE(){
+	uint8 code;
+	if(!atomSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*atomSystem).lockSystem)){
+		ret false;
+	}
+	createTree = !!createTree;
+	if(createTree == (*atomSystem).createTree){
+		code = NOTHING_DONE_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	(*atomSystem).createTree = createTree;
+	code = SUCCESS_ATOM_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*atomSystem).operation = SET_ATOM_ATOM_OPERATION;
+		(*atomSystem).code = code;
+		unlockLock(&(*atomSystem).lockSystem);
+		if(code != SUCCESS_ATOM_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETATOMMULTITHREADING(){
+	uint8 code;
+	if(!atomSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*atomSystem).multithreaded){
+		code = NOTHING_DONE_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createLock(&(*atomSystem).lockSystem)){
+			code = FAILED_MUTEX_ATOM_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyLock(&(*atomSystem).lockSystem)){
+			code = FAILED_MUTEX_ATOM_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setLockMultithreading(&(*atomSystem).lockSystem, multithreaded);
+	(*atomSystem).multithreaded = multithreaded;
+	code = SUCCESS_ATOM_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*atomSystem).operation = SET_ATOM_MULTITHREADING_ATOM_OPERATION;
+		(*atomSystem).code = code;
+		if(code != SUCCESS_ATOM_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+REQUESTATOMS(){
+	#define STRING(f) /*--*/ { \
+		  f("WM_NAME") \
+		, f("WM_ICON_NAME") \
+		, f("WM_NORMAL_HINTS") \
+		, f("WM_SIZE_HINTS") \
+		, f("WM_HINTS") \
+		, f("WM_CLASS") \
+		, f("WM_TRANSIENT_FOR") \
+		, f("WM_PROTOCOLS") \
+		, f("WM_TAKE_FOCUS") \
+		, f("WM_DELETE_WINDOW") \
+		, f("WM_COLORMAP_WINDOWS") \
+		, f("WM_COLORMAP_NOTIFY") \
+		, f("WM_CLIENT_MACHINE") \
+		, f("WM_LOCALE_NAME") \
+		, f("WM_WINDOW_ROLE") \
+		, f("WM_COMMAND") \
+		, f("WM_CLIENT_LEADER") \
+		, f("WM_STATE") \
+		, f("WM_CHANGE_STATE") \
+		, f("WM_ICON_SIZE") \
+		, f("SM_CLIENT_ID") \
+		, f("MANAGER") \
+		, f("_NET_SUPPORTED") \
+		, f("_NET_CLIENT_LIST") \
+		, f("_NET_CLIENT_LIST_STACKING") \
+		, f("_NET_NUMBER_OF_DESKTOPS") \
+		, f("_NET_DESKTOP_GEOMETRY") \
+		, f("_NET_DESKTOP_VIEWPORT") \
+		, f("_NET_CURRENT_DESKTOP") \
+		, f("_NET_DESKTOP_NAMES") \
+		, f("_NET_ACTIVE_WINDOW") \
+		, f("_NET_WORKAREA") \
+		, f("_NET_SUPPORTING_WM_CHECK") \
+		, f("_NET_VIRTUAL_ROOTS") \
+		, f("_NET_DESKTOP_LAYOUT") \
+		, f("_NET_SHOWING_DESKTOP") \
+		, f("_NET_CLOSE_WINDOW") \
+		, f("_NET_MOVERESIZE_WINDOW") \
+		, f("_NET_WM_MOVERESIZE") \
+		, f("_NET_RESTACK_WINDOW") \
+		, f("_NET_REQUEST_FRAME_EXTENTS") \
+		, f("_NET_WM_NAME") \
+		, f("_NET_WM_VISIBLE_NAME") \
+		, f("_NET_WM_ICON_NAME") \
+		, f("_NET_WM_VISIBLE_ICON_NAME") \
+		, f("_NET_WM_DESKTOP") \
+		, f("_NET_WM_WINDOW_TYPE") \
+		, f("_NET_WM_WINDOW_TYPE_DESKTOP") \
+		, f("_NET_WM_WINDOW_TYPE_DOCK") \
+		, f("_NET_WM_WINDOW_TYPE_TOOLBAR") \
+		, f("_NET_WM_WINDOW_TYPE_MENU") \
+		, f("_NET_WM_WINDOW_TYPE_UTILITY") \
+		, f("_NET_WM_WINDOW_TYPE_SPLASH") \
+		, f("_NET_WM_WINDOW_TYPE_DIALOG") \
+		, f("_NET_WM_WINDOW_TYPE_NORMAL") \
+		, f("_NET_WM_STATE") \
+		, f("_NET_WM_STATE_MODAL") \
+		, f("_NET_WM_STATE_STICKY") \
+		, f("_NET_WM_STATE_MAXIMIZED_HORZ") \
+		, f("_NET_WM_STATE_MAXIMIZED_VERT") \
+		, f("_NET_WM_STATE_SHADED") \
+		, f("_NET_WM_STATE_SKIP_TASKBAR") \
+		, f("_NET_WM_STATE_SKIP_PAGER") \
+		, f("_NET_WM_STATE_HIDDEN") \
+		, f("_NET_WM_STATE_FULLSCREEN") \
+		, f("_NET_WM_STATE_ABOVE") \
+		, f("_NET_WM_STATE_BELOW") \
+		, f("_NET_WM_STATE_DEMANDS_ATTENTION") \
+		, f("_NET_WM_ALLOWED_ACTIONS") \
+		, f("_NET_WM_ACTION_MOVE") \
+		, f("_NET_WM_ACTION_RESIZE") \
+		, f("_NET_WM_ACTION_MINIMIZE") \
+		, f("_NET_WM_ACTION_SHADE") \
+		, f("_NET_WM_ACTION_STICK") \
+		, f("_NET_WM_ACTION_MAXIMIZE_HORZ") \
+		, f("_NET_WM_ACTION_MAXIMIZE_VERT") \
+		, f("_NET_WM_ACTION_FULLSCREEN") \
+		, f("_NET_WM_ACTION_CHANGE_DESKTOP") \
+		, f("_NET_WM_ACTION_CLOSE") \
+		, f("_NET_WM_STRUT") \
+		, f("_NET_WM_STRUT_PARTIAL") \
+		, f("_NET_WM_ICON_GEOMETRY") \
+		, f("_NET_WM_ICON") \
+		, f("_NET_WM_PID") \
+		, f("_NET_WM_HANDLED_ICONS") \
+		, f("_NET_WM_USER_TIME") \
+		, f("_NET_FRAME_EXTENTS") \
+		, f("_NET_WM_PING") \
+		, f("_NET_WM_SYNC_REQUEST") \
+		, f("_NET_WM_SYNC_REQUEST_COUNTER") \
+		, f("UTF8_STRING") \
+		, f("_XEMBED") \
+		, f("_XEMBED_INFO") \
+		, f("_NET_SYSTEM_TRAY_ORIENTATION") \
+		, f("_NET_SYSTEM_TRAY_OPCODE") \
+		, f("_NET_SYSTEM_TRAY_MESSAGE_DATA") \
+		, f("_XROOTPMAP_ID") \
+		, f("_NET_WM_WINDOW_OPACITY") \
+		, f("WM_Sn") \
+		, f("_NET_WM_CM_Sn") \
+		, f("_NET_SYSTEM_TRAY_Sn") \
+	}
+	#define SELF(self) /*-*/ self
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	uint8 code;
+	if(!atomSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*atomSystem).lockSystem)){
+		ret false;
+	}
+	connectionSystem = (*atomSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	jmp setAtoms;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	setAtoms:{
+		char wmString[lengthof("WM_S") + 3] = "WM_S";
+		char cmString[lengthof("_NET_WM_CM_S") + 3] = "_NET_WM_CM_S";
+		char stString[lengthof("_NET_SYSTEM_TRAY_S") + 3] = "_NET_SYSTEM_TRAY_S";
+		char *atomNameStart[] = STRING(SELF);
+		char *const *atomNameCurrent = atomNameStart;
+		uint atomNameSizeStart[] = STRING(lengthof);
+		uint *atomNameSizeCurrent = atomNameSizeStart;
+		xcb_intern_atom_cookie_t cookieStart[countof(atomNameStart)];
+		xcb_intern_atom_cookie_t *cookieCurrent = cookieStart;
+		xcb_intern_atom_cookie_t *const cookieWall = cookieCurrent + countof(cookieStart);
+		xcb_atom_t *atomCurrent = &(*atomSystem).ICCCM_NAME;
+		jmp createCustomAtoms;
+		createCustomAtoms:{
+			const uint screenNumber = XDefaultScreen((*connectionSystem).display);
+			const uint size = getIntegerByteSize(screenNumber);
+			writeIntegerString(screenNumber, wmString + lengthof("WM_S"));
+			writeIntegerString(screenNumber, cmString + lengthof("_NET_WM_CM_S"));
+			writeIntegerString(screenNumber, stString + lengthof("_NET_SYSTEM_TRAY_S"));
+			*(atomNameSizeStart + countof(atomNameSizeStart) - 3) = lengthof("WM_S") + size;
+			*(atomNameSizeStart + countof(atomNameSizeStart) - 2) = lengthof("_NET_WM_CM_S") + size;
+			*(atomNameSizeStart + countof(atomNameSizeStart) - 1) = lengthof("_NET_SYSTEM_TRAY_S") + size;
+			*(atomNameStart + countof(atomNameStart) - 3) = wmString;
+			*(atomNameStart + countof(atomNameStart) - 2) = cmString;
+			*(atomNameStart + countof(atomNameStart) - 1) = stString;
+			jmp atomRequestLoop;
+		}
+		atomRequestLoop:{
+			if(cookieCurrent < cookieWall){
+				*cookieCurrent = xcb_intern_atom_unchecked(connection, false, *atomNameSizeCurrent, *atomNameCurrent);
+				inc atomNameSizeCurrent;
+				inc atomNameCurrent;
+				inc cookieCurrent;
+				jmp atomRequestLoop;
+			}
+			cookieCurrent = cookieStart;
+			jmp atomReplyLoop;
+		}
+		atomReplyLoop:{
+			if(cookieCurrent < cookieWall){
+				xcb_intern_atom_reply_t *const reply = xcb_wait_for_reply(connection, *cookieCurrent, NULL);
+				uint32 token = insertMemoryManagementPointer((*atomSystem).memoryManagementSystem, reply, "AtomSystem requestAtoms() xcb_intern_atom() reply", &memoryManagementFree);
+				*atomCurrent = XCB_NONE;
+				if(reply){
+					*atomCurrent = (*reply).atom;
+					free(reply);
+					removeMemoryManagementPointer((*atomSystem).memoryManagementSystem, token);
+				}
+				inc atomCurrent;
+				inc cookieCurrent;
+				jmp atomReplyLoop;
+			}
+			unlockLock(&(*connectionSystem).lockSystem);
+			jmp createAvlTree;
+		}
+	}
+	createAvlTree:{
+		if((*atomSystem).createTree){
+			AvlTreeSystem *const avlTreeSystem = &(*atomSystem).avlTreeSystem;
+			xcb_atom_t *start = &(*atomSystem).ICCCM_NAME;
+			xcb_atom_t *current = start;
+			xcb_atom_t *const wall = &(*atomSystem).ST_Sn + 1;
+			removeAllAvlTreeNodes(avlTreeSystem);
+			setAvlTreeBlockSize(avlTreeSystem, 128);
+			jmp insertAtomLoop;
+			insertAtomLoop:{
+				if(current < wall){
+					insertAvlTreeNode(avlTreeSystem, *current, current - start);
+					inc current;
+					jmp insertAtomLoop;
+				}
+			}
+		}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+		code = SUCCESS_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*atomSystem).operation = REQUEST_ATOMS_ATOM_OPERATION;
+		(*atomSystem).code = code;
+		unlockLock(&(*atomSystem).lockSystem);
+		if(code != SUCCESS_ATOM_CODE){
+			ret false;
+		}
+		ret true;
+	}
+	#undef  SELF
+	#undef  STRING
+}
+GETATOM(){
+	uint8 code;
+	if(!atomSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*atomSystem).lockSystem)){
+		ret false;
+	}
+	if(!atom or atom > ST_Sn_ATOM){
+		code = BAD_INPUT_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	*atomReturn = *(&(*atomSystem).ICCCM_NAME + atom - 1);
+	code = SUCCESS_ATOM_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*atomSystem).operation = GET_ATOM_ATOM_OPERATION;
+		(*atomSystem).code = code;
+		unlockLock(&(*atomSystem).lockSystem);
+		if(code != SUCCESS_ATOM_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+FINIATOMSYSTEM(){
+	if(!atomSystem){
+		ret false;
+	}
+	if(!finiLockSystem(&(*atomSystem).lockSystem)){
+		ret false;
+	}
+	if(!finiAvlTreeSystem(&(*atomSystem).avlTreeSystem)){
+		ret false;
+	}
+	(*atomSystem).multithreaded = false;
+	(*atomSystem).code = NONE_ATOM_CODE;
+	(*atomSystem).operation = NONE_ATOM_OPERATION;
+	(*atomSystem).createTree = false;
+	(*atomSystem).ST_Sn = XCB_NONE;
+	(*atomSystem).CM_Sn = XCB_NONE;
+	(*atomSystem).WM_Sn = XCB_NONE;
+	(*atomSystem).WINDOW_OPACITY = XCB_NONE;
+	(*atomSystem).ROOT_PIXMAP_ID = XCB_NONE;
+	(*atomSystem).XEMBED_SYSTEM_TRAY_MESSAGE_DATA = XCB_NONE;
+	(*atomSystem).XEMBED_SYSTEM_TRAY_OPCODE = XCB_NONE;
+	(*atomSystem).XEMBED_SYSTEM_TRAY_ORIENTATION = XCB_NONE;
+	(*atomSystem).XEMBED_INFO = XCB_NONE;
+	(*atomSystem).XEMBED = XCB_NONE;
+	(*atomSystem).EWMH_UTF8_STRING = XCB_NONE;
+	(*atomSystem).EWMH_SYNC_REQUEST_COUNTER = XCB_NONE;
+	(*atomSystem).EWMH_SYNC_REQUEST = XCB_NONE;
+	(*atomSystem).EWMH_PING = XCB_NONE;
+	(*atomSystem).EWMH_FRAME_EXTENTS = XCB_NONE;
+	(*atomSystem).EWMH_USER_TIME = XCB_NONE;
+	(*atomSystem).EWMH_HANDLED_ICONS = XCB_NONE;
+	(*atomSystem).EWMH_PID = XCB_NONE;
+	(*atomSystem).EWMH_ICON = XCB_NONE;
+	(*atomSystem).EWMH_ICON_GEOMETRY = XCB_NONE;
+	(*atomSystem).EWMH_STRUT_PARTIAL = XCB_NONE;
+	(*atomSystem).EWMH_STRUT = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_CLOSE = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_CHANGE_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_FULLSCREEN = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_MAXIMIZE_VERT = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_MAXIMIZE_HORZ = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_STICK = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_SHADE = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_MINIMIZE = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_RESIZE = XCB_NONE;
+	(*atomSystem).EWMH_ACTION_MOVE = XCB_NONE;
+	(*atomSystem).EWMH_ALLOWED_ACTIONS = XCB_NONE;
+	(*atomSystem).EWMH_STATE_DEMANDS_ATTENTION = XCB_NONE;
+	(*atomSystem).EWMH_STATE_BELOW = XCB_NONE;
+	(*atomSystem).EWMH_STATE_ABOVE = XCB_NONE;
+	(*atomSystem).EWMH_STATE_FULLSCREEN = XCB_NONE;
+	(*atomSystem).EWMH_STATE_HIDDEN = XCB_NONE;
+	(*atomSystem).EWMH_STATE_SKIP_PAGER = XCB_NONE;
+	(*atomSystem).EWMH_STATE_SKIP_TASKBAR = XCB_NONE;
+	(*atomSystem).EWMH_STATE_SHADED = XCB_NONE;
+	(*atomSystem).EWMH_STATE_MAXIMIZED_VERT = XCB_NONE;
+	(*atomSystem).EWMH_STATE_MAXIMIZED_HORZ = XCB_NONE;
+	(*atomSystem).EWMH_STATE_STICKY = XCB_NONE;
+	(*atomSystem).EWMH_STATE_MODAL = XCB_NONE;
+	(*atomSystem).EWMH_STATE = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_NORMAL = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_DIALOG = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_SPLASH = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_UTILITY = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_MENU = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_TOOLBAR = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_DOCK = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_WINDOW_TYPE = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_VISIBLE_ICON_NAME = XCB_NONE;
+	(*atomSystem).EWMH_ICON_NAME = XCB_NONE;
+	(*atomSystem).EWMH_VISIBLE_NAME = XCB_NONE;
+	(*atomSystem).EWMH_NAME = XCB_NONE;
+	(*atomSystem).EWMH_REQUEST_FRAME_EXTENTS = XCB_NONE;
+	(*atomSystem).EWMH_RESTACK_WINDOW = XCB_NONE;
+	(*atomSystem).EWMH_MOVERESIZE = XCB_NONE;
+	(*atomSystem).EWMH_MOVERESIZE_WINDOW = XCB_NONE;
+	(*atomSystem).EWMH_CLOSE_WINDOW = XCB_NONE;
+	(*atomSystem).EWMH_SHOWING_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP_LAYOUT = XCB_NONE;
+	(*atomSystem).EWMH_VIRTUAL_ROOTS = XCB_NONE;
+	(*atomSystem).EWMH_SUPPORTING_WM_CHECK = XCB_NONE;
+	(*atomSystem).EWMH_WORKAREA = XCB_NONE;
+	(*atomSystem).EWMH_ACTIVE_WINDOW = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP_NAMES = XCB_NONE;
+	(*atomSystem).EWMH_CURRENT_DESKTOP = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP_VIEWPORT = XCB_NONE;
+	(*atomSystem).EWMH_DESKTOP_GEOMETRY = XCB_NONE;
+	(*atomSystem).EWMH_NUMBER_OF_DESKTOPS = XCB_NONE;
+	(*atomSystem).EWMH_CLIENT_LIST_STACKING = XCB_NONE;
+	(*atomSystem).EWMH_CLIENT_LIST = XCB_NONE;
+	(*atomSystem).EWMH_SUPPORTED = XCB_NONE;
+	(*atomSystem).ICCCM_MANAGER = XCB_NONE;
+	(*atomSystem).ICCCM_SM_CLIENT_ID = XCB_NONE;
+	(*atomSystem).ICCCM_ICON_SIZE = XCB_NONE;
+	(*atomSystem).ICCCM_CHANGE_STATE = XCB_NONE;
+	(*atomSystem).ICCCM_STATE = XCB_NONE;
+	(*atomSystem).ICCCM_CLIENT_LEADER = XCB_NONE;
+	(*atomSystem).ICCCM_COMMAND = XCB_NONE;
+	(*atomSystem).ICCCM_WINDOW_ROLE = XCB_NONE;
+	(*atomSystem).ICCCM_LOCALE_NAME = XCB_NONE;
+	(*atomSystem).ICCCM_CLIENT_MACHINE = XCB_NONE;
+	(*atomSystem).ICCCM_COLORMAP_NOTIFY = XCB_NONE;
+	(*atomSystem).ICCCM_COLORMAP_WINDOWS = XCB_NONE;
+	(*atomSystem).ICCCM_DELETE_WINDOW = XCB_NONE;
+	(*atomSystem).ICCCM_TAKE_FOCUS = XCB_NONE;
+	(*atomSystem).ICCCM_PROTOCOLS = XCB_NONE;
+	(*atomSystem).ICCCM_TRANSIENT_FOR = XCB_NONE;
+	(*atomSystem).ICCCM_CLASS = XCB_NONE;
+	(*atomSystem).ICCCM_HINTS = XCB_NONE;
+	(*atomSystem).ICCCM_SIZE_HINTS = XCB_NONE;
+	(*atomSystem).ICCCM_NORMAL_HINTS = XCB_NONE;
+	(*atomSystem).ICCCM_ICON_NAME = XCB_NONE;
+	(*atomSystem).ICCCM_NAME = XCB_NONE;
+	(*atomSystem).connectionSystem = NULL;
+	(*atomSystem).printSystem = NULL;
+	(*atomSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+PRINTATOMLOG(){
+	const char *operation;
+	const char *code;
+	PrintSystem *printSystem;
+	bool success;
+	if(!atomSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*atomSystem).lockSystem)){
+		ret false;
+	}
+	printSystem = (*atomSystem).printSystem;
+	success = false;
+	if(!printSystem){
+		jmp emergencyExit;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		jmp emergencyExit;
+	}
+	switch((*atomSystem).operation){
+		to NONE_ATOM_OPERATION: /*------------------------------*/ operation = NULL; /*----------------------------*/ brk;
+		to SET_ATOM_MEMORY_MANAGEMENT_SYSTEM_ATOM_OPERATION: /*-*/ operation = "setAtomMemoryManagementSystem"; /*-*/ brk;
+		to SET_ATOM_PRINT_SYSTEM_ATOM_OPERATION: /*-------------*/ operation = "setAtomPrintSystem"; /*------------*/ brk;
+		to SET_ATOM_CONNECTION_SYSTEM_ATOM_OPERATION: /*--------*/ operation = "setAtomConnectionSystem"; /*-------*/ brk;
+		to SET_ATOM_ATOM_OPERATION: /*--------------------------*/ operation = "setAtom"; /*-----------------------*/ brk;
+		to SET_ATOM_MULTITHREADING_ATOM_OPERATION: /*-----------*/ operation = "setAtomMultithreading"; /*---------*/ brk;
+		to REQUEST_ATOMS_ATOM_OPERATION: /*---------------------*/ operation = "requestAtoms"; /*------------------*/ brk;
+		to GET_ATOM_ATOM_OPERATION: /*--------------------------*/ operation = "getAtom"; /*-----------------------*/ brk;
+		off: /*-------------------------------------------------*/ operation = "<operation>"; /*-------------------*/ brk;
+	}
+	switch((*atomSystem).code){
+		to NONE_ATOM_CODE: /*-----------------------------------*/ code = NULL; /*---------------------------------*/ brk;
+		to SUCCESS_ATOM_CODE: /*--------------------------------*/ code = "success"; /*----------------------------*/ brk;
+		to NOTHING_DONE_ATOM_CODE: /*---------------------------*/ code = "nothing done"; /*-----------------------*/ brk;
+		to BAD_INPUT_ATOM_CODE: /*------------------------------*/ code = "bad input"; /*--------------------------*/ brk;
+		to UNSET_VALUE_ATOM_CODE: /*----------------------------*/ code = "unset value"; /*------------------------*/ brk;
+		to CLOSED_CONNECTION_ATOM_CODE: /*----------------------*/ code = "closed connection"; /*------------------*/ brk;
+		to FAILED_MUTEX_ATOM_CODE: /*---------------------------*/ code = "failed mutex"; /*-----------------------*/ brk;
+		off: /*-------------------------------------------------*/ code = "<code>"; /*-----------------------------*/ brk;
+	}
+	if(operation and code){
+		if((*atomSystem).code == SUCCESS_ATOM_CODE){
+			if(printUnlockedOutput(printSystem, "%s%s: [%ssuccess%s%s] atom system:%s %s() reported \"%s\"\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorEvent, (*printSystem).outputColorEnd, (*printSystem).outputColorStart, (*printSystem).outputColorEnd, operation, code)){
+				success = true;
+			}
+		}else{
+			if(printUnlockedError(printSystem, "%s%s: [%sfailure%s%s] atom system:%s %s() reported \"%s\"\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, (*printSystem).errorColorEnd, (*printSystem).errorColorStart, (*printSystem).errorColorEnd, operation, code)){
+				success = true;
+			}
+		}
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	jmp emergencyExit;
+	emergencyExit:{
+		unlockLock(&(*atomSystem).lockSystem);
+		if(!success){
+			ret false;
+		}
+		ret true;
+	}
+}
+

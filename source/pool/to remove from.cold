@@ -1,0 +1,3631 @@
+
+/*!
+📝 Text / String Manipulation & Matching
+    starts-with             : checks if a string starts with a prefix
+    ends-with               : checks if a string ends with a suffix
+    equals-string           : checks if two strings are equal (case-sensitive or insensitive)
+    skip-while              : skips characters while a predicate holds (e.g. whitespace, digits, etc.)
+    take-while              : grabs a prefix of a string while a condition holds
+    find-last-character     : like strrchr
+    split-string            : splits a string into tokens using a delimiter
+    trim-string             : removes leading/trailing spaces
+    copy-until              : copies characters from source until a delimiter or condition
+    read-float              : parses a float from a string (optional)
+    match-prefix            : match known keyword at the start, e.g. "toggle:"
+    match-key-value         : matches key=value or key: value format
+    match-string-literal    : handles quoted string parsing (e.g. "hello \"world\"")
+    find-substring-backwards: find a substring from the end
+
+🧠 Memory Operations (Basic and Aligned)
+    swap-memory             : swaps two memory blocks of same size
+    align-pointer           : aligns a pointer up to nearest N bytes (for SIMD, etc.)
+
+🔷 Geometry / Shape / Rectangle Logic
+    is-inside               : checks if a point is inside a rectangle
+    contains-rectangle      : checks if one rectangle completely contains another
+    get-bounding-box        : smallest rectangle that contains multiple rectangles
+    inset-rectangle         : shrinks (or grows) a rectangle inward by margins
+    clamp-rectangle         : clamps one rect inside another
+    clip-line               : clips a line to fit inside a rectangle
+    split-rectangle         : divides a rectangle into two (horizontal/vertical split)
+
+🧪 Useful Utilities for Matching & Parsing
+    match-command           : like match-word, but also checks argument patterns
+    parse-colon-separated   : for configs like key: value
+    match-extension         : checks if a filename ends in .png, .c, etc.
+    tokenize                : breaks input into identifiers, strings, operators, etc. (mini lexer)
+*/
+
+#ifdef a
+	#define XK_MISCELLANY
+	#define XK_XKB_KEYS
+	#define XK_3270
+	#define XK_LATIN1
+	#define XK_LATIN2
+	#define XK_LATIN3
+	#define XK_LATIN4
+	#define XK_LATIN8
+	#define XK_LATIN9
+	#define XK_KATAKANA
+	#define XK_ARABIC
+	#define XK_CYRILLIC
+	#define XK_GREEK
+	#define XK_TECHNICAL
+	#define XK_SPECIAL
+	#define XK_PUBLISHING
+	#define XK_APL
+	#define XK_HEBREW
+	#define XK_THAI
+	#define XK_KOREAN
+	#define XK_ARMENIAN
+	#define XK_GEORGIAN
+	#define XK_CAUCASUS
+	#define XK_VIETNAMESE
+	#define XK_CURRENCY
+	#define XK_MATHEMATICAL
+	#define XK_BRAILLE
+	#define XK_SINHALA
+	#include <X11/keysymdef.h>
+	#undef  XK_SINHALA
+	#undef  XK_BRAILLE
+	#undef  XK_MATHEMATICAL
+	#undef  XK_CURRENCY
+	#undef  XK_VIETNAMESE
+	#undef  XK_CAUCASUS
+	#undef  XK_GEORGIAN
+	#undef  XK_ARMENIAN
+	#undef  XK_KOREAN
+	#undef  XK_THAI
+	#undef  XK_HEBREW
+	#undef  XK_APL
+	#undef  XK_PUBLISHING
+	#undef  XK_SPECIAL
+	#undef  XK_TECHNICAL
+	#undef  XK_GREEK
+	#undef  XK_CYRILLIC
+	#undef  XK_ARABIC
+	#undef  XK_KATAKANA
+	#undef  XK_LATIN9
+	#undef  XK_LATIN8
+	#undef  XK_LATIN4
+	#undef  XK_LATIN3
+	#undef  XK_LATIN2
+	#undef  XK_LATIN1
+	#undef  XK_3270
+	#undef  XK_XKB_KEYS
+	#undef  XK_MISCELLANY
+	#include <X11/XF86keysym.h>
+	#include <xcb/xcb_keysyms.h>
+
+
+
+	#define GETMODIFIERKEYCODES() /*--*/ local void  getModifierKeycodes(void)
+	#define MATCHMODIFIERKEYCODE() /*-*/ local bool  matchModifierKeycode(const xcb_keycode_t keycode)
+
+	local xcb_keycode_t * /*-*/ modifierKeycodeStart;
+	local uint32 /*----------*/ modifierKeycodeToken;
+	local uint /*------------*/ modifierKeycodeSize;
+	local uint8 /*-----------*/ modifierKeycodePer;
+
+	GETMODIFIERKEYCODES();
+	MATCHMODIFIERKEYCODE();
+
+	GETMODIFIERKEYCODES(){
+		xcb_get_modifier_mapping_reply_t *const reply = xcb_wait_for_reply(connection, xcb_get_modifier_mapping_unchecked(connection), NULL);
+		uint32 token = pushPointer(reply, "get modifier mapping reply", iFree);
+		if(reply){
+			const uint length = xcb_get_modifier_mapping_keycodes_length(reply) / sizeof(xcb_keycode_t);
+			const xcb_keycode_t *keycodeCurrent = xcb_get_modifier_mapping_keycodes(reply);
+			xcb_keycode_t *const tempStart = malloc(length * sizeof(xcb_keycode_t));
+			uint32 tempToken = pushPointer(tempStart, "modifier keycodes pointer", iFree);
+			if(tempStart){
+				xcb_keycode_t *current = tempStart;
+				xcb_keycode_t *const wall = current + length;
+				jmp storeModifierKeycodeLoop;
+				storeModifierKeycodeLoop:{
+					if(current < wall){
+						*current = *keycodeCurrent;
+						inc keycodeCurrent;
+						inc current;
+						jmp storeModifierKeycodeLoop;
+					}
+					free(modifierKeycodeStart);
+					popPointer(modifierKeycodeToken);
+					modifierKeycodeStart = tempStart;
+					modifierKeycodeToken = tempToken;
+					modifierKeycodeSize = length;
+					modifierKeycodePer = (*reply).keycodes_per_modifier;
+				}
+			}
+			free(reply);
+			popPointer(token);
+		}
+		ret;
+	}
+	MATCHMODIFIERKEYCODE(){
+		if(modifierKeycodeStart){
+			const xcb_keycode_t *current = modifierKeycodeStart;
+			const xcb_keycode_t *const wall = current + modifierKeycodeSize;
+			jmp matchModifierKeycodeLoop;
+			matchModifierKeycodeLoop:{
+				if(current < wall){
+					if(keycode == *current){
+						ret true;
+					}
+					inc current;
+					jmp matchModifierKeycodeLoop;
+				}
+			}
+		}
+		ret false;
+	}
+
+
+
+	modifierKeycodeStart /*-*/ = NULL;
+	modifierKeycodeToken /*-*/ = 0;
+
+
+
+	#define SHIFT_MODIFIER_KEYCODE_OFFSET /*---*/ (0)
+	#define LOCK_MODIFIER_KEYCODE_OFFSET /*----*/ (1)
+	#define CONTROL_MODIFIER_KEYCODE_OFFSET /*-*/ (2)
+	#define MOD_1_MODIFIER_KEYCODE_OFFSET /*---*/ (3)
+	#define MOD_2_MODIFIER_KEYCODE_OFFSET /*---*/ (4)
+	#define MOD_3_MODIFIER_KEYCODE_OFFSET /*---*/ (5)
+	#define MOD_4_MODIFIER_KEYCODE_OFFSET /*---*/ (6)
+	#define MOD_5_MODIFIER_KEYCODE_OFFSET /*---*/ (7)
+	const uint8 *const keyStart = (*reply).keys;
+	const uint16 modifier = (*e).state & b(11111111);
+	uint16 modifierCurrent;
+	jmp retPoint0;
+	retPoint0: if(modifier & XCB_MOD_MASK_SHIFT){ /*---*/ modifierCurrent = SHIFT_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint1: if(modifier & XCB_MOD_MASK_LOCK){ /*----*/ modifierCurrent = LOCK_MODIFIER_KEYCODE_OFFSET; /*----*/ jmp keyReleaseModifierLookup; }
+	retPoint2: if(modifier & XCB_MOD_MASK_CONTROL){ /*-*/ modifierCurrent = CONTROL_MODIFIER_KEYCODE_OFFSET; /*-*/ jmp keyReleaseModifierLookup; }
+	retPoint3: if(modifier & XCB_MOD_MASK_1){ /*-------*/ modifierCurrent = MOD_1_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint4: if(modifier & XCB_MOD_MASK_2){ /*-------*/ modifierCurrent = MOD_2_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint5: if(modifier & XCB_MOD_MASK_3){ /*-------*/ modifierCurrent = MOD_3_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint6: if(modifier & XCB_MOD_MASK_4){ /*-------*/ modifierCurrent = MOD_4_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint7: if(modifier & XCB_MOD_MASK_5){ /*-------*/ modifierCurrent = MOD_5_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	jmp keyReleaseModifierLookupExit;
+	keyReleaseModifierLookup:{
+		xcb_keycode_t *current = modifierKeycodeStart + modifierCurrent * modifierKeycodePer;
+		xcb_keycode_t *const wall = current + modifierKeycodePer;
+		jmp keyReleaseModifierLookupLoop;
+		keyReleaseModifierLookupLoop:{
+			if(*current and current < wall){
+				isPressed |= !!(*(keyStart + *current / 8) & (1 << *current % 8));
+				fprintf(stdout, "%u is %u\n", *current, isPressed);
+				inc current;
+				jmp keyReleaseModifierLookupLoop;
+			}
+			switch modifierCurrent over
+				to SHIFT_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint1;
+				to LOCK_MODIFIER_KEYCODE_OFFSET: /*----*/ jmp retPoint2;
+				to CONTROL_MODIFIER_KEYCODE_OFFSET: /*-*/ jmp retPoint3;
+				to MOD_1_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint4;
+				to MOD_2_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint5;
+				to MOD_3_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint6;
+				to MOD_4_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint7;
+				off: /*--------------------------------*/ jmp keyReleaseModifierLookupExit;
+			end
+		}
+	}
+	keyReleaseModifierLookupExit:{}
+	#undef  MOD_5_MODIFIER_KEYCODE_OFFSET
+	#undef  MOD_4_MODIFIER_KEYCODE_OFFSET
+	#undef  MOD_3_MODIFIER_KEYCODE_OFFSET
+	#undef  MOD_2_MODIFIER_KEYCODE_OFFSET
+	#undef  MOD_1_MODIFIER_KEYCODE_OFFSET
+	#undef  CONTROL_MODIFIER_KEYCODE_OFFSET
+	#undef  LOCK_MODIFIER_KEYCODE_OFFSET
+	#undef  SHIFT_MODIFIER_KEYCODE_OFFSET
+#endif
+
+#ifdef a
+		{
+			xcb_key_symbols_t *keysyms = xcb_key_symbols_alloc(connection);
+			local const char *const keysym[] = {
+				  "escape"
+				, "f1"
+				, "f2"
+				, "f3"
+				, "f4"
+				, "f5"
+				, "f6"
+				, "f7"
+				, "f8"
+				, "f9"
+				, "f10"
+				, "f11"
+				, "f12"
+				, "f13"
+				, "f14"
+				, "f15"
+				, "f16"
+				, "f17"
+				, "f18"
+				, "f19"
+				, "f20"
+				, "f21"
+				, "f22"
+				, "f23"
+				, "f24"
+				, "f25"
+				, "f26"
+				, "f27"
+				, "f28"
+				, "f29"
+				, "f30"
+				, "f31"
+				, "f32"
+				, "f33"
+				, "f34"
+				, "f35"
+
+				, "grave"
+				, "tilde"
+				, "exclamation-mark"
+				, "at"
+				, "hash"
+				, "dollar"
+				, "percent"
+				, "caret"
+				, "ampersand"
+				, "asterisk"
+				, "left-parenthesis"
+				, "right-parenthesis"
+				, "dash"
+				, "underscore"
+				, "equal"
+				, "cross"
+				, "backspace"
+				, "tab"
+				, "left-bracket"
+				, "left-brace"
+				, "right-bracket"
+				, "right-brace"
+				, "backslash"
+				, "bar"
+				, "semicolon"
+				, "colon"
+				, "single-quote"
+				, "double-quote"
+				, "return"
+				, "comma"
+				, "less-than"
+				, "dot"
+				, "greater-than"
+				, "slash"
+				, "question-mark"
+				, "space"
+				, "menu"
+
+
+
+				, "number-0" /*!*/
+				, "number-1" /*!*/
+				, "number-2" /*!*/
+				, "number-3" /*!*/
+				, "number-4" /*!*/
+				, "number-5" /*!*/
+				, "number-6" /*!*/
+				, "number-7" /*!*/
+				, "number-8" /*!*/
+				, "number-9" /*!*/
+
+
+
+				, "a"
+				, "b"
+				, "c"
+				, "d"
+				, "e"
+				, "f"
+				, "g"
+				, "h"
+				, "i"
+				, "j"
+				, "k"
+				, "l"
+				, "m"
+				, "n"
+				, "o"
+				, "p"
+				, "q"
+				, "r"
+				, "s"
+				, "t"
+				, "u"
+				, "v"
+				, "w"
+				, "x"
+				, "y"
+				, "z"
+				, "left-shift"
+				, "right-shift"
+				, "left-control"
+				, "right-control"
+				, "left-alt"
+				, "right-alt"
+				, "left-meta"
+				, "right-meta"
+				, "left-super"
+				, "right-super"
+				, "left-hyper"
+				, "right-hyper"
+				, "caps-lock"
+				, "shift-lock"
+				, "print-screen"
+				, "scroll-lock"
+				, "pause"
+				, "break"
+
+
+
+				, "navigation-insert"
+				, "navigation-delete"
+				, "navigation-home"
+				, "navigation-end"
+				, "navigation-page-up"
+				, "navigation-page-down"
+				, "navigation-up"
+				, "navigation-down"
+				, "navigation-left"
+				, "navigation-right"
+
+				, "num-lock"
+				, "keypad-divide"
+				, "keypad-multiply"
+				, "keypad-subtract"
+				, "keypad-add"
+				, "keypad-enter"
+				, "keypad-home"
+				, "keypad-up"
+				, "keypad-page-up"
+				, "keypad-left"
+				, "keypad-right"
+				, "keypad-end"
+				, "keypad-down"
+				, "keypad-page-down"
+				, "keypad-insert"
+				, "keypad-delete"
+				, "keypad-point"
+				, "keypad-0"
+				, "keypad-1"
+				, "keypad-2"
+				, "keypad-3"
+				, "keypad-4"
+				, "keypad-5"
+				, "keypad-6"
+				, "keypad-7"
+				, "keypad-8"
+				, "keypad-9"
+
+				, "macro-f1"
+				, "macro-f2"
+				, "macro-f3"
+				, "macro-f4"
+				, "brightness-up"
+				, "brightness-down"
+				, "volume-up"
+				, "volume-down"
+				, "volume-mute"
+
+
+
+				/*! catchalls, what is their value? */
+
+				, "0"
+				, "1"
+				, "2"
+				, "3"
+				, "4"
+				, "5"
+				, "6"
+				, "7"
+				, "8"
+				, "9"
+				, "dot"
+				, "plus"
+				, "minus"
+				, "asterisk"
+				, "slash"
+				, "up"
+				, "down"
+				, "left"
+				, "right"
+				, "home"
+				, "end"
+				, "page-up"
+				, "page-down"
+				, "insert"
+				, "delete"
+				, "enter"
+				, "shift"
+				, "control"
+				, "alt"
+				, "meta"
+				, "super"
+				, "hyper"
+
+				, NULL
+			};
+			local const uint32 keysymValue[] = {
+				  XK_Escape
+				, XK_F1
+				, XK_F2
+				, XK_F3
+				, XK_F4
+				, XK_F5
+				, XK_F6
+				, XK_F7
+				, XK_F8
+				, XK_F9
+				, XK_F10
+				, XK_F11
+				, XK_F12
+				, XK_F13
+				, XK_F14
+				, XK_F15
+				, XK_F16
+				, XK_F17
+				, XK_F18
+				, XK_F19
+				, XK_F20
+				, XK_F21
+				, XK_F22
+				, XK_F23
+				, XK_F24
+				, XK_F25
+				, XK_F26
+				, XK_F27
+				, XK_F28
+				, XK_F29
+				, XK_F30
+				, XK_F31
+				, XK_F32
+				, XK_F33
+				, XK_F34
+				, XK_F35
+
+/*! section 3 */
+				, XK_grave
+				, XK_asciitilde
+				, XK_exclam
+				, XK_at
+				, XK_numbersign
+				, XK_dollar
+				, XK_percent
+				, XK_asciicircum
+				, XK_ampersand
+				, XK_asterisk
+				, XK_parenleft
+				, XK_parenright
+				, XK_minus
+				, XK_underscore
+				, XK_equal
+				, XK_plus
+				, XK_BackSpace
+				, XK_Tab
+				, XK_bracketleft
+				, XK_braceleft
+				, XK_bracketright
+				, XK_braceright
+				, XK_backslash
+				, XK_bar
+				, XK_semicolon
+				, XK_colon
+				, XK_apostrophe
+				, XK_quotedbl
+				, XK_Return
+				, XK_comma
+				, XK_less
+				, XK_period
+				, XK_greater
+				, XK_slash
+				, XK_question
+				, XK_space
+				, XK_Menu
+				, XK_0
+				, XK_1
+				, XK_2
+				, XK_3
+				, XK_4
+				, XK_5
+				, XK_6
+				, XK_7
+				, XK_8
+				, XK_9
+				, XK_A
+				, XK_B
+				, XK_C
+				, XK_D
+				, XK_E
+				, XK_F
+				, XK_G
+				, XK_H
+				, XK_I
+				, XK_J
+				, XK_K
+				, XK_L
+				, XK_M
+				, XK_N
+				, XK_O
+				, XK_P
+				, XK_Q
+				, XK_R
+				, XK_S
+				, XK_T
+				, XK_U
+				, XK_V
+				, XK_W
+				, XK_X
+				, XK_Y
+				, XK_Z
+
+
+
+
+
+
+
+
+
+				, XK_Shift_L
+				, XK_Shift_R
+				, XK_Control_L
+				, XK_Control_R
+				, XK_Alt_L
+				, XK_Alt_R
+				, XK_Meta_L
+				, XK_Meta_R
+				, XK_Super_L
+				, XK_Super_R
+				, XK_Hyper_L
+				, XK_Hyper_R
+				, XK_Caps_Lock
+				, XK_Shift_Lock
+				, XK_Num_Lock
+
+
+
+
+
+
+
+
+
+				, XK_Print
+				, XK_Scroll_Lock
+				, XK_Pause
+				, XK_Break
+				, XK_Insert
+				, XK_Delete
+				, XK_Home
+				, XK_End
+				, XK_Prior
+				, XK_Next
+				, XK_Up
+				, XK_Down
+				, XK_Left
+				, XK_Right
+				, XK_KP_Divide
+				, XK_KP_Multiply
+				, XK_KP_Subtract
+				, XK_KP_Add
+				, XK_KP_Enter
+				, XK_KP_Home
+				, XK_KP_Up
+				, XK_KP_Prior
+				, XK_KP_Left
+				, XK_KP_Right
+				, XK_KP_End
+				, XK_KP_Down
+				, XK_KP_Next
+				, XK_KP_Insert
+				, XK_KP_Delete
+				, XK_KP_Decimal
+				, XK_KP_0
+				, XK_KP_1
+				, XK_KP_2
+				, XK_KP_3
+				, XK_KP_4
+				, XK_KP_5
+				, XK_KP_6
+				, XK_KP_7
+				, XK_KP_8
+				, XK_KP_9
+				, XK_KP_F1
+				, XK_KP_F2
+				, XK_KP_F3
+				, XK_KP_F4
+				, XF86XK_MonBrightnessUp
+				, XF86XK_MonBrightnessDown
+				, XF86XK_AudioRaiseVolume
+				, XF86XK_AudioLowerVolume
+				, XF86XK_AudioMute
+
+				/*! catchalls */
+
+				, 0
+			};
+
+			/*!
+				for kp_home (79) to happen the num lock must be off, otherwise the .
+			*/
+
+			{
+				xcb_keycode_t *code;
+				if((code = xcb_key_symbols_get_keycode(keysyms, XK_quotedbl))){
+					jmp loopo;
+					loopo:{
+						if(*code != XCB_NO_SYMBOL){
+							fprintf(stdout, "code: %u\n", *code);
+							inc code;
+							jmp loopo;
+						}
+					}
+				}
+			}
+			xcb_key_symbols_free(keysyms);
+		}
+#endif
+
+
+
+
+
+
+
+
+
+#ifdef a
+/*!
+	binary search tree that supports inserting, path inserting and finding utf-8 strings similarly to a trie but in a smaller block of memory.
+
+	should eventually support depth first search to return n amount of strings.
+
+	support removal.
+
+	different node structs based on what is allowed. what is allowed should be set on creation, when data start is NULL.
+*/
+
+#include <dirent.h>
+#include <locale.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include "../../cold/cold.hold"
+
+#define NONE_STRING_TREE_SETTING /*--------*/ (b(00))
+#define ORDERED_STRING_TREE_SETTING /*-----*/ (b(01))
+#define REMOVE_STRING_TREE_SETTING /*------*/ (b(10))
+#define DEPTH_FIRST_STRING_TREE_SETTING /*-*/ (b(10))
+
+#define INITSTRINGTREESYSTEM() /*----------*/ local bool              initStringTreeSystem(StringTreeSystem *const stringTreeSystem)
+#define SETSTRINGTREESETTING() /*----------*/ local bool              setStringTreeSetting(StringTreeSystem *const stringTreeSystem, const uint8 setting)
+#define SETSTRINGTREEBLOCKSIZE() /*--------*/ local bool              setStringTreeBlockSize(StringTreeSystem *const stringTreeSystem, const uint blockSize)
+#define PATHINSERTSTRINGTREESTRING() /*----*/ local bool              pathInsertStringTreeString(StringTreeSystem *const stringTreeSystem, const char *path)
+#define INSERTSTRINGTREESTRING() /*--------*/ local bool             _insertStringTreeString(StringTreeSystem *const stringTreeSystem, const uint8 *string)
+#define REMOVESTRINGTREESTRING() /*--------*/ local bool              removeStringTreeString(StringTreeSystem *const stringTreeSystem, const uint8 *prefix)
+#define GETSTRINGTREEPREFIX() /*-----------*/ local StringTreeNode *  getStringTreePrefix(StringTreeSystem *const stringTreeSystem, const uint8 **const stringReturn)
+#define FINDSTRINGTREESTRING() /*----------*/ local bool             _findStringTreeString(StringTreeSystem *const stringTreeSystem, const uint8 *string)
+#define FINISTRINGTREESYSTEM() /*----------*/ local bool              finiStringTreeSystem(StringTreeSystem *const stringTreeSystem)
+
+#define insertStringTreeString(a, b) /*----*/ (_insertStringTreeString(a, (void *)b))
+#define findStringTreeString(a, b) /*------*/ (_findStringTreeString(a, (void *)b))
+
+def struct{
+	uint8 /*------------*/ pad0[2];
+	bool /*-------------*/ inUse;
+	uint8 /*------------*/ byte;
+	uint32 /*-----------*/ nextSiblingOffset;
+	uint32 /*-----------*/ firstChildOffset;
+} StringTreeNode;
+
+def struct{
+	uint8 /*------------*/ pad0[2];
+	bool /*-------------*/ inUse;
+	uint8 /*------------*/ byte;
+	uint32 /*-----------*/ parentOffset;
+	uint32 /*-----------*/ nextSiblingOffset;
+	uint32 /*-----------*/ firstChildOffset;
+} BacktrackerStringTreeNode;
+
+def struct{
+	StringTreeNode * /*-*/ start;
+	uint32 /*-----------*/ token;
+	uint32 /*-----------*/ size;
+	uint32 /*-----------*/ allocated;
+	uint32 /*-----------*/ blockSize;
+	uint8 /*------------*/ setting;
+	uint8 /*------------*/ pad0[7];
+} StringTreeSystem;
+
+INITSTRINGTREESYSTEM();
+SETSTRINGTREESETTING();
+SETSTRINGTREEBLOCKSIZE();
+PATHINSERTSTRINGTREESTRING();
+INSERTSTRINGTREESTRING();
+REMOVESTRINGTREESTRING();
+GETSTRINGTREEPREFIX();
+FINDSTRINGTREESTRING();
+FINISTRINGTREESYSTEM();
+
+int main(void){
+	StringTreeSystem stringTreeSystem;
+	setlocale(LC_ALL, "");
+	initStringTreeSystem(&stringTreeSystem);
+	setStringTreeSetting(&stringTreeSystem, ORDERED_STRING_TREE_SETTING | REMOVE_STRING_TREE_SETTING | DEPTH_FIRST_STRING_TREE_SETTING);
+	setStringTreeBlockSize(&stringTreeSystem, 8192);
+
+
+
+	fprintf(stdout, "inserting %s    :\tinsert: %u\n", "lmao", insertStringTreeString(&stringTreeSystem, "lmao"));
+	fprintf(stdout, "inserting %s    :\tinsert: %u\n", "almao", insertStringTreeString(&stringTreeSystem, "almao"));
+	fprintf(stdout, "inserting %s    :\tinsert: %u\n", "lmao1", insertStringTreeString(&stringTreeSystem, "lmao1"));
+	fprintf(stdout, "inserting %s    :\tinsert: %u\n", "🗿️", insertStringTreeString(&stringTreeSystem, "🗿️"));
+	fprintf(stdout, "inserting %s    :\tinsert: %u\n", "", insertStringTreeString(&stringTreeSystem, ""));
+	fprintf(stdout, "\n\n\n");
+	fprintf(stdout, "finding   %s    :\tfind  : %u\n", "lmao", findStringTreeString(&stringTreeSystem, "lmao"));
+	fprintf(stdout, "finding   %s    :\tfind  : %u\n", "almao", findStringTreeString(&stringTreeSystem, "almao"));
+	fprintf(stdout, "finding   %s    :\tfind  : %u\n", "lmao1", findStringTreeString(&stringTreeSystem, "lmao1"));
+	fprintf(stdout, "finding   %s    :\tfind  : %u\n", "🗿️", findStringTreeString(&stringTreeSystem, "🗿️"));
+	fprintf(stdout, "finding   %s    :\tfind  : %u\n", "", findStringTreeString(&stringTreeSystem, ""));
+
+
+
+	/*! pathInsertStringTreeString(&stringTreeSystem, "PATH"); */
+
+
+
+	finiStringTreeSystem(&stringTreeSystem);
+	ret 0;
+}
+INITSTRINGTREESYSTEM(){
+	if(!stringTreeSystem){
+		ret false;
+	}
+	(*stringTreeSystem).start = NULL;
+	(*stringTreeSystem).token = 0;
+	(*stringTreeSystem).size = 0;
+	(*stringTreeSystem).allocated = 0;
+	(*stringTreeSystem).blockSize = 0;
+	(*stringTreeSystem).setting = NONE_STRING_TREE_SETTING;
+	ret true;
+}
+SETSTRINGTREESETTING(){
+	if(!stringTreeSystem or (*stringTreeSystem).start or !setting){
+		ret false;
+	}
+	(*stringTreeSystem).setting = setting;
+	ret true;
+}
+SETSTRINGTREEBLOCKSIZE(){
+	if(!stringTreeSystem or !blockSize){
+		ret false;
+	}
+	(*stringTreeSystem).blockSize = blockSize;
+	ret true;
+}
+PATHINSERTSTRINGTREESTRING(){
+	#define DELIMITER /*-*/ (':')
+	char *pathCurrent;
+	char nameStart[PATH_MAX];
+	char *nameCurrent;
+	if(!stringTreeSystem or !path){
+		ret false;
+	}
+	pathCurrent = getenv(path);
+	if(!pathCurrent or !*pathCurrent){
+		ret false;
+	}
+	nameCurrent = nameStart;
+	jmp findNextPathLengthLoop;
+	findNextPathLengthLoop:{
+		const char c = *pathCurrent;
+		if(c and c != DELIMITER){
+			*nameCurrent = c;
+			inc nameCurrent;
+			inc pathCurrent;
+			jmp findNextPathLengthLoop;
+		}
+		*nameCurrent = '\0';
+		jmp getPathName;
+	}
+	getPathName:{
+		DIR *const dir = opendir(nameStart);
+		/*! uint32 token = pushPointer(dir, "executable path pointer", closedir); */
+		if(dir){
+			jmp storeExecutableNameLoop;
+			storeExecutableNameLoop:{
+				struct dirent *entry;
+				if((entry = readdir(dir))){
+					const uint8 *const name = (void *)(*entry).d_name;
+					if((*entry).d_type != DT_LNK and (*entry).d_type != DT_REG){
+						jmp storeExecutableNameLoop;
+					}
+					if(*name == '.' and (*(name + 1) == '\0' or (*(name + 1) == '.' and *(name + 2) == '\0'))){
+						jmp storeExecutableNameLoop;
+					}
+					insertStringTreeString(stringTreeSystem, name);
+					jmp storeExecutableNameLoop;
+				}
+				closedir(dir);
+				/*! popPointer(token); */
+			}
+		}
+		if(*pathCurrent == DELIMITER and *(inc pathCurrent)){
+			nameCurrent = nameStart;
+			jmp findNextPathLengthLoop;
+		}
+		ret true;
+	}
+	#undef  DELIMITER
+}
+INSERTSTRINGTREESTRING(){
+	uint size;
+	uint allocated;
+	StringTreeNode *data;
+	StringTreeNode *node;
+	bool returnValue;
+	if(!stringTreeSystem or !string){
+		ret false;
+	}
+	size = (*stringTreeSystem).size;
+	allocated = (*stringTreeSystem).allocated;
+	data = (*stringTreeSystem).start;
+	jmp findPrefix;
+	findPrefix:{
+		node = getStringTreePrefix(stringTreeSystem, &string);
+		if((!node or (*node).byte == b(00000000)) and data and node != data){
+			ret false;
+		}
+		jmp addLetterLoop;
+	}
+	addLetterLoop:{
+		uint8 byte;
+		uint nextSiblingOffset;
+		if(allocated == size){
+			const uint nodeOffset = node - data;
+			void *temp;
+			size += (*stringTreeSystem).blockSize;
+			temp = realloc(data, size * sizeof(StringTreeNode));
+			/*! if(!token){
+				token = pushPointer(temp, "node tree pointer", iFree);
+			}else{
+				updatePointer(token, temp);
+			} */
+			if(!temp){
+				size -= (*stringTreeSystem).blockSize;
+				if(node){
+					(*node).inUse = true;
+					(*node).byte = b(00000000);
+					(*node).nextSiblingOffset = 0;
+					(*node).firstChildOffset = 0;
+				}
+				returnValue = false;
+				jmp completeString;
+			}
+			data = temp;
+			node = data + nodeOffset;
+			if(!allocated){
+				(*node).inUse = true;
+				(*node).byte = b(00000000);
+				(*node).nextSiblingOffset = 0;
+				(*node).firstChildOffset = 0;
+				inc allocated;
+			}
+		}
+		byte = *string;
+		if((*node).firstChildOffset){
+			StringTreeNode *sibling = data + (*node).firstChildOffset;
+			StringTreeNode *previousSibling = NULL;
+			jmp findHorizontalPositionLoop;
+			findHorizontalPositionLoop:{
+				if((*sibling).byte < byte){
+					previousSibling = sibling;
+					if((*sibling).nextSiblingOffset){
+						sibling = data + (*sibling).nextSiblingOffset;
+						jmp findHorizontalPositionLoop;
+					}
+				}
+				if(!previousSibling){
+					(*node).firstChildOffset = allocated;
+				}else{
+					(*previousSibling).nextSiblingOffset = allocated;
+				}
+				nextSiblingOffset = 0;
+				if(sibling != previousSibling){
+					nextSiblingOffset = sibling - data;
+				}
+			}
+		}else{
+			(*node).firstChildOffset = allocated;
+			nextSiblingOffset = 0;
+		}
+		node = data + allocated;
+		(*node).inUse = true;
+		(*node).byte = byte;
+		(*node).nextSiblingOffset = nextSiblingOffset;
+		(*node).firstChildOffset = 0;
+		inc allocated;
+		if(byte){
+			inc string;
+			jmp addLetterLoop;
+		}
+		returnValue = true;
+		jmp completeString;
+	}
+	completeString:{
+		if(node){
+			(*stringTreeSystem).size = size;
+			(*stringTreeSystem).allocated = allocated;
+			(*stringTreeSystem).start = data;
+		}
+		ret returnValue;
+	}
+}
+REMOVESTRINGTREESTRING(){
+	uint size;
+	uint allocated;
+	StringTreeNode *data;
+	StringTreeNode *node;
+	if(!stringTreeSystem or !(*stringTreeSystem).start or !((*stringTreeSystem).setting & REMOVE_STRING_TREE_SETTING) or !prefix){
+		ret false;
+	}
+	size = (*stringTreeSystem).size;
+	allocated = (*stringTreeSystem).allocated;
+	data = (*stringTreeSystem).start;
+	jmp findPrefix;
+	findPrefix:{
+		node = getStringTreePrefix(stringTreeSystem, &prefix);
+		if(!node){
+			ret false;
+		}
+		jmp removeLetterLoop;
+	}
+	removeLetterLoop:{
+
+
+
+
+
+
+
+
+
+		/*! remove all the below nodes in a depth first fashion and then try to remove upwards until parent has more than one child. */
+
+
+
+
+
+
+
+
+
+		ret true;
+	}
+}
+GETSTRINGTREEPREFIX(){
+	const uint8 *string;
+	StringTreeNode *data;
+	StringTreeNode *node;
+	StringTreeNode *child;
+	uint8 byte;
+	if(!stringTreeSystem or !(*stringTreeSystem).start or !stringReturn){
+		ret NULL;
+	}
+	data = (*stringTreeSystem).start;
+	node = data;
+	string = *stringReturn;
+	jmp findLetterLoop;
+	findLetterLoop:{
+		child = data + (*node).firstChildOffset;
+		byte = *string;
+		jmp nextLetterLoop;
+	}
+	nextLetterLoop:{
+		if(child != data){
+			if((*child).byte == byte){
+				node = child;
+				if(byte){
+					inc string;
+					jmp findLetterLoop;
+				}
+			}elif((*child).byte < byte){
+				child = data + (*child).nextSiblingOffset;
+				jmp nextLetterLoop;
+			}
+		}
+		*stringReturn = string;
+		ret node;
+	}
+}
+FINDSTRINGTREESTRING(){
+	StringTreeNode *node;
+	if(!stringTreeSystem or !string){
+		ret false;
+	}
+	node = getStringTreePrefix(stringTreeSystem, &string);
+	if(!node or node == (*stringTreeSystem).start or (*node).byte != b(00000000)){
+		ret false;
+	}
+	ret true;
+}
+FINISTRINGTREESYSTEM(){
+	if(!stringTreeSystem){
+		ret false;
+	}
+	free((*stringTreeSystem).start);
+	/*! popPointer((*stringTreeSystem).token); */
+	(*stringTreeSystem).start = NULL;
+	(*stringTreeSystem).token = 0;
+	(*stringTreeSystem).size = 0;
+	(*stringTreeSystem).allocated = 0;
+	(*stringTreeSystem).blockSize = 0;
+	(*stringTreeSystem).setting = NONE_STRING_TREE_SETTING;
+	ret true;
+}
+#endif
+
+#ifdef a
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <xcb/xcb.h>
+	#include <xcb/xinput.h>
+
+	const xcb_query_extension_reply_t *ext;
+	xcb_connection_t *connection;
+	xcb_generic_event_t *event;
+	xcb_screen_t *screen;
+
+	int main(void){
+		connection = xcb_connect(NULL, NULL);
+		if(xcb_connection_has_error(connection)){
+			fprintf(stderr, "failed to connect to X server\n");
+			return 1;
+		}
+		screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data;
+		ext = xcb_get_extension_data(connection, &xcb_input_id);
+		if(!ext || !(*ext).present){
+			fprintf(stderr, "xinput extension not available\n");
+			return 1;
+		}
+		{
+			xcb_input_xi_query_version_reply_t *reply = xcb_wait_for_reply(connection, xcb_input_xi_query_version(connection, 2, 4), NULL);
+			if(reply){
+				printf("xinput version supported by the server: %d.%d\n", (*reply).major_version, (*reply).minor_version);
+				free(reply);
+			}else{
+				fprintf(stderr, "failed to query xinput version\n");
+				return 1;
+			}
+		}
+		{
+			struct{
+				xcb_input_event_mask_t /*----*/ value;
+				xcb_input_xi_event_mask_t /*-*/ mask;
+			} valueList;
+			valueList.value.deviceid = XCB_INPUT_DEVICE_ALL;
+			valueList.value.mask_len = 1;
+			valueList.mask = XCB_INPUT_XI_EVENT_MASK_TOUCH_BEGIN | XCB_INPUT_XI_EVENT_MASK_TOUCH_UPDATE | XCB_INPUT_XI_EVENT_MASK_TOUCH_END;
+			xcb_input_xi_select_events(connection, (*screen).root, 1, &valueList.value);
+		}
+		printf("listening for touch events...\n");
+		for(;;){
+			xcb_flush(connection);
+			event = xcb_wait_for_event(connection);
+			if(!event){
+				break;
+			}
+			{
+				xcb_ge_generic_event_t *e = event;
+				fprintf(stdout, "event: %u\n", (*e).event_type);
+				switch((*e).event_type){
+					case XCB_INPUT_TOUCH_BEGIN:
+					case XCB_INPUT_TOUCH_UPDATE:
+					case XCB_INPUT_TOUCH_END:{
+						xcb_input_touch_begin_event_t *ev = e;
+						fprintf(stdout, "deviceid: %u\n", (*ev).deviceid);
+						fprintf(stdout, "time: %u\n", (*ev).time);
+						fprintf(stdout, "detail: %u\n", (*ev).detail);
+						fprintf(stdout, "root: %x\n", (*ev).root);
+						fprintf(stdout, "event: %x\n", (*ev).event);
+						fprintf(stdout, "child: %x\n", (*ev).child);
+						fprintf(stdout, "root_x: %i\n", (*ev).root_x);
+						fprintf(stdout, "root_y: %i\n", (*ev).root_y);
+						fprintf(stdout, "event_x: %i\n", (*ev).event_x);
+						fprintf(stdout, "event_y: %i\n", (*ev).event_y);
+						fprintf(stdout, "buttons_len: %u\n", (*ev).buttons_len);
+						fprintf(stdout, "valuators_len: %u\n", (*ev).valuators_len);
+						fprintf(stdout, "sourceid: %u\n", (*ev).sourceid);
+						fprintf(stdout, "\n\n\n");
+						break;
+					}
+					default:
+						printf("%u event came in\n", (*event).response_type & ~0x80);
+						break;
+				}
+			}
+			free(event);
+		}
+		xcb_disconnect(connection);
+		return 0;
+	}
+#endif
+
+#ifdef a
+	#define XK_MISCELLANY
+	#define XK_XKB_KEYS
+	#define XK_3270
+	#define XK_LATIN1
+	#define XK_LATIN2
+	#define XK_LATIN3
+	#define XK_LATIN4
+	#define XK_LATIN8
+	#define XK_LATIN9
+	#define XK_KATAKANA
+	#define XK_ARABIC
+	#define XK_CYRILLIC
+	#define XK_GREEK
+	#define XK_TECHNICAL
+	#define XK_SPECIAL
+	#define XK_PUBLISHING
+	#define XK_APL
+	#define XK_HEBREW
+	#define XK_THAI
+	#define XK_KOREAN
+	#define XK_ARMENIAN
+	#define XK_GEORGIAN
+	#define XK_CAUCASUS
+	#define XK_VIETNAMESE
+	#define XK_CURRENCY
+	#define XK_MATHEMATICAL
+	#define XK_BRAILLE
+	#define XK_SINHALA
+	#include <X11/keysymdef.h>
+	#undef  XK_SINHALA
+	#undef  XK_BRAILLE
+	#undef  XK_MATHEMATICAL
+	#undef  XK_CURRENCY
+	#undef  XK_VIETNAMESE
+	#undef  XK_CAUCASUS
+	#undef  XK_GEORGIAN
+	#undef  XK_ARMENIAN
+	#undef  XK_KOREAN
+	#undef  XK_THAI
+	#undef  XK_HEBREW
+	#undef  XK_APL
+	#undef  XK_PUBLISHING
+	#undef  XK_SPECIAL
+	#undef  XK_TECHNICAL
+	#undef  XK_GREEK
+	#undef  XK_CYRILLIC
+	#undef  XK_ARABIC
+	#undef  XK_KATAKANA
+	#undef  XK_LATIN9
+	#undef  XK_LATIN8
+	#undef  XK_LATIN4
+	#undef  XK_LATIN3
+	#undef  XK_LATIN2
+	#undef  XK_LATIN1
+	#undef  XK_3270
+	#undef  XK_XKB_KEYS
+	#undef  XK_MISCELLANY
+	#include <X11/XF86keysym.h>
+	#include <xcb/xcb_keysyms.h>
+
+
+
+	#define GETMODIFIERKEYCODES() /*--*/ local void  getModifierKeycodes(void)
+	#define MATCHMODIFIERKEYCODE() /*-*/ local bool  matchModifierKeycode(const xcb_keycode_t keycode)
+
+	local xcb_keycode_t * /*-*/ modifierKeycodeStart;
+	local uint32 /*----------*/ modifierKeycodeToken;
+	local uint /*------------*/ modifierKeycodeSize;
+	local uint8 /*-----------*/ modifierKeycodePer;
+
+	GETMODIFIERKEYCODES();
+	MATCHMODIFIERKEYCODE();
+
+	GETMODIFIERKEYCODES(){
+		xcb_get_modifier_mapping_reply_t *const reply = xcb_wait_for_reply(connection, xcb_get_modifier_mapping_unchecked(connection), NULL);
+		uint32 token = insertMemoryManagementPointer(reply, "get modifier mapping reply", iFree);
+		if(reply){
+			const uint length = xcb_get_modifier_mapping_keycodes_length(reply) / sizeof(xcb_keycode_t);
+			const xcb_keycode_t *keycodeCurrent = xcb_get_modifier_mapping_keycodes(reply);
+			xcb_keycode_t *const tempStart = malloc(length * sizeof(xcb_keycode_t));
+			uint32 tempToken = insertMemoryManagementPointer(tempStart, "modifier keycodes pointer", iFree);
+			if(tempStart){
+				xcb_keycode_t *current = tempStart;
+				xcb_keycode_t *const wall = current + length;
+				jmp storeModifierKeycodeLoop;
+				storeModifierKeycodeLoop:{
+					if(current < wall){
+						*current = *keycodeCurrent;
+						inc keycodeCurrent;
+						inc current;
+						jmp storeModifierKeycodeLoop;
+					}
+					free(modifierKeycodeStart);
+					removeMemoryManagementPointer(modifierKeycodeToken);
+					modifierKeycodeStart = tempStart;
+					modifierKeycodeToken = tempToken;
+					modifierKeycodeSize = length;
+					modifierKeycodePer = (*reply).keycodes_per_modifier;
+				}
+			}
+			free(reply);
+			removeMemoryManagementPointer(token);
+		}
+		ret;
+	}
+	MATCHMODIFIERKEYCODE(){
+		if(modifierKeycodeStart){
+			const xcb_keycode_t *current = modifierKeycodeStart;
+			const xcb_keycode_t *const wall = current + modifierKeycodeSize;
+			jmp matchModifierKeycodeLoop;
+			matchModifierKeycodeLoop:{
+				if(current < wall){
+					if(keycode == *current){
+						ret true;
+					}
+					inc current;
+					jmp matchModifierKeycodeLoop;
+				}
+			}
+		}
+		ret false;
+	}
+
+
+
+	modifierKeycodeStart /*-*/ = NULL;
+	modifierKeycodeToken /*-*/ = 0;
+
+
+
+	#define SHIFT_MODIFIER_KEYCODE_OFFSET /*---*/ (0)
+	#define LOCK_MODIFIER_KEYCODE_OFFSET /*----*/ (1)
+	#define CONTROL_MODIFIER_KEYCODE_OFFSET /*-*/ (2)
+	#define MOD_1_MODIFIER_KEYCODE_OFFSET /*---*/ (3)
+	#define MOD_2_MODIFIER_KEYCODE_OFFSET /*---*/ (4)
+	#define MOD_3_MODIFIER_KEYCODE_OFFSET /*---*/ (5)
+	#define MOD_4_MODIFIER_KEYCODE_OFFSET /*---*/ (6)
+	#define MOD_5_MODIFIER_KEYCODE_OFFSET /*---*/ (7)
+	const uint8 *const keyStart = (*reply).keys;
+	const uint16 modifier = (*e).state & b(11111111);
+	uint16 modifierCurrent;
+	jmp retPoint0;
+	retPoint0: if(modifier & XCB_MOD_MASK_SHIFT){ /*---*/ modifierCurrent = SHIFT_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint1: if(modifier & XCB_MOD_MASK_LOCK){ /*----*/ modifierCurrent = LOCK_MODIFIER_KEYCODE_OFFSET; /*----*/ jmp keyReleaseModifierLookup; }
+	retPoint2: if(modifier & XCB_MOD_MASK_CONTROL){ /*-*/ modifierCurrent = CONTROL_MODIFIER_KEYCODE_OFFSET; /*-*/ jmp keyReleaseModifierLookup; }
+	retPoint3: if(modifier & XCB_MOD_MASK_1){ /*-------*/ modifierCurrent = MOD_1_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint4: if(modifier & XCB_MOD_MASK_2){ /*-------*/ modifierCurrent = MOD_2_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint5: if(modifier & XCB_MOD_MASK_3){ /*-------*/ modifierCurrent = MOD_3_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint6: if(modifier & XCB_MOD_MASK_4){ /*-------*/ modifierCurrent = MOD_4_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	retPoint7: if(modifier & XCB_MOD_MASK_5){ /*-------*/ modifierCurrent = MOD_5_MODIFIER_KEYCODE_OFFSET; /*---*/ jmp keyReleaseModifierLookup; }
+	jmp keyReleaseModifierLookupExit;
+	keyReleaseModifierLookup:{
+		xcb_keycode_t *current = modifierKeycodeStart + modifierCurrent * modifierKeycodePer;
+		xcb_keycode_t *const wall = current + modifierKeycodePer;
+		jmp keyReleaseModifierLookupLoop;
+		keyReleaseModifierLookupLoop:{
+			if(*current and current < wall){
+				isPressed |= !!(*(keyStart + *current / 8) & (1 << *current % 8));
+				fprintf(stdout, "%u is %u\n", *current, isPressed);
+				inc current;
+				jmp keyReleaseModifierLookupLoop;
+			}
+			switch modifierCurrent over
+				to SHIFT_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint1;
+				to LOCK_MODIFIER_KEYCODE_OFFSET: /*----*/ jmp retPoint2;
+				to CONTROL_MODIFIER_KEYCODE_OFFSET: /*-*/ jmp retPoint3;
+				to MOD_1_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint4;
+				to MOD_2_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint5;
+				to MOD_3_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint6;
+				to MOD_4_MODIFIER_KEYCODE_OFFSET: /*---*/ jmp retPoint7;
+				off: /*--------------------------------*/ jmp keyReleaseModifierLookupExit;
+			end
+		}
+	}
+	keyReleaseModifierLookupExit:{}
+	#undef  MOD_5_MODIFIER_KEYCODE_OFFSET
+	#undef  MOD_4_MODIFIER_KEYCODE_OFFSET
+	#undef  MOD_3_MODIFIER_KEYCODE_OFFSET
+	#undef  MOD_2_MODIFIER_KEYCODE_OFFSET
+	#undef  MOD_1_MODIFIER_KEYCODE_OFFSET
+	#undef  CONTROL_MODIFIER_KEYCODE_OFFSET
+	#undef  LOCK_MODIFIER_KEYCODE_OFFSET
+	#undef  SHIFT_MODIFIER_KEYCODE_OFFSET
+#endif
+
+#ifdef a
+		{
+			xcb_key_symbols_t *keysyms = xcb_key_symbols_alloc(connection);
+			local const char *const keysym[] = {
+				  "escape"
+				, "f1"
+				, "f2"
+				, "f3"
+				, "f4"
+				, "f5"
+				, "f6"
+				, "f7"
+				, "f8"
+				, "f9"
+				, "f10"
+				, "f11"
+				, "f12"
+				, "f13"
+				, "f14"
+				, "f15"
+				, "f16"
+				, "f17"
+				, "f18"
+				, "f19"
+				, "f20"
+				, "f21"
+				, "f22"
+				, "f23"
+				, "f24"
+				, "f25"
+				, "f26"
+				, "f27"
+				, "f28"
+				, "f29"
+				, "f30"
+				, "f31"
+				, "f32"
+				, "f33"
+				, "f34"
+				, "f35"
+
+				, "grave"
+				, "tilde"
+				, "exclamation-mark"
+				, "at"
+				, "hash"
+				, "dollar"
+				, "percent"
+				, "caret"
+				, "ampersand"
+				, "asterisk"
+				, "left-parenthesis"
+				, "right-parenthesis"
+				, "dash"
+				, "underscore"
+				, "equal"
+				, "cross"
+				, "backspace"
+				, "tab"
+				, "left-bracket"
+				, "left-brace"
+				, "right-bracket"
+				, "right-brace"
+				, "backslash"
+				, "bar"
+				, "semicolon"
+				, "colon"
+				, "single-quote"
+				, "double-quote"
+				, "return"
+				, "comma"
+				, "less-than"
+				, "dot"
+				, "greater-than"
+				, "slash"
+				, "question-mark"
+				, "space"
+				, "menu"
+
+
+
+				, "number-0" /*!*/
+				, "number-1" /*!*/
+				, "number-2" /*!*/
+				, "number-3" /*!*/
+				, "number-4" /*!*/
+				, "number-5" /*!*/
+				, "number-6" /*!*/
+				, "number-7" /*!*/
+				, "number-8" /*!*/
+				, "number-9" /*!*/
+
+
+
+				, "a"
+				, "b"
+				, "c"
+				, "d"
+				, "e"
+				, "f"
+				, "g"
+				, "h"
+				, "i"
+				, "j"
+				, "k"
+				, "l"
+				, "m"
+				, "n"
+				, "o"
+				, "p"
+				, "q"
+				, "r"
+				, "s"
+				, "t"
+				, "u"
+				, "v"
+				, "w"
+				, "x"
+				, "y"
+				, "z"
+				, "left-shift"
+				, "right-shift"
+				, "left-control"
+				, "right-control"
+				, "left-alt"
+				, "right-alt"
+				, "left-meta"
+				, "right-meta"
+				, "left-super"
+				, "right-super"
+				, "left-hyper"
+				, "right-hyper"
+				, "caps-lock"
+				, "shift-lock"
+				, "print-screen"
+				, "scroll-lock"
+				, "pause"
+				, "break"
+
+
+
+				, "navigation-insert"
+				, "navigation-delete"
+				, "navigation-home"
+				, "navigation-end"
+				, "navigation-page-up"
+				, "navigation-page-down"
+				, "navigation-up"
+				, "navigation-down"
+				, "navigation-left"
+				, "navigation-right"
+
+				, "num-lock"
+				, "keypad-divide"
+				, "keypad-multiply"
+				, "keypad-subtract"
+				, "keypad-add"
+				, "keypad-enter"
+				, "keypad-home"
+				, "keypad-up"
+				, "keypad-page-up"
+				, "keypad-left"
+				, "keypad-right"
+				, "keypad-end"
+				, "keypad-down"
+				, "keypad-page-down"
+				, "keypad-insert"
+				, "keypad-delete"
+				, "keypad-point"
+				, "keypad-0"
+				, "keypad-1"
+				, "keypad-2"
+				, "keypad-3"
+				, "keypad-4"
+				, "keypad-5"
+				, "keypad-6"
+				, "keypad-7"
+				, "keypad-8"
+				, "keypad-9"
+
+				, "macro-f1"
+				, "macro-f2"
+				, "macro-f3"
+				, "macro-f4"
+				, "brightness-up"
+				, "brightness-down"
+				, "volume-up"
+				, "volume-down"
+				, "volume-mute"
+
+
+
+				/*! catchalls, what is their value? */
+
+				, "0"
+				, "1"
+				, "2"
+				, "3"
+				, "4"
+				, "5"
+				, "6"
+				, "7"
+				, "8"
+				, "9"
+				, "dot"
+				, "plus"
+				, "minus"
+				, "asterisk"
+				, "slash"
+				, "up"
+				, "down"
+				, "left"
+				, "right"
+				, "home"
+				, "end"
+				, "page-up"
+				, "page-down"
+				, "insert"
+				, "delete"
+				, "enter"
+				, "shift"
+				, "control"
+				, "alt"
+				, "meta"
+				, "super"
+				, "hyper"
+
+				, NULL
+			};
+			local const uint32 keysymValue[] = {
+				  XK_Escape
+				, XK_F1
+				, XK_F2
+				, XK_F3
+				, XK_F4
+				, XK_F5
+				, XK_F6
+				, XK_F7
+				, XK_F8
+				, XK_F9
+				, XK_F10
+				, XK_F11
+				, XK_F12
+				, XK_F13
+				, XK_F14
+				, XK_F15
+				, XK_F16
+				, XK_F17
+				, XK_F18
+				, XK_F19
+				, XK_F20
+				, XK_F21
+				, XK_F22
+				, XK_F23
+				, XK_F24
+				, XK_F25
+				, XK_F26
+				, XK_F27
+				, XK_F28
+				, XK_F29
+				, XK_F30
+				, XK_F31
+				, XK_F32
+				, XK_F33
+				, XK_F34
+				, XK_F35
+
+/*! section 3 */
+				, XK_grave
+				, XK_asciitilde
+				, XK_exclam
+				, XK_at
+				, XK_numbersign
+				, XK_dollar
+				, XK_percent
+				, XK_asciicircum
+				, XK_ampersand
+				, XK_asterisk
+				, XK_parenleft
+				, XK_parenright
+				, XK_minus
+				, XK_underscore
+				, XK_equal
+				, XK_plus
+				, XK_BackSpace
+				, XK_Tab
+				, XK_bracketleft
+				, XK_braceleft
+				, XK_bracketright
+				, XK_braceright
+				, XK_backslash
+				, XK_bar
+				, XK_semicolon
+				, XK_colon
+				, XK_apostrophe
+				, XK_quotedbl
+				, XK_Return
+				, XK_comma
+				, XK_less
+				, XK_period
+				, XK_greater
+				, XK_slash
+				, XK_question
+				, XK_space
+				, XK_Menu
+				, XK_0
+				, XK_1
+				, XK_2
+				, XK_3
+				, XK_4
+				, XK_5
+				, XK_6
+				, XK_7
+				, XK_8
+				, XK_9
+				, XK_A
+				, XK_B
+				, XK_C
+				, XK_D
+				, XK_E
+				, XK_F
+				, XK_G
+				, XK_H
+				, XK_I
+				, XK_J
+				, XK_K
+				, XK_L
+				, XK_M
+				, XK_N
+				, XK_O
+				, XK_P
+				, XK_Q
+				, XK_R
+				, XK_S
+				, XK_T
+				, XK_U
+				, XK_V
+				, XK_W
+				, XK_X
+				, XK_Y
+				, XK_Z
+
+
+
+
+
+
+
+
+
+				, XK_Shift_L
+				, XK_Shift_R
+				, XK_Control_L
+				, XK_Control_R
+				, XK_Alt_L
+				, XK_Alt_R
+				, XK_Meta_L
+				, XK_Meta_R
+				, XK_Super_L
+				, XK_Super_R
+				, XK_Hyper_L
+				, XK_Hyper_R
+				, XK_Caps_Lock
+				, XK_Shift_Lock
+				, XK_Num_Lock
+
+
+
+
+
+
+
+
+
+				, XK_Print
+				, XK_Scroll_Lock
+				, XK_Pause
+				, XK_Break
+				, XK_Insert
+				, XK_Delete
+				, XK_Home
+				, XK_End
+				, XK_Prior
+				, XK_Next
+				, XK_Up
+				, XK_Down
+				, XK_Left
+				, XK_Right
+				, XK_KP_Divide
+				, XK_KP_Multiply
+				, XK_KP_Subtract
+				, XK_KP_Add
+				, XK_KP_Enter
+				, XK_KP_Home
+				, XK_KP_Up
+				, XK_KP_Prior
+				, XK_KP_Left
+				, XK_KP_Right
+				, XK_KP_End
+				, XK_KP_Down
+				, XK_KP_Next
+				, XK_KP_Insert
+				, XK_KP_Delete
+				, XK_KP_Decimal
+				, XK_KP_0
+				, XK_KP_1
+				, XK_KP_2
+				, XK_KP_3
+				, XK_KP_4
+				, XK_KP_5
+				, XK_KP_6
+				, XK_KP_7
+				, XK_KP_8
+				, XK_KP_9
+				, XK_KP_F1
+				, XK_KP_F2
+				, XK_KP_F3
+				, XK_KP_F4
+				, XF86XK_MonBrightnessUp
+				, XF86XK_MonBrightnessDown
+				, XF86XK_AudioRaiseVolume
+				, XF86XK_AudioLowerVolume
+				, XF86XK_AudioMute
+
+				/*! catchalls */
+
+				, 0
+			};
+
+			/*!
+				for kp_home (79) to happen the num lock must be off, otherwise the .
+			*/
+
+			{
+				xcb_keycode_t *code;
+				if((code = xcb_key_symbols_get_keycode(keysyms, XK_quotedbl))){
+					jmp loopo;
+					loopo:{
+						if(*code != XCB_NO_SYMBOL){
+							fprintf(stdout, "code: %u\n", *code);
+							inc code;
+							jmp loopo;
+						}
+					}
+				}
+			}
+			xcb_key_symbols_free(keysyms);
+		}
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*!includes:{*/
+	#include <errno.h>
+	#include <grp.h>
+	#include <limits.h>
+	#include <locale.h>
+	#include <poll.h>
+	#include <pthread.h>
+	#include <pwd.h>
+	#include <signal.h>
+	#include <stdarg.h>
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <string.h>
+	#include <unistd.h>
+	#include <sys/shm.h>
+	#include <sys/stat.h>
+	#include <sys/wait.h>
+/*!}*/
+
+/*!defines:{*/
+	#define GLOBAL_INSTRUCTION_CONTENT(k, v, n, p) /*--------*/ { \
+		  v(help)           k(HELP##p) \
+		, v(expand)         k(EXPAND##p) \
+		, v(contract)       k(CONTRACT##p) \
+		, v(read-config)    k(READ_CONFIG##p) \
+		, v(use-terminal)   k(USE_TERMINAL##p) \
+		, v(use-messenger)  k(USE_MESSENGER##p) \
+		, v(set)            k(SET##p) \
+		, v(do)             k(DO##p) \
+		, v(grab-keycode)   k(GRAB_KEYCODE##p) \
+		, v(grab-button)    k(GRAB_BUTTON##p) \
+		, v(ungrab-keycode) k(UNGRAB_KEYCODE##p) \
+		, v(ungrab-button)  k(UNGRAB_BUTTON##p) \
+		, v(stop)           k(STOP##p) \
+		, n(NULL)           k(NULL##p) \
+	}
+
+	#define SCOPE1_SCOPE_INSTRUCTION_CONTENT(k, v, n, p) /*--*/ { \
+		  v(help)     k(HELP##p) \
+		, v(expand)   k(EXPAND##p) \
+		, v(contract) k(CONTRACT##p) \
+		, v(stop)     k(STOP##p) \
+		, n(NULL)     k(NULL##p) \
+	}
+/*!}*/
+
+/*!globals:{*/
+	local const char * /*-------------------*/ programName;
+	local const char * /*-------------------*/ errorPath;
+	local const char * /*-------------------*/ labelExamined;
+	local const char * /*-------------------*/ connectionName;
+	local const char * /*-------------------*/ configPath;
+	local const char * /*-------------------*/ localeName;
+	local const ModifierNode * /*-----------*/ eventModifierNode;
+	local volatile bool /*------------------*/ processingSignal;
+	local bool /*---------------------------*/ quitting;
+	local MemoryManagementSystem /*------------*/ memoryManagementSystem;
+	local PermissionSystem /*---------------*/ permissionSystem;
+	local bool /*---------------------------*/ globalsLockCreated;
+	local pthread_rwlock_t /*---------------*/ globalsLock;
+	local CommonAtoms /*--------------------*/ atom;
+	local xcb_visualid_t /*-----------------*/ visual;
+	local uint8 /*--------------------------*/ depth;
+	local xcb_colormap_t /*-----------------*/ colormap;
+	local MonitorSystem /*------------------*/ monitorSystem;
+	local ElementPreferences /*-------------*/ windowPreferences;
+	local uint8 /*--------------------------*/ whichMonitor;
+	local WindowSystem /*-------------------*/ windowSystem;
+	local StringTreeSystem /*---------------*/ globalScopesInstructionStringTreeSystem;
+	local StringTreeSystem /*---------------*/ globalInstructionStringTreeSystem;
+	local StringTreeSystem /*---------------*/ scope1ScopeInstructionStringTreeSystem;
+	local StringTreeSystem /*---------------*/ booleanStringTreeSystem;
+	local StringTreeSystem /*---------------*/ variableStringTreeSystem;
+	local StringTreeSystem /*---------------*/ commandStringTreeSystem;
+	local StringTreeSystem /*---------------*/ modifierStringTreeSystem;
+	local StringTreeSystem /*---------------*/ shortcutStateStringTreeSystem;
+	local StringTreeSystem /*---------------*/ numberTypeStringTreeSystem;
+	local StringTreeSystem /*---------------*/ horizontalAlignmentStringTreeSystem;
+	local StringTreeSystem /*---------------*/ verticalAlignmentStringTreeSystem;
+	local StringTreeSystem /*---------------*/ cornerStringTreeSystem;
+	local StringTreeSystem /*---------------*/ whichMonitorStringTreeSystem;
+	local StringTreeSystem /*---------------*/ macroStringTreeSystem;
+	local bool /*---------------------------*/ displaySimpleConfigErrors;
+	local STDINSystem /*--------------------*/ stdinSystem;
+	local SharedMemorySystem /*-------------*/ sharedMemorySystem;
+	local ShortcutSystem /*-----------------*/ keycodeShortcutSystem;
+	local ShortcutSystem /*-----------------*/ buttonShortcutSystem;
+	local xcb_generic_event_t * /*----------*/ event;
+	local uint32 /*-------------------------*/ eventToken;
+	local int /*----------------------------*/ keyPressNextOffset;
+	local int /*----------------------------*/ keyReleaseNextOffset;
+	local int /*----------------------------*/ buttonPressNextOffset;
+	local int /*----------------------------*/ buttonReleaseNextOffset;
+	local uint8 /*--------------------------*/ shortcutCode;
+	local uint16 /*-------------------------*/ shortcutModifier;
+	local bool /*---------------------------*/ expectingSecondKeyRelease;
+	local uint8 /*--------------------------*/ realKeyReleaseModifier;
+/*!}*/
+
+int main(int argumentAmount, const char *const *argument){
+	setGlobals:{
+		programName /*---------------*/ = *argument;
+		errorPath /*-----------------*/ = NULL;
+		colorStart /*----------------*/ = MESSAGE_START;
+		colorFatal /*----------------*/ = MESSAGE_FATAL;
+		colorError /*----------------*/ = MESSAGE_ERROR;
+		colorEvent /*----------------*/ = MESSAGE_EVENT;
+		colorEnd /*------------------*/ = MESSAGE_END;
+		connectionName /*------------*/ = NULL;
+		configPath /*----------------*/ = NULL;
+		localeName /*----------------*/ = setlocale(LC_ALL, "");
+		mustOpenErrorStream /*-------*/ = false;
+		errorStream /*---------------*/ = DEFAULT_ERROR_STREAM;
+		errorStreamToken /*----------*/ = 0;
+		quitting /*------------------*/ = false;
+		connection /*----------------*/ = NULL;
+		connectionToken /*-----------*/ = 0;
+		event /*---------------------*/ = NULL;
+		eventToken /*----------------*/ = 0;
+		keyPressNextOffset /*--------*/ = 0;
+		keyReleaseNextOffset /*------*/ = 0;
+		buttonPressNextOffset /*-----*/ = 0;
+		buttonReleaseNextOffset /*---*/ = 0;
+		shortcutCode /*--------------*/ = 0;
+		shortcutModifier /*----------*/ = XCB_NONE;
+		expectingSecondKeyRelease /*-*/ = false;
+		initMemorySystem();
+		initPermissionSystem(&permissionSystem);
+		initMonitorSystem(&monitorSystem);
+		initWindowSystem(&windowSystem);
+		initSleepThreadSystem(&sleepThreadSystem);
+
+
+
+		initStringTreeSystem(&globalScopesInstructionStringTreeSystem);
+		initStringTreeSystem(&globalInstructionStringTreeSystem);
+		initStringTreeSystem(&scope1ScopeInstructionStringTreeSystem);
+		initStringTreeSystem(&booleanStringTreeSystem);
+		initStringTreeSystem(&variableStringTreeSystem);
+		initStringTreeSystem(&commandStringTreeSystem);
+		initStringTreeSystem(&modifierStringTreeSystem);
+		initStringTreeSystem(&shortcutStateStringTreeSystem);
+		initStringTreeSystem(&numberTypeStringTreeSystem);
+		initStringTreeSystem(&horizontalAlignmentStringTreeSystem);
+		initStringTreeSystem(&verticalAlignmentStringTreeSystem);
+		initStringTreeSystem(&cornerStringTreeSystem);
+		initStringTreeSystem(&whichMonitorStringTreeSystem);
+		initStringTreeSystem(&macroStringTreeSystem);
+
+
+
+		initSTDINSystem(&stdinSystem);
+		initSharedMemorySystem(&sharedMemorySystem);
+		initShortcutSystem(&keycodeShortcutSystem);
+		initShortcutSystem(&buttonShortcutSystem);
+		setConfigVariables();
+		setPermissions(&permissionSystem);
+		lowerPermissions(&permissionSystem);
+		processingSignal = false;
+		jmp getProgramArguments;
+	}
+
+
+
+
+
+
+
+
+
+	keyReleaseEvent:{
+		#define e /*-*/ ((xcb_key_release_event_t *)event)
+		uint8 keycode = (*e).detail;
+		uint16 modifier = (*e).state & b(11111111);
+		if(getNextShortcut(&keycodeShortcutSystem, true, (*e).detail, (*e).state & b(11111111), &keyReleaseNextOffset)){
+			xcb_query_keymap_reply_t *const reply = xcb_wait_for_reply(connection, xcb_query_keymap_unchecked(connection), NULL);
+			uint32 token = insertMemoryManagementPointer(reply, "query keymap reply", iFree);
+			if(reply){
+				const bool keyIsPressed = !!(*((*reply).keys + (*e).detail / 8) & (1 << (*e).detail % 8));
+				free(reply);
+				removeMemoryManagementPointer(token);
+				if(keyIsPressed){
+					keyReleaseNextOffset = 0;
+					jmp eventLoop;
+				}
+			}
+			jmp matchCommandRelease;
+		}
+		if(keycode != shortcutCode and modifier == shortcutModifier){
+			expectingSecondKeyRelease = true;
+			realKeyReleaseModifier = shortcutModifier;
+			jmp eventLoop;
+		}
+		if(keycode == shortcutCode and modifier != shortcutModifier){
+			if(!expectingSecondKeyRelease){
+				jmp eventLoop;
+			}
+			keycode = shortcutCode;
+			modifier = realKeyReleaseModifier;
+			expectingSecondKeyRelease = false;
+			keyReleaseNextOffset = 0;
+			if(getNextShortcut(&keycodeShortcutSystem, true, keycode, modifier, &keyReleaseNextOffset)){
+				jmp matchCommandRelease;
+			}
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	switchRandrEvent:{
+		printXEvent(randrEventName);
+		switch ((*event).response_type & ~b(10000000)) - randrBaseEvent over
+			to XCB_RANDR_SCREEN_CHANGE_NOTIFY:
+			to XCB_RANDR_NOTIFY:{
+				if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+					printTitledError("pthread error", "could not unlock globals read lock");
+				}
+				if(globalsLockCreated and pthread_rwlock_wrlock(&globalsLock) != PTHREAD_RWLOCK_WRLOCK_SUCCESS){
+					printTitledError("pthread error", "could not lock globals write lock");
+				}
+				{
+					int screenNumber;
+					xcb_connection_t *const connection = xcb_connect_to_display_with_auth_info(connectionName, NULL, &screenNumber);
+					uint32 token = insertMemoryManagementPointer(connection, "X connection", iXCBDisconnect);
+					if(connection){
+						xcb_screen_t *const screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data + screenNumber;
+						if(screen){
+							screenWidthInPixels = (*screen).width_in_pixels;
+							screenHeightInPixels = (*screen).height_in_pixels;
+							screenWidthInMillimeters = (*screen).width_in_millimeters;
+							screenHeightInMillimeters = (*screen).height_in_millimeters;
+						}else{
+							screenWidthInPixels = 0;
+							screenHeightInPixels = 0;
+							screenWidthInMillimeters = 0;
+							screenHeightInMillimeters = 0;
+						}
+						xcb_disconnect(connection);
+						removeMemoryManagementPointer(token);
+					}
+				}
+				createMonitors(&monitorSystem);
+				jmp eventLoop;
+			}
+			off:{
+				jmp unrecognizedEvent;
+			}
+		end
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+READCONFIG(){
+	#define STATEMENT_BLOCK_SIZE /*-*/ (256)
+	#define DEFAULT_CONFIG_PATH /*--*/ ("/etc/" PROGRAM_NAME "/" PROGRAM_NAME ".conf")
+	const Instruction *const *currentScopeInstruction = globalScopeInstruction;
+	const char *const *currentScopeInstructionList = globalInstructionList;
+	const Instruction *instructionStart;
+	const Instruction *instructionStartCopy;
+	const Instruction *instructionCurrent;
+	const Instruction *name0Instruction;
+	const Instruction *name1Instruction;
+	const Instruction *name2Instruction;
+	const Instruction *name3Instruction;
+	const Instruction *name4Instruction;
+	const Instruction *nameList0Instruction;
+	const Instruction *nameList1Instruction;
+	const Instruction *nameList2Instruction;
+	const Instruction *nameList3Instruction;
+	const Instruction *nameList4Instruction;
+	const Instruction *integer0Instruction;
+	const Instruction *integer1Instruction;
+	const Instruction *integer2Instruction;
+	const Instruction *integer3Instruction;
+	const Instruction *integer4Instruction;
+	const Instruction *string0Instruction;
+	const Instruction *string1Instruction;
+	const Instruction *string2Instruction;
+	const Instruction *string3Instruction;
+	const Instruction *string4Instruction;
+	const Instruction *image0Instruction;
+	const Instruction *image1Instruction;
+	const Instruction *image2Instruction;
+	const Instruction *image3Instruction;
+	const Instruction *image4Instruction;
+	const char *imageErrorMessage;
+	FILE *configFile = NULL;
+	uint32 configFileToken;
+	void *system = NULL;
+	uint statementSize = STATEMENT_BLOCK_SIZE;
+	char *statementStart = NULL;
+	uint32 statementToken = 0;
+	char *statementCurrent;
+	char *statementWall = NULL;
+	char *statementConcreteWall;
+	uint8 name0Return;
+	uint8 name1Return;
+	uint8 name2Return;
+	uint8 name3Return;
+	uint8 name4Return;
+	uint8 nameList0Return;
+	uint8 nameList1Return;
+	uint8 nameList2Return;
+	uint8 nameList3Return;
+	uint8 nameList4Return;
+	int64 integer0Return;
+	int64 integer1Return;
+	int64 integer2Return;
+	int64 integer3Return;
+	int64 integer4Return;
+	char *string0Return = NULL;
+	uint32 string0Token = 0;
+	char *string1Return = NULL;
+	uint32 string1Token = 0;
+	char *string2Return = NULL;
+	uint32 string2Token = 0;
+	char *string3Return = NULL;
+	uint32 string3Token = 0;
+	char *string4Return = NULL;
+	uint32 string4Token = 0;
+	Image image0Return;
+	Image image1Return;
+	Image image2Return;
+	Image image3Return;
+	Image image4Return;
+	JmpPoint jmpPoint;
+	uint fileLine = 1;
+	uint statementLine = 0;
+	char fileChar;
+	uint itemAmount;
+	char quote = '\0';
+	uint currentScopeInstructionListSize = countof(globalInstructionList) - 1;
+	StringTreeSystem *const *const *currentScopeInstructionData = globalScopeInstructionData;
+	StringTreeSystem *const *instructionDataStart;
+	StringTreeSystem *const *instructionDataStartCopy;
+	StringTreeSystem *const *instructionDataCurrent;
+	StringTreeSystem *currentScopeInstructionStringTreeSystem = &globalInstructionStringTreeSystem;
+	image0Return.dataStart = NULL;
+	image0Return.dataToken = 0;
+	image1Return.dataStart = NULL;
+	image1Return.dataToken = 0;
+	image2Return.dataStart = NULL;
+	image2Return.dataToken = 0;
+	image3Return.dataStart = NULL;
+	image3Return.dataToken = 0;
+	image4Return.dataStart = NULL;
+	image4Return.dataToken = 0;
+	jmp setupPointers;
+	setupPointers:{
+		if(getNextConfigChar == &ifgetc){
+			if(!createConfigFile){
+				DIR *const dir = opendir(configPath);
+				uint32 token = insertMemoryManagementPointer(dir, "config directory argument", closedir);
+				if(dir){
+					closedir(dir);
+					removeMemoryManagementPointer(token);
+					printConfigError("config error", "config file is directory", '\0', false, false, false, false, configPath, 1, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					jmp configEmergencyExit;
+				}
+			}
+			configFile = fopen(configPath, "r");
+			configFileToken = insertMemoryManagementPointer(configFile, "config file", fclose);
+			if(!configFile){
+				#define BUFFER_SIZE /*-*/ (4096)
+				FILE *defaultConfigFile;
+				uint32 defaultConfigFileToken;
+				if(!createConfigFile){
+					printConfigError("config error", "could not open config file", '\0', false, false, false, false, configPath, 1, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					jmp configEmergencyExit;
+				}
+				configFile = fopen(configPath, "w");
+				configFileToken = insertMemoryManagementPointer(configFile, "config file", fclose);
+				if(!configFile){
+					printConfigError("config error", "could not create config file", '\0', false, false, false, false, configPath, 1, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					jmp configEmergencyExit;
+				}
+				defaultConfigFile = fopen(DEFAULT_CONFIG_PATH, "r");
+				defaultConfigFileToken = insertMemoryManagementPointer(defaultConfigFile, "default config file", fclose);
+				if(!defaultConfigFile){
+					remove(configPath);
+					printTitledNamedError("config file error", "could not copy default configuration file from", DEFAULT_CONFIG_PATH);
+					jmp configEmergencyExit;
+				}
+				copyConfigFileLoop:{
+					char buffer[BUFFER_SIZE];
+					size_t bytesRead;
+					if((bytesRead = fread(buffer, sizeof(*buffer), sizeof(buffer), defaultConfigFile))){
+						if(fwrite(buffer, sizeof(*buffer), bytesRead, configFile) != bytesRead){
+							fclose(defaultConfigFile);
+							removeMemoryManagementPointer(defaultConfigFileToken);
+							remove(configPath);
+							printTitledError("config copying error", "could not copy default config file correctly");
+							jmp configEmergencyExit;
+						}
+						jmp copyConfigFileLoop;
+					}
+				}
+				fclose(defaultConfigFile);
+				removeMemoryManagementPointer(defaultConfigFileToken);
+				fclose(configFile);
+				removeMemoryManagementPointer(configFileToken);
+				if(!(configFile = fopen(configPath, "r"))){
+					printTitledError("config error", "could not open newly written file");
+					jmp configEmergencyExit;
+				}
+				#undef  BUFFER_SIZE
+			}
+		}
+		statementStart = malloc(statementSize * sizeof(char));
+		statementToken = insertMemoryManagementPointer(statementStart, "statement pointer", iFree);
+		if(!statementStart){
+			printTitledError("config error", "could not store user data");
+			jmp configEmergencyExit;
+		}
+		if(getNextConfigChar == &ifgetc){
+			system = configFile;
+		}elif(getNextConfigChar == &getNextSTDINCharacter){
+			system = &stdinSystem;
+		}elif(getNextConfigChar == &getNextSharedMemoryCharacter){
+			system = &sharedMemorySystem;
+		}
+		jmp getStatementStart;
+	}
+	getStatementStart:{
+		#define EOF_N1 /*----------------------------*/ (EOF)
+		#define ZER_00 /*----------------------------*/ ('\0')
+		#define EOT_04 /*----------------------------*/ (0x04)
+		#define ALR_07 /*----------------------------*/ ('\a')
+		#define BSP_08 /*----------------------------*/ ('\b')
+		#define TAB_09 /*----------------------------*/ ('\t')
+		#define NLN_10 /*----------------------------*/ ('\n')
+		#define VTB_11 /*----------------------------*/ ('\v')
+		#define FFD_12 /*----------------------------*/ ('\f')
+		#define CRE_13 /*----------------------------*/ ('\r')
+		#define ESC_27 /*----------------------------*/ ('\e')
+		#define SPC_32 /*----------------------------*/ (' ')
+		#define DQT_34 /*----------------------------*/ ('\"')
+		#define SQT_39 /*----------------------------*/ ('\'')
+		#define AST_42 /*----------------------------*/ ('*')
+		#define FSL_47 /*----------------------------*/ ('/')
+		#define ZER_48 /*----------------------------*/ ('0')
+		#define SCL_59 /*----------------------------*/ (';')
+		#define QMK_63 /*----------------------------*/ ('?')
+		#define BSL_92 /*----------------------------*/ ('\\')
+		#define LOA_97 /*----------------------------*/ ('a')
+		#define LOB_98 /*----------------------------*/ ('b')
+		#define LOF_102 /*---------------------------*/ ('f')
+		#define LON_110 /*---------------------------*/ ('n')
+		#define LOR_114 /*---------------------------*/ ('r')
+		#define LOT_116 /*---------------------------*/ ('t')
+		#define LOV_118 /*---------------------------*/ ('v')
+		#define OCB_123 /*---------------------------*/ ('{')
+		#define BAR_124 /*---------------------------*/ ('|')
+		#define CCB_125 /*---------------------------*/ ('}')
+		#define GET_STATEMENT_JMP_POINT /*-----------*/ (0)
+		#define STORE_WHITESPACE_JMP_POINT /*--------*/ (1)
+		#define CHECK_COMMENT_JMP_POINT /*-----------*/ (2)
+		#define STORE_BAR_JMP_POINT /*---------------*/ (3)
+		#define GET_DOUBLE_QUOTATION_JMP_POINT /*----*/ (4)
+		#define GET_SINGLE_QUOTATION_JMP_POINT /*----*/ (5)
+		#define HANDLE_ESCAPE_CHARACTER_JMP_POINT /*-*/ (6)
+		#define ENTER_SCOPE_JMP_POINT /*-------------*/ (7)
+		#define GET_STATEMENT_END_JMP_POINT /*-------*/ (8)
+		statementCurrent = statementStart;
+		statementConcreteWall = statementStart + statementSize * sizeof(char);
+		statementLine = 0;
+		itemAmount = 0;
+		free(string0Return);
+		removeMemoryManagementPointer(string0Token);
+		free(string1Return);
+		removeMemoryManagementPointer(string1Token);
+		free(string2Return);
+		removeMemoryManagementPointer(string2Token);
+		free(string3Return);
+		removeMemoryManagementPointer(string3Token);
+		free(string4Return);
+		removeMemoryManagementPointer(string4Token);
+		free(image0Return.dataStart);
+		removeMemoryManagementPointer(image0Return.dataToken);
+		free(image1Return.dataStart);
+		removeMemoryManagementPointer(image1Return.dataToken);
+		free(image2Return.dataStart);
+		removeMemoryManagementPointer(image2Return.dataToken);
+		free(image3Return.dataStart);
+		removeMemoryManagementPointer(image3Return.dataToken);
+		free(image4Return.dataStart);
+		removeMemoryManagementPointer(image4Return.dataToken);
+		name0Instruction = NULL;
+		name1Instruction = NULL;
+		name2Instruction = NULL;
+		name3Instruction = NULL;
+		name4Instruction = NULL;
+		nameList0Instruction = NULL;
+		nameList1Instruction = NULL;
+		nameList2Instruction = NULL;
+		nameList3Instruction = NULL;
+		nameList4Instruction = NULL;
+		integer0Instruction = NULL;
+		integer1Instruction = NULL;
+		integer2Instruction = NULL;
+		integer3Instruction = NULL;
+		integer4Instruction = NULL;
+		string0Instruction = NULL;
+		string1Instruction = NULL;
+		string2Instruction = NULL;
+		string3Instruction = NULL;
+		string4Instruction = NULL;
+		image0Instruction = NULL;
+		image1Instruction = NULL;
+		image2Instruction = NULL;
+		image3Instruction = NULL;
+		image4Instruction = NULL;
+		string0Return = NULL;
+		string0Token = 0;
+		string1Return = NULL;
+		string1Token = 0;
+		string2Return = NULL;
+		string2Token = 0;
+		string3Return = NULL;
+		string3Token = 0;
+		string4Return = NULL;
+		string4Token = 0;
+		image0Return.dataStart = NULL;
+		image0Return.dataToken = 0;
+		image1Return.dataStart = NULL;
+		image1Return.dataToken = 0;
+		image2Return.dataStart = NULL;
+		image2Return.dataToken = 0;
+		image3Return.dataStart = NULL;
+		image3Return.dataToken = 0;
+		image4Return.dataStart = NULL;
+		image4Return.dataToken = 0;
+		jmp getStatement;
+	}
+	getStatement: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to ZER_00: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to TAB_09: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp storeWhitespace;
+		to VTB_11: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to FFD_12: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to CRE_13: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to SPC_32: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to DQT_34: /*--*/ quote = '\"'; /*--------------------*/ jmp getDoubleQuotation;
+		to SQT_39: /*--*/ quote = '\''; /*--------------------*/ jmp getSingleQuotation;
+		to FSL_47: /*--*/ /*----------------------------------*/ jmp checkCommentStoreCharacter;
+		to SCL_59: /*--*/ /*----------------------------------*/ jmp completeStatement;
+		to OCB_123: /*-*/ /*----------------------------------*/ jmp handleOpeningBracket;
+		to BAR_124: /*-*/ /*----------------------------------*/ jmp attemptStoreBar;
+		to CCB_125: /*-*/ /*----------------------------------*/ jmp handleClosingBracket;
+		off: /*--------*/ /*----------------------------------*/ jmp getStatementStoreCharacter;
+	end
+	getDoubleQuotation: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to ZER_00: /*--*/ fileChar = ' '; /*------------------*/ jmp getDoubleQuotationStoreCharacter;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp getDoubleQuotationStoreCharacter;
+		to DQT_34: /*--*/ fileChar = '\0'; inc itemAmount; /*-*/ jmp getStatementStoreCharacter;
+		to BSL_92: /*--*/ /*----------------------------------*/ jmp handleEscapeCharacterStoreCharacter;
+		off: /*--------*/ /*----------------------------------*/ jmp getDoubleQuotationStoreCharacter;
+	end
+	getSingleQuotation: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to ZER_00: /*--*/ fileChar = ' '; /*------------------*/ jmp getSingleQuotationStoreCharacter;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp getSingleQuotationStoreCharacter;
+		to SQT_39: /*--*/ fileChar = '\0'; inc itemAmount; /*-*/ jmp getStatementStoreCharacter;
+		to BSL_92: /*--*/ /*----------------------------------*/ jmp handleEscapeCharacterStoreCharacter;
+		off: /*--------*/ /*----------------------------------*/ jmp getSingleQuotationStoreCharacter;
+	end
+	handleEscapeCharacter: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to DQT_34: /*--*/ fileChar = '\"'; /*-----------------*/ jmp storeEscapedCharacter;
+		to SQT_39: /*--*/ fileChar = '\''; /*-----------------*/ jmp storeEscapedCharacter;
+		to ZER_48: /*--*/ fileChar = '\0'; /*-----------------*/ jmp storeEscapedCharacter;
+		to QMK_63: /*--*/ fileChar = '\?'; /*-----------------*/ jmp storeEscapedCharacter;
+		to BSL_92: /*--*/ fileChar = '\\'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOA_97: /*--*/ fileChar = '\a'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOB_98: /*--*/ fileChar = '\b'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOF_102: /*-*/ fileChar = '\f'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LON_110: /*-*/ fileChar = '\n'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOR_114: /*-*/ fileChar = '\r'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOT_116: /*-*/ fileChar = '\t'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOV_118: /*-*/ fileChar = '\v'; /*-----------------*/ jmp storeEscapedCharacter;
+		off: /*--------*/ /*----------------------------------*/ jmp getStatementStoreCharacter;
+	end
+	checkComment: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to ZER_00: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to TAB_09: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp storeWhitespace;
+		to VTB_11: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to FFD_12: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to CRE_13: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to SPC_32: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to DQT_34: /*--*/ quote = '\"'; /*--------------------*/ jmp getDoubleQuotation;
+		to SQT_39: /*--*/ quote = '\''; /*--------------------*/ jmp getSingleQuotation;
+		to AST_42: /*--*/ dec statementCurrent; /*------------*/ jmp ignoreMultipleLineComment;
+		to FSL_47: /*--*/ dec statementCurrent; /*------------*/ jmp ignoreSingleLineComment;
+		to SCL_59: /*--*/ /*----------------------------------*/ jmp completeStatement;
+		to OCB_123: /*-*/ /*----------------------------------*/ jmp handleOpeningBracket;
+		to BAR_124: /*-*/ /*----------------------------------*/ jmp attemptStoreBar;
+		to CCB_125: /*-*/ /*----------------------------------*/ jmp handleClosingBracket;
+		off: /*--------*/ /*----------------------------------*/ jmp getStatementStoreCharacter;
+	end
+	ignoreMultipleLineComment: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp ignoreMultipleLineComment;
+		to AST_42: /*--*/ /*----------------------------------*/ jmp checkMultipleLineCommentEnd;
+		off: /*--------*/ /*----------------------------------*/ jmp ignoreMultipleLineComment;
+	end
+	checkMultipleLineCommentEnd: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp ignoreMultipleLineComment;
+		to FSL_47: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		off: /*--------*/ /*----------------------------------*/ jmp ignoreMultipleLineComment;
+	end
+	ignoreSingleLineComment: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp storeWhitespace;
+		off: /*--------*/ /*----------------------------------*/ jmp ignoreSingleLineComment;
+	end
+	endOfFile:{
+		if(statementCurrent == statementStart){
+			jmp successfulConfig;
+		}
+		if(getPreviousConfigChar){
+			getPreviousConfigChar(system);
+		}
+		jmp completeStatement;
+	}
+	storeWhitespace:{
+		if(statementCurrent <= statementStart or !*(statementCurrent - 1)){
+			jmp getStatement;
+		}
+		inc itemAmount;
+		fileChar = '\0';
+		jmp getStatementStoreCharacter;
+	}
+	completeStatement:{
+		if(statementCurrent <= statementStart){
+			jmp getStatement;
+		}
+		if(!*(statementCurrent - 1)){
+			jmp getStatementEnd;
+		}
+		inc itemAmount;
+		fileChar = '\0';
+		jmpPoint = GET_STATEMENT_END_JMP_POINT;
+		jmp storeCharacter;
+	}
+	handleOpeningBracket:{
+		if(statementCurrent <= statementStart){
+			*statementCurrent = '\0';
+			statementLine = fileLine;
+			statementWall = statementCurrent;
+			printConfigError("stray opening bracket error", "could not enter nameless scope", '{', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(*(statementCurrent - 1)){
+			inc itemAmount;
+			fileChar = '\0';
+			jmpPoint = ENTER_SCOPE_JMP_POINT;
+			jmp storeCharacter;
+		}
+		jmp enterScope;
+	}
+	enterScope:{
+		StringTreeSystem *stringTreeSystem;
+		statementWall = statementCurrent - 1;
+		statementCurrent = statementStart;
+		if(currentScopeInstruction == globalScopeInstruction){
+			stringTreeSystem = &globalScopesInstructionStringTreeSystem;
+		}else{
+			printConfigError("invalid scope error", "no scopes inside current scope", '{', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(!findStringTreeString(stringTreeSystem, &statementCurrent)){
+			printConfigError("invalid scope error", "invalid scope name", '{', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(itemAmount > 1){
+			/*! missing space between final argument and scope imminent */
+			printConfigError("scope argument error", "too many arguments", '{', true, true, true, false, configPath, statementLine, statementStart, statementWall, (void *)1, (void *)1, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		currentScopeInstruction = scope1ScopeInstruction;
+		currentScopeInstructionData = scope1ScopeInstructionData;
+		currentScopeInstructionList = scope1ScopeInstructionList;
+		currentScopeInstructionStringTreeSystem = &scope1ScopeInstructionStringTreeSystem;
+		currentScopeInstructionListSize = countof(scope1ScopeInstructionList) - 1;
+		jmp getStatementStart;
+	}
+	attemptStoreBar:{
+		if(statementCurrent <= statementStart or !*(statementCurrent - 1)){
+			jmp storeBar;
+		}
+		inc itemAmount;
+		fileChar = '\0';
+		jmpPoint = STORE_BAR_JMP_POINT;
+		jmp storeCharacter;
+	}
+	storeBar:{
+		fileChar = '|';
+		jmpPoint = STORE_WHITESPACE_JMP_POINT;
+		jmp storeCharacter;
+	}
+	handleClosingBracket:{
+		if(statementCurrent > statementStart){
+			if(getNextConfigChar != &ifgetc){
+				getPreviousConfigChar(system);
+				jmp completeStatement;
+			}
+			fseek(configFile, -1, SEEK_CUR);
+			jmp completeStatement;
+		}
+		if(currentScopeInstruction == globalScopeInstruction){
+			*statementCurrent = '\0';
+			statementLine = fileLine;
+			statementWall = statementCurrent;
+			printConfigError("stray closing bracket error", "could not drop to previous config scope", '}', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(currentScopeInstruction == scope1ScopeInstruction){
+			currentScopeInstruction = globalScopeInstruction;
+			currentScopeInstructionData = globalScopeInstructionData;
+			currentScopeInstructionList = globalInstructionList;
+			currentScopeInstructionStringTreeSystem = &globalInstructionStringTreeSystem;
+			currentScopeInstructionListSize = countof(globalInstructionList) - 1;
+		}
+		jmp getStatementStart;
+	}
+	storeEscapedCharacter:{
+		*(statementCurrent - 1) = fileChar;
+		if(quote == '\"'){
+			jmp getDoubleQuotation;
+		}
+		jmp getSingleQuotation;
+	}
+	getStatementStoreCharacter:{
+		jmpPoint = GET_STATEMENT_JMP_POINT;
+		jmp storeCharacter;
+	}
+	getDoubleQuotationStoreCharacter:{
+		jmpPoint = GET_DOUBLE_QUOTATION_JMP_POINT;
+		jmp storeCharacter;
+	}
+	getSingleQuotationStoreCharacter:{
+		jmpPoint = GET_SINGLE_QUOTATION_JMP_POINT;
+		jmp storeCharacter;
+	}
+	handleEscapeCharacterStoreCharacter:{
+		jmpPoint = HANDLE_ESCAPE_CHARACTER_JMP_POINT;
+		jmp storeCharacter;
+	}
+	checkCommentStoreCharacter:{
+		jmpPoint = CHECK_COMMENT_JMP_POINT;
+		jmp storeCharacter;
+	}
+	storeCharacter:{
+		if(statementCurrent >= statementConcreteWall){
+			const uint offset = statementCurrent - statementStart;
+			void *temp;
+			statementSize += STATEMENT_BLOCK_SIZE;
+			temp = realloc(statementStart, statementSize * sizeof(char));
+			updatePointer(statementToken, temp);
+			if(!temp){
+				printConfigError("memory allocation error", "could not allocate memory for config statement", ';', true, false, false, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				statementSize -= STATEMENT_BLOCK_SIZE;
+				jmp getStatementStart;
+			}
+			statementStart = temp;
+			statementCurrent = statementStart + offset;
+			statementConcreteWall = statementStart + statementSize * sizeof(char);
+		}
+		if(jmpPoint != CHECK_COMMENT_JMP_POINT and !statementLine){
+			statementLine = fileLine;
+		}
+		*statementCurrent = fileChar;
+		inc statementCurrent;
+		switch jmpPoint over
+			to GET_STATEMENT_JMP_POINT: /*-----------*/ jmp getStatement;
+			to STORE_WHITESPACE_JMP_POINT: /*--------*/ jmp storeWhitespace;
+			to CHECK_COMMENT_JMP_POINT: /*-----------*/ jmp checkComment;
+			to STORE_BAR_JMP_POINT: /*---------------*/ jmp storeBar;
+			to GET_DOUBLE_QUOTATION_JMP_POINT: /*----*/ jmp getDoubleQuotation;
+			to GET_SINGLE_QUOTATION_JMP_POINT: /*----*/ jmp getSingleQuotation;
+			to HANDLE_ESCAPE_CHARACTER_JMP_POINT: /*-*/ jmp handleEscapeCharacter;
+			to ENTER_SCOPE_JMP_POINT: /*-------------*/ jmp enterScope;
+			off: /*----------------------------------*/ jmp getStatementEnd;
+		end
+	}
+	getStatementEnd:{
+		if(statementCurrent > statementStart) /*-*/ jmp findStatement;
+		if(!feof(configFile)) /*-----------------*/ jmp getStatementStart;
+		/*---------------------------------------*/ jmp successfulConfig;
+		#undef  GET_STATEMENT_END_JMP_POINT
+		#undef  ENTER_SCOPE_JMP_POINT
+		#undef  HANDLE_ESCAPE_CHARACTER_JMP_POINT
+		#undef  GET_SINGLE_QUOTATION_JMP_POINT
+		#undef  GET_DOUBLE_QUOTATION_JMPPOINT
+		#undef  STORE_BAR_JMP_POINT
+		#undef  CHECK_COMMENT_JMP_POINT
+		#undef  STORE_WHITESPACE_JMP_POINT
+		#undef  GET_STATEMENT_JMP_POINT
+		#undef  CCB_125
+		#undef  BAR_124
+		#undef  OCB_123
+		#undef  LOV_118
+		#undef  LOT_116
+		#undef  LOR_114
+		#undef  LON_110
+		#undef  LOF_102
+		#undef  LOB_98
+		#undef  LOA_97
+		#undef  BSL_92
+		#undef  QMK_63
+		#undef  SCL_59
+		#undef  ZER_48
+		#undef  FSL_47
+		#undef  AST_42
+		#undef  SQT_39
+		#undef  DQT_34
+		#undef  SPC_32
+		#undef  ESC_27
+		#undef  CRE_13
+		#undef  FFD_12
+		#undef  VTB_11
+		#undef  NLN_10
+		#undef  TAB_09
+		#undef  BSP_08
+		#undef  ALR_07
+		#undef  EOT_04
+		#undef  ZER_00
+		#undef  EOF_N1
+	}
+	findStatement:{
+		statementWall = statementCurrent - 1;
+		statementCurrent = statementStart;
+		if(!findStringTreeString(currentScopeInstructionStringTreeSystem, &statementCurrent)){
+			printConfigError("config error", "unrecognized instruction", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp printAllInstructionPatterns;
+		}
+		instructionStart = *(currentScopeInstruction + (*currentScopeInstructionStringTreeSystem).returnedCounter);
+		instructionStartCopy = instructionStart;
+		instructionCurrent = instructionStart;
+		instructionDataStart = *(currentScopeInstructionData + (*currentScopeInstructionStringTreeSystem).returnedCounter);
+		instructionDataStartCopy = instructionDataStart;
+		instructionDataCurrent = instructionDataStart;
+		if(*instructionCurrent == NONE_INSTRUCTION_TYPE){
+			jmp unimplementedInstruction;
+		}
+		if(statementCurrent >= statementWall and *instructionCurrent != END_INSTRUCTION_TYPE){
+			printConfigError("config error", "missing instruction body", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		inc statementCurrent;
+		jmp switchInstructionLoop;
+	}
+	switchInstructionLoop: switch *instructionCurrent over
+		to NONE_INSTRUCTION_TYPE: /*------*/ jmp unimplementedInstruction;
+		to NAME_INSTRUCTION_TYPE: /*------*/ jmp matchName;
+		to NAME_LIST_INSTRUCTION_TYPE: /*-*/ jmp matchNameList;
+		to NUMBER_INSTRUCTION_TYPE: /*----*/ jmp matchInteger;
+		to STRING_INSTRUCTION_TYPE: /*----*/ jmp matchString;
+		to IMAGE_INSTRUCTION_TYPE: /*-----*/ jmp matchImageString;
+		off: /*---------------------------*/ jmp endOfInstruction;
+	end
+	unimplementedInstruction:{
+		printConfigError("implementation error", "using unimplemented instruction", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	matchName:{
+		char *s;
+		uint8 *namePointer;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!name0Instruction){
+			namePointer = &name0Return;
+			name0Instruction = instructionCurrent;
+		}elif(!name1Instruction){
+			namePointer = &name1Return;
+			name1Instruction = instructionCurrent;
+		}elif(!name2Instruction){
+			namePointer = &name2Return;
+			name2Instruction = instructionCurrent;
+		}elif(!name3Instruction){
+			namePointer = &name3Return;
+			name3Instruction = instructionCurrent;
+		}else{
+			namePointer = &name4Return;
+			name4Instruction = instructionCurrent;
+		}
+		s = statementCurrent;
+		if(!findStringTreeString(*instructionDataCurrent, &s)){
+			printConfigError("match string error", "invalid name", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		statementCurrent = s;
+		inc statementCurrent;
+		*namePointer = (**instructionDataCurrent).returnedCounter;
+		jmp advanceDataInstruction;
+	}
+	matchNameList:{
+		uint8 *nameListPointer;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!nameList0Instruction){
+			nameListPointer = &nameList0Return;
+			nameList0Instruction = instructionCurrent;
+		}elif(!nameList1Instruction){
+			nameListPointer = &nameList1Return;
+			nameList1Instruction = instructionCurrent;
+		}elif(!nameList2Instruction){
+			nameListPointer = &nameList2Return;
+			nameList2Instruction = instructionCurrent;
+		}elif(!nameList3Instruction){
+			nameListPointer = &nameList3Return;
+			nameList3Instruction = instructionCurrent;
+		}else{
+			nameListPointer = &nameList4Return;
+			nameList4Instruction = instructionCurrent;
+		}
+		switch matchNameList(*instructionDataCurrent, statementWall, &statementCurrent, nameListPointer) over
+			to INVALID_NAME_NAME_LIST: /*--*/ jmp invalidNameNameList;
+			to PREMATURE_END_NAME_LIST: /*-*/ jmp prematureEndNameList;
+			off: /*------------------------*/ jmp advanceDataInstruction;
+		end
+	}
+	invalidNameNameList:{
+		printConfigError("bar list error", "invalid name", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	prematureEndNameList:{
+		printConfigError("bar list error", "missing final name", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	matchInteger:{
+		int64 *integerPointer;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!integer0Instruction){
+			integerPointer = &integer0Return;
+			integer0Instruction = instructionCurrent;
+		}elif(!integer1Instruction){
+			integerPointer = &integer1Return;
+			integer1Instruction = instructionCurrent;
+		}elif(!integer2Instruction){
+			integerPointer = &integer2Return;
+			integer2Instruction = instructionCurrent;
+		}elif(!integer3Instruction){
+			integerPointer = &integer3Return;
+			integer3Instruction = instructionCurrent;
+		}else{
+			integerPointer = &integer4Return;
+			integer4Instruction = instructionCurrent;
+		}
+		switch matchInteger(&statementCurrent, statementWall, integerPointer) over
+			to NON_NUMBER_NUMBER: /*-------*/ jmp printNonNumberError;
+			to OVERFLOWN_NUMBER_NUMBER: /*-*/ jmp printOverflownNumberError;
+			to DIVIDED_BY_ZERO_NUMBER: /*--*/ jmp printDividedByZeroNumberError;
+			off: /*------------------------*/ jmp advanceInstruction;
+		end
+	}
+	printNonNumberError:{
+		printConfigError("match integer error", "not a number", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printOverflownNumberError:{
+		printConfigError("match integer error", "integer overflow", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printDividedByZeroNumberError:{
+		printConfigError("match integer error", "integer divided by zero", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	matchString:{
+		char **stringPointer;
+		uint32 *stringTokenPointer;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!string0Instruction){
+			stringPointer = &string0Return;
+			stringTokenPointer = &string0Token;
+			string0Instruction = instructionCurrent;
+		}elif(!string1Instruction){
+			stringPointer = &string1Return;
+			stringTokenPointer = &string1Token;
+			string1Instruction = instructionCurrent;
+		}elif(!string2Instruction){
+			stringPointer = &string2Return;
+			stringTokenPointer = &string2Token;
+			string2Instruction = instructionCurrent;
+		}elif(!string3Instruction){
+			stringPointer = &string3Return;
+			stringTokenPointer = &string3Token;
+			string3Instruction = instructionCurrent;
+		}else{
+			stringPointer = &string4Return;
+			stringTokenPointer = &string4Token;
+			string4Instruction = instructionCurrent;
+		}
+		if(!matchString(&statementCurrent, stringPointer, stringTokenPointer)){
+			printConfigError("match string error", "could not allocate string data", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		jmp advanceInstruction;
+	}
+	matchImageString:{
+		char *string = NULL;
+		uint32 token = 0;
+		Image *imagePointer;
+		uint8 matchImageReturn;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!image0Instruction){
+			imagePointer = &image0Return;
+			image0Instruction = instructionCurrent;
+		}elif(!image1Instruction){
+			imagePointer = &image1Return;
+			image1Instruction = instructionCurrent;
+		}elif(!image2Instruction){
+			imagePointer = &image2Return;
+			image2Instruction = instructionCurrent;
+		}elif(!image3Instruction){
+			imagePointer = &image3Return;
+			image3Instruction = instructionCurrent;
+		}else{
+			imagePointer = &image4Return;
+			image4Instruction = instructionCurrent;
+		}
+		if(!matchString(&statementCurrent, &string, &token)){
+			printConfigError("match image error", "could not allocate image string data", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		matchImageReturn = matchImage(string, &imageErrorMessage, &image0Return);
+		free(string);
+		removeMemoryManagementPointer(token);
+		switch matchImageReturn over
+			to CANNOT_OPEN_MATCH_IMAGE: /*--------*/ jmp printCannotOpenReadConfig;
+			to CANNOT_READ_MATCH_IMAGE: /*--------*/ jmp printCannotReadReadConfig;
+			to UNSUPPORTED_FORMAT_MATCH_IMAGE: /*-*/ jmp printUnsupportedFormatReadConfig;
+			to BAD_HEADER_MATCH_IMAGE: /*---------*/ jmp printBadHeaderReadConfig;
+			to BAD_DEPTH_MATCH_IMAGE: /*----------*/ jmp printBadDepthReadConfig;
+			to BAD_COMPRESSION_MATCH_IMAGE: /*----*/ jmp printBadCompressionReadConfig;
+			to UNSUPPORTED_HEIGHT_MATCH_IMAGE: /*-*/ jmp printUnsupportedHeightReadConfig;
+			to BAD_SIZE_MATCH_IMAGE: /*-----------*/ jmp printBadSizeReadConfig;
+			to FAILED_MATCH_IMAGE: /*-------------*/ jmp printFailedReadConfig;
+			to BAD_PIXELS_MATCH_IMAGE: /*---------*/ jmp printBadPixelsReadConfig;
+			to BAD_IMAGE_MATCH_IMAGE: /*----------*/ jmp printBadImageReadConfig;
+			off: /*-------------------------------*/ jmp advanceInstruction;
+		end
+	}
+	printCannotOpenReadConfig:{
+		printConfigError("match image error", "could not open image file", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printCannotReadReadConfig:{
+		printConfigError("match image error", "could not read image file", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printUnsupportedFormatReadConfig:{
+		printConfigError("match image error", "image file not bmp", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadHeaderReadConfig:{
+		printConfigError("match image error", imageErrorMessage, ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadDepthReadConfig:{
+		printConfigError("match image error", imageErrorMessage, ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadCompressionReadConfig:{
+		printConfigError("match image error", imageErrorMessage, ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printUnsupportedHeightReadConfig:{
+		printConfigError("match image error", "negative height is not supported", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadSizeReadConfig:{
+		printConfigError("match image error", "could not traverse image past the header", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printFailedReadConfig:{
+		printConfigError("match image error", "could not allocate pixels", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadPixelsReadConfig:{
+		printConfigError("match image error", "could not read pixels", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadImageReadConfig:{
+		printConfigError("match image error", "image is broken", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	endOfInstruction:{
+		if(instructionStart == setInstruction){
+			#define applySubinstruction(s, i) /*-*/ instructionStart = s##i##Subinstruction; instructionDataStart = s##i##SubinstructionData
+			switch name0Return over
+				/*!*/
+				off: /*-*/ brk;
+			end
+		}
+		if(instructionStart == doInstruction){
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ applySubinstruction(execute, Do); jmp assessSubinstruction;
+				off: /*----------------*/ /*-----------------------------*/ brk;
+			end
+		}
+		if(instructionStart == grabKeycodeInstruction){
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ applySubinstruction(execute, GrabKeycode); jmp assessSubinstruction;
+				off: /*----------------*/ /*--------------------------------------*/ brk;
+			end
+		}
+		if(instructionStart == grabButtonInstruction){
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ applySubinstruction(execute, GrabButton); jmp assessSubinstruction;
+				off: /*----------------*/ /*-------------------------------------*/ brk;
+			end
+			#undef  applySubinstruction
+		}
+		if(statementCurrent < statementWall){
+			printConfigError("config error", "extra parameters error", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == helpInstruction){
+			printError("%s%s: %s: line %u: %s%s:%s %s:\n", colorStart, programName, configPath, statementLine, colorError, "config help menu", colorEnd, displaySimpleConfigErrors? "contracted" : "expanded");
+			jmp printAllInstructionPatterns;
+		}
+		if(instructionStartCopy == expandInstruction){
+			displaySimpleConfigErrors = false;
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == contractInstruction){
+			displaySimpleConfigErrors = true;
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == readConfigInstruction){
+			readConfig(false, string0Return, &ifgetc, NULL);
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == useTerminalInstruction){
+			switch name0Return over
+				to TRUE_BOOLEAN:{
+					if(!connectSTDIN(&stdinSystem)){
+						printConfigError("config error", "terminal messaging already enabled", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					}
+					jmp getStatementStart;
+				}
+				to FALSE_BOOLEAN:{
+					if(!disconnectSTDIN(&stdinSystem)){
+						printConfigError("config error", "terminal messaging not enabled", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+						jmp getStatementStart;
+					}
+					jmp getStatementStart;
+				}
+				off:{
+					jmp getStatementStart;
+				}
+			end
+		}
+		if(instructionStartCopy == useMessengerInstruction){
+			switch name0Return over
+				to TRUE_BOOLEAN:{
+					if(!connectSharedMemory(&sharedMemorySystem)){
+						printConfigError("config error", "shared memory messaging already enabled", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					}
+					jmp getStatementStart;
+				}
+				to FALSE_BOOLEAN:{
+					if(!disconnectSharedMemory(&sharedMemorySystem)){
+						printConfigError("config error", "shared memory messaging not enabled", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					}
+					jmp getStatementStart;
+				}
+				off:{
+					jmp getStatementStart;
+				}
+			end
+		}
+		if(instructionStartCopy == setInstruction){
+			switch name0Return over
+				/*!*/
+				off:{
+					jmp getStatementStart;
+				}
+			end
+		}
+		if(instructionStartCopy == doInstruction){
+			int32 field0 = 0;
+			int32 field1 = 0;
+			int32 field2 = 0;
+			int32 field3 = 0;
+			int32 field4 = 0;
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ brk;
+				off: /*----------------*/ brk;
+			end
+			switch matchCommand(name0Return, string0Return, getNextConfigChar == &ifgetc? CONFIG_MATCH_COMMAND_ORIGIN : getNextConfigChar == &getNextSTDINCharacter? STDIN_MATCH_COMMAND_ORIGIN : TRANSMITTER_MATCH_COMMAND_ORIGIN, field0, field1, field2, field3, field4) over
+				to TYPICAL_MATCH_COMMAND_TYPE:{
+					jmp getStatementStart;
+				}
+				to RESTART_MATCH_COMMAND_TYPE:{
+					jmp getStatementStart;
+				}
+				to EXIT_MATCH_COMMAND_TYPE:{
+					jmp getStatementStart;
+				}
+				off:{
+					printConfigError("config error", "do subinstruction not implemented yet", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionStart, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					jmp getStatementStart;
+				}
+			end
+		}
+		if(instructionStartCopy == grabKeycodeInstruction){
+			int32 field0 = 0;
+			int32 field1 = 0;
+			int32 field2 = 0;
+			int32 field3 = 0;
+			int32 field4 = 0;
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ brk;
+				off: /*----------------*/ brk;
+			end
+			if(!insertShortcut(&keycodeShortcutSystem, integer0Return, nameList0Return, nameList1Return, name0Return, string0Return, string0Token, field0, field1, field2, field3, field4)){
+				printConfigError("shortcut error", "could not insert shortcut", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			string0Return = NULL;
+			string0Token = 0;
+			{
+				const xcb_void_cookie_t cookie = xcb_grab_key_checked(connection, true, (*screen).root, nameList0Return, integer0Return, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+				xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+				uint32 token = insertMemoryManagementPointer(error, "grab key check pointer", iFree);
+				if(error){
+					printConfigError("shortcut error", "could not grab key on root", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					free(error);
+					removeMemoryManagementPointer(token);
+				}
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == grabButtonInstruction){
+			int32 field0 = 0;
+			int32 field1 = 0;
+			int32 field2 = 0;
+			int32 field3 = 0;
+			int32 field4 = 0;
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ brk;
+				off: /*----------------*/ brk;
+			end
+			if(!insertShortcut(&buttonShortcutSystem, integer0Return, nameList0Return, nameList1Return, name0Return, string0Return, string0Token, field0, field1, field2, field3, field4)){
+				printConfigError("shortcut error", "could not insert shortcut", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			string0Return = NULL;
+			string0Token = 0;
+			{
+				const xcb_void_cookie_t cookie = xcb_grab_button_checked(connection, true, (*screen).root, XCB_EVENT_MASK_NO_EVENT, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_NONE, XCB_NONE, integer0Return, nameList0Return);
+				xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+				uint32 token = insertMemoryManagementPointer(error, "grab button check pointer", iFree);
+				if(error){
+					printConfigError("shortcut error", "could not grab button on root", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					free(error);
+					removeMemoryManagementPointer(token);
+				}
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == ungrabKeycodeInstruction){
+			if(!removeShortcut(&keycodeShortcutSystem, integer0Return, nameList0Return)){
+				printConfigError("shortcut error", "could not find key to ungrab", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			{
+				const xcb_void_cookie_t cookie = xcb_ungrab_key_checked(connection, integer0Return, (*screen).root, nameList0Return);
+				xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+				uint32 token = insertMemoryManagementPointer(error, "ungrab key check pointer", iFree);
+				if(error){
+					printConfigError("shortcut error", "could not ungrab key from root", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					free(error);
+					removeMemoryManagementPointer(token);
+				}
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == ungrabButtonInstruction){
+			if(!removeShortcut(&buttonShortcutSystem, integer0Return, nameList0Return)){
+				printConfigError("shortcut error", "could not find button to ungrab", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			{
+				const xcb_void_cookie_t cookie = xcb_ungrab_button_checked(connection, integer0Return, (*screen).root, nameList0Return);
+				xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+				uint32 token = insertMemoryManagementPointer(error, "ungrab button check pointer", iFree);
+				if(error){
+					printConfigError("shortcut error", "could not ungrab button from root", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					free(error);
+					removeMemoryManagementPointer(token);
+				}
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == stopInstruction){
+			jmp successfulConfig;
+		}
+		jmp getStatementStart;
+	}
+	advanceInstruction:{
+		inc instructionCurrent;
+		jmp switchInstructionLoop;
+	}
+	advanceDataInstruction:{
+		inc instructionCurrent;
+		inc instructionDataCurrent;
+		jmp switchInstructionLoop;
+	}
+	assessSubinstruction:{
+		instructionCurrent = instructionStart + (instructionCurrent - instructionStartCopy);
+		instructionDataCurrent = instructionDataStart + (instructionDataCurrent - instructionDataStartCopy);
+		if(statementCurrent < statementWall){
+			jmp switchInstructionLoop;
+		}
+		jmp printMissingArgumentError;
+	}
+	printMissingArgumentError:{
+		printConfigError("config error", "missing argument error", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printAllInstructionPatterns:{
+		const char *const *const wall = currentScopeInstructionList + currentScopeInstructionListSize;
+		const char *const *current = currentScopeInstructionList;
+		const Instruction *const *in = currentScopeInstruction;
+		StringTreeSystem *const *const *da = currentScopeInstructionData;
+		jmp printExpandedHelpInstructions;
+		printExpandedHelpInstructions:{
+			const Instruction *n = *in - 1;
+			StringTreeSystem *const *d = *da;
+			printError("\tpattern | %s", *current);
+			jmp printHelpInstructionParametersLoop;
+			printHelpInstructionParametersLoop: switch *(inc n) over
+				to NONE_INSTRUCTION_TYPE: /*------*/ jmp noneInstruction;
+				to NAME_INSTRUCTION_TYPE: /*------*/ jmp nameInstruction;
+				to NAME_LIST_INSTRUCTION_TYPE: /*-*/ jmp nameListInstruction;
+				to NUMBER_INSTRUCTION_TYPE: /*----*/ jmp numberInstruction;
+				to STRING_INSTRUCTION_TYPE: /*----*/ jmp stringInstruction;
+				to IMAGE_INSTRUCTION_TYPE: /*-----*/ jmp imageInstruction;
+				off: /*---------------------------*/ jmp printHelpInstructionParametersLoopExit;
+			end
+			noneInstruction:{
+				printError(" <unimplemented>");
+				jmp printHelpInstructionParametersLoopExit;
+			}
+			nameInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" name");
+					jmp printHelpInstructionParametersLoop;
+				}
+				if((**d).stringArray){
+					const char *const *stringArray = (**d).stringArray;
+					printError(" (%s", *stringArray);
+					inc stringArray;
+					jmp printNameLoop;
+					printNameLoop:{
+						if(*stringArray){
+							printError("|%s", *stringArray);
+							inc stringArray;
+							jmp printNameLoop;
+						}
+						printError(")");
+					}
+				}
+				inc d;
+				jmp printHelpInstructionParametersLoop;
+			}
+			nameListInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" list");
+					jmp printHelpInstructionParametersLoop;
+				}
+				if((**d).stringArray){
+					const char *const *stringArray = (**d).stringArray;
+					printError(" ((%s", *stringArray);
+					inc stringArray;
+					jmp printNameListOnceLoop;
+					printNameListOnceLoop:{
+						if(*stringArray){
+							printError("|%s", *stringArray);
+							inc stringArray;
+							jmp printNameListOnceLoop;
+						}
+						stringArray = (**d).stringArray;
+						printError(")[\\s]*([\\s]*[|][\\s]*(%s", *stringArray);
+						inc stringArray;
+						jmp printNameListTwiceLoop;
+					}
+					printNameListTwiceLoop:{
+						if(*stringArray){
+							printError("|%s", *stringArray);
+							inc stringArray;
+							jmp printNameListTwiceLoop;
+						}
+						printError("))*(?![\\s]*[|]))");
+					}
+				}
+				inc d;
+				jmp printHelpInstructionParametersLoop;
+			}
+			numberInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" number");
+					jmp printHelpInstructionParametersLoop;
+				}
+				printError(" (([0][\\s]*[x][\\s]*([a-fA-F0-9][\\s]*)*|([0-9][\\s]*)+|[+*/][\\s]*)+)");
+				jmp printHelpInstructionParametersLoop;
+			}
+			stringInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" string");
+					jmp printHelpInstructionParametersLoop;
+				}
+				printError(" ([\"].*[\"]|[\'].*[\'])");
+				jmp printHelpInstructionParametersLoop;
+			}
+			imageInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" image");
+					jmp printHelpInstructionParametersLoop;
+				}
+				printError(" ([\"].*[\"]|[\'].*[\'])");
+				jmp printHelpInstructionParametersLoop;
+			}
+		}
+		printHelpInstructionParametersLoopExit:{
+			inc in;
+			inc da;
+			if(displaySimpleConfigErrors){
+				printError("\n");
+			}else{
+				printError(" $\n");
+			}
+			if(inc current < wall){
+				jmp printExpandedHelpInstructions;
+			}
+			printError("\n");
+			jmp getStatementStart;
+		}
+	}
+	successfulConfig:{
+		if(currentScopeInstruction != globalScopeInstruction){
+			*statementCurrent = '\0';
+			statementWall = statementCurrent;
+			statementLine = fileLine;
+			if(fileLine != 1){
+				dec statementLine;
+			}
+			printConfigError("config error", "missing closing scope bracket", '\0', true, false, false, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		}
+		jmp configEmergencyExit;
+	}
+	configEmergencyExit:{
+		if(configFile and fileLine == 1 and !statementLine){
+			printConfigError("config warning", "empty config file", '\0', false, false, false, false, configPath, 1, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		}
+		free(statementStart);
+		removeMemoryManagementPointer(statementToken);
+		if(configFile){
+			fclose(configFile);
+			removeMemoryManagementPointer(configFileToken);
+		}
+		jmp postReadConfig;
+	}
+	postReadConfig:{
+		xcb_flush(connection);
+		ret;
+	}
+	#undef  DEFAULT_CONFIG_PATH
+	#undef  STATEMENT_BLOCK_SIZE
+}
+
+
+
+
+
+
+
+
+
+RESTART(){
+	if(!isInsideConfig){
+		disconnectSharedMemory(&sharedMemorySystem);
+		disconnectSTDIN(&stdinSystem);
+	}
+	freeConfigVariables();
+	ungrabShortcuts();
+	finiShortcutSystem(&buttonShortcutSystem);
+	finiShortcutSystem(&keycodeShortcutSystem);
+	setConfigVariables();
+	ret;
+}
+CLEANUP(){
+	free(event);
+	removeMemoryManagementPointer(eventToken);
+	event = NULL;
+	eventToken = 0;
+	finiSharedMemorySystem(&sharedMemorySystem);
+	finiSTDINSystem(&stdinSystem);
+	finiSleepThreadSystem(&sleepThreadSystem);
+	cancelThreads();
+	ungrabShortcuts();
+	freeConfigVariables();
+	finiWindowSystem(&windowSystem);
+	finiMonitorSystem(&monitorSystem);
+	if(connection){
+		xcb_flush(connection);
+		xcb_disconnect(connection);
+		removeMemoryManagementPointer(connectionToken);
+		connection = NULL;
+		connectionToken = 0;
+	}
+	finiShortcutSystem(&buttonShortcutSystem);
+	finiShortcutSystem(&keycodeShortcutSystem);
+	finiStringTreeSystem(&macroStringTreeSystem);
+	finiStringTreeSystem(&whichMonitorStringTreeSystem);
+	finiStringTreeSystem(&cornerStringTreeSystem);
+	finiStringTreeSystem(&verticalAlignmentStringTreeSystem);
+	finiStringTreeSystem(&horizontalAlignmentStringTreeSystem);
+	finiStringTreeSystem(&numberTypeStringTreeSystem);
+	finiStringTreeSystem(&shortcutStateStringTreeSystem);
+	finiStringTreeSystem(&modifierStringTreeSystem);
+	finiStringTreeSystem(&commandStringTreeSystem);
+	finiStringTreeSystem(&variableStringTreeSystem);
+	finiStringTreeSystem(&booleanStringTreeSystem);
+	finiStringTreeSystem(&scope1ScopeInstructionStringTreeSystem);
+	finiStringTreeSystem(&globalInstructionStringTreeSystem);
+	finiStringTreeSystem(&globalScopesInstructionStringTreeSystem);
+	finiPermissionSystem(&permissionSystem);
+	if(memoryManagementSystem.allocated > 1){
+		printError("%s%s: %s%s:%s %s", colorStart, programName, colorError, "warning", colorEnd, "program exited with unaccounted for data pointers, namely:\n");
+		printUnaccountedForPointers(memoryManagementSystem.data + 1, memoryManagementSystem.data + memoryManagementSystem.allocated);
+	}
+	finiMemorySystem();
+	closeErrorStream();
+	exit(EXIT_SUCCESS);
+}
+CANCELTHREADS(){
+	if(globalsLockCreated){
+		if(pthread_rwlock_destroy(&globalsLock) != PTHREAD_RWLOCK_DESTROY_SUCCESS){
+			printTitledError("pthread error", "could not destroy globals lock");
+		}
+		globalsLockCreated = false;
+	}
+	ret;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#define PRINTCONFIGERROR() /*-*/ local void  printConfigError(const char *const type, const char *const message, const char finalStatementCharacter, const bool printLine, const bool printConfig, const bool printPointer, const bool printPattern, const char *const configPath, const uint statementLine, const char *const statementStart, const char *const statementWall, const Instruction *instructionStart, const Instruction *instructionCurrent, StringTreeSystem *const *const instructionDataStart, const char *const *currentScopeInstructionList, const StringTreeSystem *const currentScopeInstructionStringTreeSystem)
+
+PRINTCONFIGERROR(){
+	const char *statementCurrent = statementStart;
+	const uint itemAmountWall = instructionCurrent - instructionStart;
+	uint itemAmount = 0;
+	uint spaceAmount = 0;
+	StringTreeSystem *const *data;
+	if(!openErrorStream()){
+		ret;
+	}
+	flockfile(errorStream);
+	fprintf(errorStream, "%s%s: %s: ", colorStart, programName, configPath);
+	if(printLine){
+		fprintf(errorStream, "line %u: ", statementLine);
+	}
+	fprintf(errorStream, "%s%s:%s %s", colorError, type, colorEnd, message);
+	if(printConfig){
+		fprintf(errorStream, ":\n\t config |");
+	}else{
+		fprintf(errorStream, "\n");
+		jmp emergencyExit;
+	}
+	jmp printStatementItemLoop;
+	printStatementItemLoop:{
+		if(statementCurrent < statementWall){
+			fprintf(errorStream, " %s", statementCurrent);
+			jmp pushOutTermLoop;
+			pushOutTermLoop:{
+				if(*(inc statementCurrent)){
+					jmp pushOutTermLoop;
+				}
+				inc statementCurrent;
+			}
+			if(itemAmount == itemAmountWall and instructionStart){
+				spaceAmount = statementCurrent - statementStart;
+			}
+			inc itemAmount;
+			jmp printStatementItemLoop;
+		}
+		if(spaceAmount == 0 and finalStatementCharacter != ';'){
+			fprintf(errorStream, " ");
+		}
+		fprintf(errorStream, "%c\n", finalStatementCharacter);
+		jmp printPattern;
+	}
+	printPattern:{
+		if(printPointer){
+			if(spaceAmount == statementCurrent - statementStart){
+				dec spaceAmount;
+			}
+			fprintf(errorStream, "\t        |%*c^\n", inc spaceAmount, ' ');
+		}
+		if(!printPattern or !instructionStart){
+			fprintf(errorStream, "\n");
+			jmp emergencyExit;
+		}
+		fprintf(errorStream, "\n\tpattern | %s", *(currentScopeInstructionList + (*currentScopeInstructionStringTreeSystem).returnedCounter));
+		dec instructionStart;
+		data = instructionDataStart;
+		jmp printInstructionParameterLoop;
+	}
+	printInstructionParameterLoop: switch *(inc instructionStart) over
+		to NONE_INSTRUCTION_TYPE: /*------*/ jmp noneInstruction;
+		to NAME_INSTRUCTION_TYPE: /*------*/ jmp nameInstruction;
+		to NAME_LIST_INSTRUCTION_TYPE: /*-*/ jmp nameListInstruction;
+		to NUMBER_INSTRUCTION_TYPE: /*----*/ jmp numberInstruction;
+		to STRING_INSTRUCTION_TYPE: /*----*/ jmp stringInstruction;
+		to IMAGE_INSTRUCTION_TYPE: /*-----*/ jmp imageInstruction;
+		off: /*---------------------------*/ jmp printInstructionParameterLoopExit;
+	end
+	noneInstruction:{
+		fprintf(errorStream, " <unimplemented>");
+		jmp printInstructionParameterLoopExit;
+	}
+	nameInstruction:{
+		if(instructionStart < instructionCurrent){
+			inc data;
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " name");
+			jmp printInstructionParameterLoop;
+		}
+		if((**data).stringArray){
+			const char *const *stringArray = (**data).stringArray;
+			fprintf(errorStream, " (%s", *stringArray);
+			inc stringArray;
+			jmp printNameLoop;
+			printNameLoop:{
+				if(*stringArray){
+					fprintf(errorStream, "|%s", *stringArray);
+					inc stringArray;
+					jmp printNameLoop;
+				}
+				fprintf(errorStream, ")");
+			}
+		}
+		inc data;
+		jmp printInstructionParameterLoop;
+	}
+	nameListInstruction:{
+		if(instructionStart < instructionCurrent){
+			inc data;
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " list");
+			jmp printInstructionParameterLoop;
+		}
+		if((**data).stringArray){
+			const char *const *stringArray = (**data).stringArray;
+			fprintf(errorStream, " ((%s", *stringArray);
+			inc stringArray;
+			jmp printNameListOnceLoop;
+			printNameListOnceLoop:{
+				if(*stringArray){
+					fprintf(errorStream, "|%s", *stringArray);
+					inc stringArray;
+					jmp printNameListOnceLoop;
+				}
+				stringArray = (**data).stringArray;
+				fprintf(errorStream, ")[\\s]*([\\s]*[|][\\s]*(%s", *stringArray);
+				inc stringArray;
+				jmp printNameListTwiceLoop;
+			}
+			printNameListTwiceLoop:{
+				if(*stringArray){
+					fprintf(errorStream, "|%s", *stringArray);
+					inc stringArray;
+					jmp printNameListTwiceLoop;
+				}
+				fprintf(errorStream, "))*(?![\\s]*[|]))");
+			}
+		}
+		inc data;
+		jmp printInstructionParameterLoop;
+	}
+	numberInstruction:{
+		if(instructionStart < instructionCurrent){
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " number");
+			jmp printInstructionParameterLoop;
+		}
+		fprintf(errorStream, " (([0][\\s]*[x][\\s]*([a-fA-F0-9][\\s]*)*|([0-9][\\s]*)+|[+*/][\\s]*)+)");
+		jmp printInstructionParameterLoop;
+	}
+	stringInstruction:{
+		if(instructionStart < instructionCurrent){
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " string");
+			jmp printInstructionParameterLoop;
+		}
+		fprintf(errorStream, " ([\"].*[\"]|[\'].*[\'])");
+		jmp printInstructionParameterLoop;
+	}
+	imageInstruction:{
+		if(instructionStart < instructionCurrent){
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " image");
+			jmp printInstructionParameterLoop;
+		}
+		fprintf(errorStream, " ([\"].*[\"]|[\'].*[\'])");
+		jmp printInstructionParameterLoop;
+	}
+	printTilde:{
+		fprintf(errorStream, " ~");
+		jmp printInstructionParameterLoop;
+	}
+	printInstructionParameterLoopExit:{
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, "\n\n");
+			jmp emergencyExit;
+		}
+		fprintf(errorStream, " $\n\n");
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		funlockfile(errorStream);
+		closeErrorStream();
+		ret;
+	}
+}
+

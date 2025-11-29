@@ -1,0 +1,3422 @@
+
+/*!
+	consider holding 1/2/3/4 finger(s) down and, given a square or circular distance, execute a command if a given time delay passes.
+*/
+
+/*!
+	idea for far future: have a little window in the corner of the screen that shows the touchpad with the (x, y) of the pointer.
+	window size is equal to the integer size of the touchpad.
+	beyond the (x, y), it should display the available gestures on top of each other and draw them if available.
+	consider also drawing subpixels.
+	consider also scaling.
+*/
+
+/*!
+	add list name setting to reset the position of a gesture back to (0, 0) when a different gesture succeeds.
+*/
+
+/*!
+	somehow code gestures that start from any edge.
+*/
+
+/*!
+	somehow code gestures that emulate scrolling in the vertical and horizonal direction.
+*/
+
+/*!
+	touch the touchpad with one finger to complete a tap.
+
+	allow using a rectangle or circular area such that we make it easier for the user to press by disregarding the pointer motion events.
+
+	probably use an amount of delay to allow that to complete.
+*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*!includes:{*/
+	#include <errno.h>
+	#include <grp.h>
+	#include <fcntl.h>
+	#include <libinput.h>
+	#include <libudev.h>
+	#include <limits.h>
+	#include <locale.h>
+	#include <math.h>
+	#include <poll.h>
+	#include <pthread.h>
+	#include <pwd.h>
+	#include <signal.h>
+	#include <stdarg.h>
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <unistd.h>
+	#include <sys/shm.h>
+	#include <sys/stat.h>
+	#include <sys/wait.h>
+	#include <xcb/randr.h>
+/*!}*/
+
+/*!defines:{*/
+	#define DEBUG /*-----------------------------------------*/ (false)
+
+	#define PROGRAM_NAME /*----------------------------------*/ "microgesture"
+
+	#define WHICH_MONITOR_CONTENT(k, v, n, p) /*-------------*/ { \
+		  v(none)           k(NONE##p) \
+		, v(pointer)        k(POINTER##p) \
+		, v(focused-window) k(FOCUSED_WINDOW##p) \
+		, v(all)            k(ALL##p) \
+		, n(NULL)           k(NULL##p) \
+	}
+
+	#define NUMBER_TYPE_CONTENT(k, v, n, p) /*---------------*/ { \
+		  v(none)       k(NONE##p) \
+		, v(integer)    k(INTEGER##p) \
+		, v(percentage) k(PERCENTAGE##p) \
+		, v(millimeter) k(MILLIMETER##p) \
+		, n(NULL)       k(NULL##p) \
+	}
+
+	#define POSITION_CONTENT(k, v, n, p) /*------------------*/ { \
+		  v(none)   k(NONE##p) \
+		, v(top)    k(TOP##p) \
+		, v(bottom) k(BOTTOM##p) \
+		, v(left)   k(LEFT##p) \
+		, v(right)  k(RIGHT##p) \
+		, n(NULL)   k(NULL##p) \
+	}
+
+	#define HORIZONTAL_ALIGNMENT_CONTENT(k, v, n, p) /*------*/ { \
+		  v(none)   k(NONE##p) \
+		, v(left)   k(LEFT##p) \
+		, v(center) k(CENTER##p) \
+		, v(right)  k(RIGHT##p) \
+		, n(NULL)   k(NULL##p) \
+	}
+
+	#define VERTICAL_ALIGNMENT_CONTENT(k, v, n, p) /*--------*/ { \
+		  v(none)   k(NONE##p) \
+		, v(top)    k(TOP##p) \
+		, v(center) k(CENTER##p) \
+		, v(bottom) k(BOTTOM##p) \
+		, n(NULL)   k(NULL##p) \
+	}
+
+	#define CORNER_CONTENT(k, v, n, p) /*--------------------*/ { \
+		  v(none)         k(NONE##p         = (b(0000))) \
+		, v(top-left)     k(TOP_LEFT##p     = (b(0001))) \
+		, v(top-right)    k(TOP_RIGHT##p    = (b(0010))) \
+		, v(bottom-left)  k(BOTTOM_LEFT##p  = (b(0100))) \
+		, v(bottom-right) k(BOTTOM_RIGHT##p = (b(1000))) \
+		, n(NULL)         k(NULL##p) \
+	}
+
+	#define AXIS_CONTENT(k, v, n, p) /*----------------------*/ { \
+		  v(none)       k(NONE##p) \
+		, v(horizontal) k(HORIZONTAL##p) \
+		, v(vertical)   k(VERTICAL##p) \
+		, n(NULL)       k(NULL##p) \
+	}
+
+	#define _STRING_TREE_NODE_CHILDREN_AMOUNT /*-------------*/ (14)
+	#define STRING_TREE_NODE_CHILDREN_AMOUNT /*--------------*/ (_STRING_TREE_NODE_CHILDREN_AMOUNT > 28? 28 : _STRING_TREE_NODE_CHILDREN_AMOUNT)
+
+	#define EMPTY_SHARED_STATUS /*---------------------------*/ (0)
+	#define FULL_SHARED_STATUS /*----------------------------*/ (1)
+
+	#define SHORTCUT_CODE_AMOUNT /*--------------------------*/ (256)
+
+	#define SHORTCUT_STATE_CONTENT(k, v, n, p) /*------------*/ { \
+		  v(none)    k(NONE##p    = (b(000))) \
+		, v(press)   k(PRESS##p   = (b(001))) \
+		, v(repeat)  k(REPEAT##p  = (b(010))) \
+		, v(release) k(RELEASE##p = (b(100))) \
+		, n(NULL)    k(NULL##p) \
+	}
+
+	#define NONE_GESTURE_SLOPE /*----------------------------*/ (0)
+	#define POSITIVE_UP_LEFT_GESTURE_SLOPE /*----------------*/ (1)
+	#define POSITIVE_DOWN_RIGHT_GESTURE_SLOPE /*-------------*/ (2)
+	#define NEGATIVE_UP_LEFT_GESTURE_SLOPE /*----------------*/ (3)
+	#define NEGATIVE_DOWN_RIGHT_GESTURE_SLOPE /*-------------*/ (4)
+	#define VERTICAL_UP_LEFT_GESTURE_SLOPE /*----------------*/ (5)
+	#define VERTICAL_DOWN_RIGHT_GESTURE_SLOPE /*-------------*/ (6)
+	#define HORIZONTAL_UP_LEFT_GESTURE_SLOPE /*--------------*/ (7)
+	#define HORIZONTAL_DOWN_RIGHT_GESTURE_SLOPE /*-----------*/ (8)
+
+	#define NONE_INSTRUCTION_TYPE /*-------------------------*/ (b(000000))
+	#define NAME_INSTRUCTION_TYPE /*-------------------------*/ (b(000001))
+	#define NAME_LIST_INSTRUCTION_TYPE /*--------------------*/ (b(000010))
+	#define NUMBER_INSTRUCTION_TYPE /*-----------------------*/ (b(000100))
+	#define STRING_INSTRUCTION_TYPE /*-----------------------*/ (b(001000))
+	#define IMAGE_INSTRUCTION_TYPE /*------------------------*/ (b(010000))
+	#define END_INSTRUCTION_TYPE /*--------------------------*/ (b(100000))
+
+	#define GLOBAL_SCOPES_INSTRUCTION_CONTENT(k, v, n, p) /*-*/ { \
+		  v(scope1) k(SCOPE1##p) \
+		, n(NULL)   k(NULL##p) \
+	}
+
+	#define GLOBAL_INSTRUCTION_CONTENT(k, v, n, p) /*--------*/ { \
+		  v(help)           k(HELP##p) \
+		, v(expand)         k(EXPAND##p) \
+		, v(contract)       k(CONTRACT##p) \
+		, v(read-config)    k(READ_CONFIG##p) \
+		, v(use-terminal)   k(USE_TERMINAL##p) \
+		, v(use-messenger)  k(USE_MESSENGER##p) \
+		, v(set)            k(SET##p) \
+		, v(do)             k(DO##p) \
+		, v(grab-keycode)   k(GRAB_KEYCODE##p) \
+		, v(grab-button)    k(GRAB_BUTTON##p) \
+		, v(grab-gesture)   k(GRAB_GESTURE##p) \
+		, v(ungrab-keycode) k(UNGRAB_KEYCODE##p) \
+		, v(ungrab-button)  k(UNGRAB_BUTTON##p) \
+		, v(ungrab-gesture) k(UNGRAB_GESTURE##p) \
+		, v(stop)           k(STOP##p) \
+		, n(NULL)           k(NULL##p) \
+	}
+
+	#define SCOPE1_SCOPE_INSTRUCTION_CONTENT(k, v, n, p) /*--*/ { \
+		  v(help)     k(HELP##p) \
+		, v(expand)   k(EXPAND##p) \
+		, v(contract) k(CONTRACT##p) \
+		, v(stop)     k(STOP##p) \
+		, n(NULL)     k(NULL##p) \
+	}
+
+	#define BOOLEAN_CONTENT(k, v, n, p) /*-------------------*/ { \
+		  v(none)  k(NONE##p) \
+		, v(true)  k(TRUE##p) \
+		, v(false) k(FALSE##p) \
+		, n(NULL)  k(NULL##p) \
+	}
+
+	#define VARIABLE_CONTENT(k, v, n, p) /*------------------*/ { \
+		  v(none) k(NONE##p) \
+		, n(NULL) k(NULL##p) \
+	}
+
+	#define COMMAND_CONTENT(k, v, n, p) /*-------------------*/ { \
+		  v(none)    k(NONE##p) \
+		, v(execute) k(EXECUTE##p) \
+		, v(restart) k(RESTART##p) \
+		, v(exit)    k(EXIT##p) \
+		, n(NULL)    k(NULL##p) \
+	}
+
+	#define MODIFIER_CONTENT(k, v, n, p) /*------------------*/ { \
+		  v(none)     k(NONE##p) \
+		, v(shift)    k(SHIFT##p) \
+		, v(caps)     k(CAPS##p) \
+		, v(control)  k(CONTROL##p) \
+		, v(mod-1)    k(MOD_1##p) \
+		, v(mod-2)    k(MOD_2##p) \
+		, v(mod-3)    k(MOD_3##p) \
+		, v(mod-4)    k(MOD_4##p) \
+		, v(mod-5)    k(MOD_5##p) \
+		, v(button-1) k(BUTTON_1##p) \
+		, v(button-2) k(BUTTON_2##p) \
+		, v(button-3) k(BUTTON_3##p) \
+		, v(button-4) k(BUTTON_4##p) \
+		, v(button-5) k(BUTTON_5##p) \
+		, n(NULL)     k(NULL##p) \
+	}
+
+	#define DIRECTION_CONTENT(k, v, n, p) /*-----------------*/ { \
+		  v(none)               k(NONE##p) \
+		, v(up)                 k(UP##p) \
+		, v(down)               k(DOWN##p) \
+		, v(left)               k(LEFT##p) \
+		, v(right)              k(RIGHT##p) \
+		, v(up-left)            k(UP_LEFT##p) \
+		, v(up-right)           k(UP_RIGHT##p) \
+		, v(down-left)          k(DOWN_LEFT##p) \
+		, v(down-right)         k(DOWN_RIGHT##p) \
+		, v(up-down)            k(UP_DOWN##p) \
+		, v(left-right)         k(LEFT_RIGHT##p) \
+		, v(up-left-down-right) k(UP_LEFT_DOWN_RIGHT##p) \
+		, v(up-right-down-left) k(UP_RIGHT_DOWN_LEFT##p) \
+		, n(NULL)               k(NULL##p) \
+	}
+
+	#define GESTURE_SETTING_CONTENT(k, v, n, p) /*-----------*/ { \
+		  v(none)             k(NONE##p             = b(000)) \
+		, v(become-master)    k(BECOME_MASTER##p    = b(001)) \
+		, v(execute-once)     k(EXECUTE_ONCE##p     = b(010)) \
+		, v(use-acceleration) k(USE_ACCELERATION##p = b(100)) \
+		, n(NULL)             k(NULL##p) \
+	}
+
+	#define NONE_NAME_LIST /*--------------------------------*/ (0)
+	#define SUCCESS_NAME_LIST /*-----------------------------*/ (1)
+	#define INVALID_NAME_NAME_LIST /*------------------------*/ (2)
+	#define PREMATURE_END_NAME_LIST /*-----------------------*/ (3)
+
+	#define MACRO_CONTENT(k, v, n, p) /*---------------------*/ { \
+		  v(button-1) k(BUTTON_1##p) \
+		, v(button-2) k(BUTTON_2##p) \
+		, v(button-3) k(BUTTON_3##p) \
+		, v(button-4) k(BUTTON_4##p) \
+		, v(button-5) k(BUTTON_5##p) \
+		, n(NULL)     k(NULL##p) \
+	}
+
+	#define NONE_NUMBER /*-----------------------------------*/ (0)
+	#define VALID_NUMBER_NUMBER /*---------------------------*/ (1)
+	#define NON_NUMBER_NUMBER /*-----------------------------*/ (2)
+	#define OVERFLOWN_NUMBER_NUMBER /*-----------------------*/ (3)
+	#define DIVIDED_BY_ZERO_NUMBER /*------------------------*/ (4)
+
+	#define NONE_MATCH_IMAGE /*------------------------------*/ (0)
+	#define CANNOT_OPEN_MATCH_IMAGE /*-----------------------*/ (1)
+	#define CANNOT_READ_MATCH_IMAGE /*-----------------------*/ (2)
+	#define UNSUPPORTED_FORMAT_MATCH_IMAGE /*----------------*/ (3)
+	#define BAD_HEADER_MATCH_IMAGE /*------------------------*/ (4)
+	#define BAD_DEPTH_MATCH_IMAGE /*-------------------------*/ (5)
+	#define BAD_COMPRESSION_MATCH_IMAGE /*-------------------*/ (6)
+	#define UNSUPPORTED_HEIGHT_MATCH_IMAGE /*----------------*/ (7)
+	#define BAD_SIZE_MATCH_IMAGE /*--------------------------*/ (8)
+	#define FAILED_MATCH_IMAGE /*----------------------------*/ (9)
+	#define BAD_PIXELS_MATCH_IMAGE /*------------------------*/ (10)
+	#define BAD_IMAGE_MATCH_IMAGE /*-------------------------*/ (11)
+	#define SUCCESS_MATCH_IMAGE /*---------------------------*/ (12)
+
+	#define NONE_MATCH_COMMAND_ORIGIN /*---------------------*/ (0)
+	#define PRESS_MATCH_COMMAND_ORIGIN /*--------------------*/ (1)
+	#define RELEASE_MATCH_COMMAND_ORIGIN /*------------------*/ (2)
+	#define CONFIG_MATCH_COMMAND_ORIGIN /*-------------------*/ (3)
+	#define STDIN_MATCH_COMMAND_ORIGIN /*--------------------*/ (4)
+	#define TRANSMITTER_MATCH_COMMAND_ORIGIN /*--------------*/ (5)
+	#define TOUCHPAD_MATCH_COMMAND_ORIGIN /*-----------------*/ (6)
+
+	#define NONE_MATCH_COMMAND_TYPE /*-----------------------*/ (0)
+	#define TYPICAL_MATCH_COMMAND_TYPE /*--------------------*/ (1)
+	#define RESTART_MATCH_COMMAND_TYPE /*--------------------*/ (2)
+	#define EXIT_MATCH_COMMAND_TYPE /*-----------------------*/ (3)
+
+	#define ROTATION_CONTENT(k, v, n, p) /*------------------*/ { \
+		  v(none)        k(NONE##p) \
+		, v(degrees-90)  k(DEGREES_90##p)  \
+		, v(degrees-180) k(DEGREES_180##p) \
+		, v(degrees-270) k(DEGREES_270##p) \
+		, n(NULL)        k(NULL##p) \
+	}
+
+	#define INITLIBINPUTTHREADSYSTEM() /*--------------------*/ local bool               initLibinputThreadSystem(LibinputThreadSystem *const libinputThreadSystem)
+	#define BOOTLIBINPUTTHREAD() /*--------------------------*/ local bool               bootLibinputThread(LibinputThreadSystem *const libinputThreadSystem)
+	#define LIBINPUTTHREADMAIN() /*--------------------------*/ local void *             libinputThreadMain(void *const arg)
+	#define LIBINPUTOPENRESTRICTED() /*----------------------*/ local int                libinputOpenRestricted(const char *path, int flags, void *user_data)
+	#define LIBINPUTCLOSERESTRICTED() /*---------------------*/ local void               libinputCloseRestricted(int fd, void *user_data)
+	#define LIBINPUTLOGHANDLER() /*--------------------------*/ local void               libinputLogHandler(struct libinput *const libinput, const enum libinput_log_priority priority, const char *const format, va_list args)
+	#define QUITLIBINPUTTHREAD() /*--------------------------*/ local bool               quitLibinputThread(LibinputThreadSystem *const libinputThreadSystem)
+	#define FINILIBINPUTTHREADSYSTEM() /*--------------------*/ local bool               finiLibinputThreadSystem(LibinputThreadSystem *const libinputThreadSystem)
+
+	#define INITSTRINGTREESYSTEM() /*------------------------*/ local bool               initStringTreeSystem(StringTreeSystem *const stringTreeSystem)
+	#define BULKINSERTSTRING() /*----------------------------*/ local bool               bulkInsertString(StringTreeSystem *const stringTreeSystem, const char *const *const stringArray)
+	#define INSERTSTRING() /*--------------------------------*/ local bool               insertString(StringTreeSystem *const stringTreeSystem, const char *string)
+	#define GETSTRINGTREENODE() /*---------------------------*/ local StringTreeNode *   getStringTreeNode(StringTreeSystem *const stringTreeSystem, const char **const stringReturn)
+	#define FINDSTRINGTREESTRING() /*------------------------*/ local bool               findStringTreeString(StringTreeSystem *const stringTreeSystem, char *const *const string)
+	#define FINISTRINGTREESYSTEM() /*------------------------*/ local bool               finiStringTreeSystem(StringTreeSystem *const stringTreeSystem)
+
+	#define INITGESTURESYSTEM() /*---------------------------*/ local bool               initGestureSystem(GestureSystem *const gestureSystem)
+	#define INSERTGESTURE() /*-------------------------------*/ local bool               insertGesture(GestureSystem *const gestureSystem, const uint8 fingerAmount, const uint8 direction, const double distance, const double boundary, const uint8 setting, const Command command, char *const string, const uint32 stringToken, const int32 field0, const int32 field1, const int32 field2, const int32 field3, const int32 field4)
+	#define RESETGESTURES() /*-------------------------------*/ local bool               resetGestures(GestureSystem *const gestureSystem)
+	#define LOOKUPPOINTWITHIN() /*---------------------------*/ local bool               lookupPointWithin(GestureSystem *const gestureSystem, const Gesture *const gesture, const uint offset)
+	#define GETGESTURESLOPE() /*-----------------------------*/ local bool               getGestureSlope(GestureSystem *const gestureSystem, const double startPointX, const double startPointY, const double endPointX, const double endPointY, const bool checkUpOrLeft, const uint offset, Gesture *const gesture)
+	#define MATCHGESTURES() /*-------------------------------*/ local bool               matchGestures(GestureSystem *const gestureSystem, const uint fingerAmount, struct libinput_event_gesture *const gestureEvent)
+	#define REMOVEGESTURE() /*-------------------------------*/ local bool               removeGesture(GestureSystem *const gestureSystem, const uint8 fingerAmount, const uint8 direction)
+	#define REMOVEGESTURES() /*------------------------------*/ local bool               removeGestures(GestureSystem *const gestureSystem)
+	#define FINIGESTURESYSTEM() /*---------------------------*/ local bool               finiGestureSystem(GestureSystem *const gestureSystem)
+
+	#define SETCONFIGVARIABLES() /*--------------------------*/ local void               setConfigVariables(void)
+	#define READCONFIG() /*----------------------------------*/ local void               readConfig(const bool createConfigFile, const char *const configPath, int (*getNextConfigChar)(void *const arg), int (*getPreviousConfigChar)(void *const arg))
+	#define IFGETC() /*--------------------------------------*/ local int                ifgetc(void *const system)
+	#define MATCHNAMELIST() /*-------------------------------*/ local uint8              matchNameList(StringTreeSystem *const stringTreeSystem, const char *const statementWall, char **statementCurrentReturn, uint8 *const valueReturn)
+	#define MATCHINTEGER() /*--------------------------------*/ local uint8              matchInteger(char **statementCurrent, const char *const statementWall, int64 *const returnValue)
+	#define MATCHSTRING() /*---------------------------------*/ local bool               matchString(char **statementCurrent, char **stringReturn, uint32 *stringToken)
+	#define MATCHIMAGE() /*----------------------------------*/ local uint8              matchImage(const char *const path, const char **errorMessage, Image *const image)
+	#define MATCHCOMMAND() /*--------------------------------*/ local uint8              matchCommand(const Command command, const char *const execute, const uint8 origin, const int32 field0, const int32 field1, const int32 field2, const int32 field3, const int32 field4)
+	#define FREECONFIGVARIABLES() /*-------------------------*/ local void               freeConfigVariables(void)
+
+	#define CREATECIRCLE() /*--------------------------------*/ local bool               createCircle(const int radius, const uint32 foreground, const uint32 background, Image *image)
+	#define COMPOSITEIMAGES() /*-----------------------------*/ local void               compositeImages(void (*operation)(const uint32 *const, uint32 *const), const int sourceX, const int sourceY, Image *const source, int destinationX, int destinationY, Image *const destination)
+	#define COMPOSITEIMAGESOVER() /*-------------------------*/ local void               compositeImagesOver(const uint32 *const source, uint32 *const destination)
+	#define COMPOSITEIMAGESAND() /*--------------------------*/ local void               compositeImagesAnd(const uint32 *const source, uint32 *const destination)
+	#define TWOPASSBOXBLUR() /*------------------------------*/ local void               twoPassBoxBlur(const int width, const int height, const int boxSize, uint32 *destinationData)
+	#define ROTATEIMAGE() /*---------------------------------*/ local bool               rotateImage(const uint8 rotation, Image *const image, const bool deletePreviousData)
+
+	#define XCB_SYNC() /*------------------------------------*/ local bool               xcb_sync(void)
+	#define GETWINDOWCLASS() /*------------------------------*/ local uint8              getWindowClass(xcb_window_t window)
+	#define GETFOCUSEDWINDOW() /*----------------------------*/ local xcb_window_t       getFocusedWindow(void)
+
+	#define RESTART() /*-------------------------------------*/ local void               restart(const bool isInsideConfig)
+	#define CLEANUP() /*-------------------------------------*/ local void               cleanup(void)
+	#define CANCELTHREADS() /*-------------------------------*/ local void               cancelThreads(void)
+
+	#define PRINTUNACCOUNTEDFORPOINTERS() /*-----------------*/ local void               printUnaccountedForPointers(const Pointer *current, const Pointer *wall)
+	#define PRINTERROR() /*----------------------------------*/ local void               printError(const char *const message, ...)
+	#define PRINTTITLEDERROR() /*----------------------------*/ local void               printTitledError(const char *const title, const char *const message)
+	#define PRINTTITLEDQUOTEDERROR() /*----------------------*/ local void               printTitledQuotedError(const char *const title, const char *const argument, const char *const message)
+	#define PRINTCONNECTIONERROR() /*------------------------*/ local void               printConnectionError(void)
+	#define PRINTTITLEDNAMEDERROR() /*-----------------------*/ local void               printTitledNamedError(const char *const title, const char *const message, const char *const name)
+	#define PRINTXERROR() /*---------------------------------*/ local void               printXError(const char *const *const name)
+	#define PRINTTITLEDVALUEDERROR() /*----------------------*/ local void               printTitledValuedError(const char *const title, const char *const message, const uint value)
+	#define PRINTCONFIGERROR() /*----------------------------*/ local void               printConfigError(const char *const type, const char *const message, const char finalStatementCharacter, const bool printLine, const bool printConfig, const bool printPointer, const bool printPattern, const char *const configPath, const uint statementLine, const char *const statementStart, const char *const statementWall, const Instruction *instructionStart, const Instruction *instructionCurrent, StringTreeSystem *const *const instructionDataStart, const char *const *currentScopeInstructionList, const StringTreeSystem *const currentScopeInstructionStringTreeSystem)
+
+	#if DEBUG
+		#define printLibinputEvent(e) /*-*/ { \
+			const char *type; \
+			switch e over \
+				to LIBINPUT_EVENT_NONE: /*----------------------*/ type = "none"; /*----------------------*/ brk; \
+				to LIBINPUT_EVENT_DEVICE_ADDED: /*--------------*/ type = "device added"; /*--------------*/ brk; \
+				to LIBINPUT_EVENT_DEVICE_REMOVED: /*------------*/ type = "device removed"; /*------------*/ brk; \
+				to LIBINPUT_EVENT_KEYBOARD_KEY: /*--------------*/ type = "keyboard key"; /*--------------*/ brk; \
+				to LIBINPUT_EVENT_POINTER_MOTION: /*------------*/ type = "pointer motion"; /*------------*/ brk; \
+				to LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE: /*---*/ type = "pointer motion absolute"; /*---*/ brk; \
+				to LIBINPUT_EVENT_POINTER_BUTTON: /*------------*/ type = "pointer button"; /*------------*/ brk; \
+				to LIBINPUT_EVENT_POINTER_AXIS: /*--------------*/ type = "pointer axis"; /*--------------*/ brk; \
+				to LIBINPUT_EVENT_POINTER_SCROLL_WHEEL: /*------*/ type = "pointer scroll wheel"; /*------*/ brk; \
+				to LIBINPUT_EVENT_POINTER_SCROLL_FINGER: /*-----*/ type = "pointer scroll finger"; /*-----*/ brk; \
+				to LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS: /*-*/ type = "pointer scroll continuous"; /*-*/ brk; \
+				to LIBINPUT_EVENT_TOUCH_DOWN: /*----------------*/ type = "touch down"; /*----------------*/ brk; \
+				to LIBINPUT_EVENT_TOUCH_UP: /*------------------*/ type = "touch up"; /*------------------*/ brk; \
+				to LIBINPUT_EVENT_TOUCH_MOTION: /*--------------*/ type = "touch motion"; /*--------------*/ brk; \
+				to LIBINPUT_EVENT_TOUCH_CANCEL: /*--------------*/ type = "touch cancel"; /*--------------*/ brk; \
+				to LIBINPUT_EVENT_TOUCH_FRAME: /*---------------*/ type = "touch frame"; /*---------------*/ brk; \
+				to LIBINPUT_EVENT_TABLET_TOOL_AXIS: /*----------*/ type = "tablet tool axis"; /*----------*/ brk; \
+				to LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY: /*-----*/ type = "tablet tool proximity"; /*-----*/ brk; \
+				to LIBINPUT_EVENT_TABLET_TOOL_TIP: /*-----------*/ type = "tablet tool tip"; /*-----------*/ brk; \
+				to LIBINPUT_EVENT_TABLET_TOOL_BUTTON: /*--------*/ type = "tablet tool button"; /*--------*/ brk; \
+				to LIBINPUT_EVENT_TABLET_PAD_BUTTON: /*---------*/ type = "tablet pad button"; /*---------*/ brk; \
+				to LIBINPUT_EVENT_TABLET_PAD_RING: /*-----------*/ type = "tablet pad ring"; /*-----------*/ brk; \
+				to LIBINPUT_EVENT_TABLET_PAD_STRIP: /*----------*/ type = "tablet pad strip"; /*----------*/ brk; \
+				to LIBINPUT_EVENT_TABLET_PAD_KEY: /*------------*/ type = "tablet pad key"; /*------------*/ brk; \
+				to LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN: /*-------*/ type = "gesture swipe begin"; /*-------*/ brk; \
+				to LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE: /*------*/ type = "gesture swipe update"; /*------*/ brk; \
+				to LIBINPUT_EVENT_GESTURE_SWIPE_END: /*---------*/ type = "gesture swipe end"; /*---------*/ brk; \
+				to LIBINPUT_EVENT_GESTURE_PINCH_BEGIN: /*-------*/ type = "gesture pinch begin"; /*-------*/ brk; \
+				to LIBINPUT_EVENT_GESTURE_PINCH_UPDATE: /*------*/ type = "gesture pinch update"; /*------*/ brk; \
+				to LIBINPUT_EVENT_GESTURE_PINCH_END: /*---------*/ type = "gesture pinch end"; /*---------*/ brk; \
+				to LIBINPUT_EVENT_GESTURE_HOLD_BEGIN: /*--------*/ type = "gesture hold begin"; /*--------*/ brk; \
+				to LIBINPUT_EVENT_GESTURE_HOLD_END: /*----------*/ type = "gesture hold end"; /*----------*/ brk; \
+				to LIBINPUT_EVENT_SWITCH_TOGGLE: /*-------------*/ type = "switch toggle"; /*-------------*/ brk; \
+				off: /*-----------------------------------------*/ type = "unrecognized"; /*--------------*/ brk; \
+			end \
+			fprintf(DEFAULT_OUTPUT_STREAM, "%s%s: %slibinput event:%s %s\n", colorStart, programName, colorEvent, colorEnd, type); \
+		}
+		#define printCommand(s, c) /*----*/ (fprintf(DEFAULT_OUTPUT_STREAM, "%s%s: %s" s " command:%s %s\n", colorStart, programName, colorEvent, colorEnd, *(commandList + (c >= countof(commandList)? countof(commandList) - 1 : c))))
+	#else
+		#define printLibinputEvent(e) /*-*/ EMPTY_MACRO
+		#define printCommand(s, c) /*----*/ EMPTY_MACRO
+	#endif
+/*!}*/
+
+/*!defs:{*/
+	def enum ENUM_CONTENT(GLOBAL_SCOPES_INSTRUCTION);
+	def enum ENUM_CONTENT(GLOBAL_INSTRUCTION);
+	def enum ENUM_CONTENT(SCOPE1_SCOPE_INSTRUCTION);
+	def enum ENUM_CONTENT(BOOLEAN);
+	def enum ENUM_CONTENT(VARIABLE);
+	def enum ENUM_CONTENT(COMMAND);
+	def enum ENUM_CONTENT(MODIFIER);
+	def enum ENUM_CONTENT(SHORTCUT_STATE);
+	def enum ENUM_CONTENT(DIRECTION);
+	def enum ENUM_CONTENT(GESTURE_SETTING);
+	def enum ENUM_CONTENT(NUMBER_TYPE);
+	def enum ENUM_CONTENT(POSITION);
+	def enum ENUM_CONTENT(HORIZONTAL_ALIGNMENT);
+	def enum ENUM_CONTENT(VERTICAL_ALIGNMENT);
+	def enum ENUM_CONTENT(CORNER);
+	def enum ENUM_CONTENT(AXIS);
+	def enum ENUM_CONTENT(WHICH_MONITOR);
+	def enum ENUM_CONTENT(ROTATION);
+	def enum ENUM_CONTENT(MACRO);
+
+	def struct{
+		int32 /*-------------------*/ x;
+		int32 /*-------------------*/ y;
+		int32 /*-------------------*/ xOffset;
+		int32 /*-------------------*/ yOffset;
+		int32 /*-------------------*/ width;
+		int32 /*-------------------*/ height;
+		int32 /*-------------------*/ padding;
+		int32 /*-------------------*/ margin;
+		uint8 /*-------------------*/ xType;
+		uint8 /*-------------------*/ yType;
+		uint8 /*-------------------*/ xOffsetType;
+		uint8 /*-------------------*/ yOffsetType;
+		uint8 /*-------------------*/ widthType;
+		uint8 /*-------------------*/ heightType;
+		uint8 /*-------------------*/ paddingType;
+		uint8 /*-------------------*/ marginType;
+		uint8 /*-------------------*/ position;
+		uint8 /*-------------------*/ horizontalAlignment;
+		uint8 /*-------------------*/ verticalAlignment;
+		uint8 /*-------------------*/ pad0[3];
+		bool /*--------------------*/ clipChildren;
+		uint8 /*-------------------*/ cornerUsed;
+		uint32 /*------------------*/ cornerRadius;
+		uint32 /*------------------*/ foreground;
+		uint32 /*------------------*/ background;
+		uint32 /*------------------*/ selectedForeground;
+		uint32 /*------------------*/ selectedBackground;
+	} ElementPreferences;
+
+	def struct{
+		xcb_window_t /*------------*/ window;
+		xcb_pixmap_t /*------------*/ bufferPixmap;
+		xcb_pixmap_t /*------------*/ pixmap;
+		xcb_gcontext_t /*----------*/ gc;
+		int32 /*-------------------*/ x;
+		int32 /*-------------------*/ y;
+		uint32 /*------------------*/ width;
+		uint32 /*------------------*/ height;
+		bool /*--------------------*/ mapped;
+		uint8 /*-------------------*/ pad0[3];
+	} WindowInfo;
+
+	def struct{
+		xcb_pixmap_t /*------------*/ circlePixmap;
+		uint32 /*------------------*/ windowInfoSize;
+		WindowInfo * /*------------*/ windowInfoStart;
+		uint32 /*------------------*/ windowInfoToken;
+		bool /*--------------------*/ mapped;
+		uint8 /*-------------------*/ pad0[3];
+	} WindowSystem;
+
+	def struct{
+		Monitor * /*---------------*/ monitor;
+		int32 /*-------------------*/ x;
+		int32 /*-------------------*/ y;
+		uint32 /*------------------*/ width;
+		uint32 /*------------------*/ height;
+		uint32 /*------------------*/ horizontalPadding;
+		uint32 /*------------------*/ verticalPadding;
+		uint32 /*------------------*/ horizontalMargin;
+		uint32 /*------------------*/ verticalMargin;
+	} ElementRectangle;
+
+	def struct{
+		bool /*----------------*/ (*risingOperation)(void *const arg);
+		void * /*--------------*/ risingOperationArgument;
+		bool /*----------------*/ (*fallingOperation)(void *const arg);
+		void * /*--------------*/ fallingOperationArgument;
+		uint32 /*--------------*/ seconds;
+		uint32 /*--------------*/ nanoseconds;
+		bool /*----------------*/ loopOperation;
+		bool /*----------------*/ restartTimer;
+		uint8 /*---------------*/ pad0[1];
+		bool /*----------------*/ running;
+		bool /*----------------*/ quittingThread;
+		bool /*----------------*/ mutexCreated;
+		bool /*----------------*/ condCreated;
+		bool /*----------------*/ threadCreated;
+		pthread_mutex_t /*-----*/ mutex;
+		pthread_cond_t /*------*/ cond;
+		pthread_t /*-----------*/ thread;
+	} SleepThreadSystem;
+
+	def struct{
+		struct udev * /*-----------*/ udev;
+		struct libinput * /*-------*/ libinput;
+		struct pollfd /*-----------*/ libinputEventFD;
+		struct libinput_event * /*-*/ libinputEvent;
+		uint8 /*-------------------*/ pad0[7];
+		bool /*--------------------*/ libinputThreadCreated;
+		pthread_t /*---------------*/ libinputThread;
+	} LibinputThreadSystem;
+
+	def struct{
+		uint8 /*-------------------*/ letter;
+		uint8 /*-------------------*/ childrenAmount;
+		uint16 /*------------------*/ offset[STRING_TREE_NODE_CHILDREN_AMOUNT];
+	} StringTreeNode;
+
+	def struct{
+		const char *const * /*-----*/ stringArray;
+		uint32 /*------------------*/ dataSize;
+		uint32 /*------------------*/ dataAllocated;
+		StringTreeNode * /*--------*/ dataStart;
+		uint32 /*------------------*/ dataToken;
+		uint8 /*-------------------*/ counter;
+		uint8 /*-------------------*/ returnedCounter;
+		uint8 /*-------------------*/ pad0[2];
+	} StringTreeSystem;
+
+	def struct{
+		uint32 /*------------------*/ size;
+		uint32 /*------------------*/ allocated;
+		char * /*------------------*/ start;
+		char * /*------------------*/ current;
+		uint32 /*------------------*/ token;
+		uint8 /*-------------------*/ pad0[1];
+		bool /*--------------------*/ threadCreated;
+		bool /*--------------------*/ operating;
+		bool /*--------------------*/ quittingThread;
+		pthread_t /*---------------*/ thread;
+	} STDINSystem;
+
+	def struct{
+		int32 /*-------------------*/ shmID;
+		uint32 /*------------------*/ shmToken;
+		uint8 * /*-----------------*/ start;
+		uint8 * /*-----------------*/ current;
+		uint32 /*------------------*/ token;
+		uint8 /*-------------------*/ pad0[6];
+		bool /*--------------------*/ mutexCreated;
+		bool /*--------------------*/ condCreated;
+		bool /*--------------------*/ threadCreated;
+		bool /*--------------------*/ operating;
+		bool /*--------------------*/ quittingFromInside;
+		bool /*--------------------*/ quittingThread;
+		pthread_mutex_t * /*-------*/ mutex;
+		pthread_cond_t * /*--------*/ cond;
+		pthread_t /*---------------*/ thread;
+	} SharedMemorySystem;
+
+	def struct{
+		double /*------------------*/ distance;
+		double /*------------------*/ boundary;
+		double /*------------------*/ (*dx)(struct libinput_event_gesture *);
+		double /*------------------*/ (*dy)(struct libinput_event_gesture *);
+		double /*------------------*/ x;
+		double /*------------------*/ y;
+		double /*------------------*/ startPointX[4];
+		double /*------------------*/ startPointY[4];
+		double /*------------------*/ slope[4];
+		uint8 /*-------------------*/ cookie[4];
+		uint8 /*-------------------*/ fingerAmount;
+		uint8 /*-------------------*/ direction;
+		uint8 /*-------------------*/ setting;
+		Command /*-----------------*/ command;
+		char * /*------------------*/ string;
+		uint32 /*------------------*/ stringToken;
+		int32 /*-------------------*/ field0;
+		int32 /*-------------------*/ field1;
+		int32 /*-------------------*/ field2;
+		int32 /*-------------------*/ field3;
+		int32 /*-------------------*/ field4;
+		bool /*--------------------*/ allowedToExecute;
+		uint8 /*-------------------*/ pad0[7];
+	} Gesture;
+
+	def struct{
+		uint32 /*------------------*/ gestureSize;
+		uint32 /*------------------*/ gestureAllocated;
+		Gesture * /*---------------*/ gestureStart;
+		uint32 /*------------------*/ gestureToken;
+		uint32 /*------------------*/ masterGestureOffset;
+	} GestureSystem;
+/*!}*/
+
+/*!globals:{*/
+	local const char * /*-------------------*/ programName;
+	local const char * /*-------------------*/ errorPath;
+	local const char * /*-------------------*/ colorStart;
+	local const char * /*-------------------*/ colorFatal;
+	local const char * /*-------------------*/ colorError;
+	local const char * /*-------------------*/ colorEvent;
+	local const char * /*-------------------*/ colorEnd;
+	local const char * /*-------------------*/ labelExamined;
+	local const char * /*-------------------*/ connectionName;
+	local const char * /*-------------------*/ configPath;
+	local const char * /*-------------------*/ localeName;
+	local const ModifierNode * /*-----------*/ eventModifierNode;
+	local bool /*---------------------------*/ mustOpenErrorStream;
+	local FILE * /*-------------------------*/ errorStream;
+	local uint32 /*-------------------------*/ errorStreamToken;
+	local volatile bool /*------------------*/ processingSignal;
+	local bool /*---------------------------*/ quitting;
+	local MemoryManagementSystem /*------------*/ memoryManagementSystem;
+	local PermissionSystem /*---------------*/ permissionSystem;
+	local bool /*---------------------------*/ globalsLockCreated;
+	local pthread_rwlock_t /*---------------*/ globalsLock;
+	local int /*----------------------------*/ screenNumber;
+	local xcb_connection_t * /*-------------*/ connection;
+	local uint32 /*-------------------------*/ connectionToken;
+	local xcb_screen_t * /*-----------------*/ screen;
+	local uint /*---------------------------*/ screenWidthInPixels;
+	local uint /*---------------------------*/ screenHeightInPixels;
+	local uint /*---------------------------*/ screenWidthInMillimeters;
+	local uint /*---------------------------*/ screenHeightInMillimeters;
+	local uint8 /*--------------------------*/ randrMajorOpcode;
+	local uint8 /*--------------------------*/ randrBaseEvent;
+	local uint8 /*--------------------------*/ randrBaseError;
+	local CommonAtoms /*--------------------*/ atom;
+	local xcb_visualid_t /*-----------------*/ visual;
+	local uint8 /*--------------------------*/ depth;
+	local xcb_colormap_t /*-----------------*/ colormap;
+	local MonitorSystem /*------------------*/ monitorSystem;
+	local ElementPreferences /*-------------*/ windowPreferences;
+	local uint8 /*--------------------------*/ whichMonitor;
+	local WindowSystem /*-------------------*/ windowSystem;
+	local SleepThreadSystem /*--------------*/ sleepThreadSystem;
+	local LibinputThreadSystem /*-----------*/ libinputThreadSystem;
+	local StringTreeSystem /*---------------*/ globalScopesInstructionStringTreeSystem;
+	local StringTreeSystem /*---------------*/ globalInstructionStringTreeSystem;
+	local StringTreeSystem /*---------------*/ scope1ScopeInstructionStringTreeSystem;
+	local StringTreeSystem /*---------------*/ booleanStringTreeSystem;
+	local StringTreeSystem /*---------------*/ variableStringTreeSystem;
+	local StringTreeSystem /*---------------*/ commandStringTreeSystem;
+	local StringTreeSystem /*---------------*/ modifierStringTreeSystem;
+	local StringTreeSystem /*---------------*/ shortcutStateStringTreeSystem;
+	local StringTreeSystem /*---------------*/ directionStringTreeSystem;
+	local StringTreeSystem /*---------------*/ gestureSettingStringTreeSystem;
+	local StringTreeSystem /*---------------*/ numberTypeStringTreeSystem;
+	local StringTreeSystem /*---------------*/ horizontalAlignmentStringTreeSystem;
+	local StringTreeSystem /*---------------*/ verticalAlignmentStringTreeSystem;
+	local StringTreeSystem /*---------------*/ cornerStringTreeSystem;
+	local StringTreeSystem /*---------------*/ whichMonitorStringTreeSystem;
+	local StringTreeSystem /*---------------*/ macroStringTreeSystem;
+	local bool /*---------------------------*/ displaySimpleConfigErrors;
+	local STDINSystem /*--------------------*/ stdinSystem;
+	local SharedMemorySystem /*-------------*/ sharedMemorySystem;
+	local ShortcutSystem /*-----------------*/ keycodeShortcutSystem;
+	local ShortcutSystem /*-----------------*/ buttonShortcutSystem;
+	local GestureSystem /*------------------*/ gestureSystem;
+	local xcb_generic_event_t * /*----------*/ event;
+	local uint32 /*-------------------------*/ eventToken;
+	local int /*----------------------------*/ keyPressNextOffset;
+	local int /*----------------------------*/ keyReleaseNextOffset;
+	local int /*----------------------------*/ buttonPressNextOffset;
+	local int /*----------------------------*/ buttonReleaseNextOffset;
+	local uint8 /*--------------------------*/ shortcutCode;
+	local uint16 /*-------------------------*/ shortcutModifier;
+	local bool /*---------------------------*/ expectingSecondKeyRelease;
+	local uint8 /*--------------------------*/ realKeyReleaseModifier;
+
+	local const char *const /*--------------*/ globalScopesInstructionList[] = STRING_CONTENT(GLOBAL_SCOPES_INSTRUCTION);
+	local const char *const /*--------------*/ globalInstructionList[] = STRING_CONTENT(GLOBAL_INSTRUCTION);
+	local const char *const /*--------------*/ scope1ScopeInstructionList[] = STRING_CONTENT(SCOPE1_SCOPE_INSTRUCTION);
+	local const char *const /*--------------*/ booleanList[] = STRING_CONTENT(BOOLEAN);
+	local const char *const /*--------------*/ variableList[] = STRING_CONTENT(VARIABLE);
+	local const char *const /*--------------*/ commandList[] = STRING_CONTENT(COMMAND);
+	local const char *const /*--------------*/ modifierList[] = STRING_CONTENT(MODIFIER);
+	local const char *const /*--------------*/ shortcutStateList[] = STRING_CONTENT(SHORTCUT_STATE);
+	local const char *const /*--------------*/ directionList[] = STRING_CONTENT(DIRECTION);
+	local const char *const /*--------------*/ gestureSettingList[] = STRING_CONTENT(GESTURE_SETTING);
+	local const char *const /*--------------*/ numberTypeList[] = STRING_CONTENT(NUMBER_TYPE);
+	local const char *const /*--------------*/ horizontalAlignmentList[] = STRING_CONTENT(HORIZONTAL_ALIGNMENT);
+	local const char *const /*--------------*/ verticalAlignmentList[] = STRING_CONTENT(VERTICAL_ALIGNMENT);
+	local const char *const /*--------------*/ cornerList[] = STRING_CONTENT(CORNER);
+	local const char *const /*--------------*/ whichMonitorList[] = STRING_CONTENT(WHICH_MONITOR);
+	local const char *const /*--------------*/ macroList[] = STRING_CONTENT(MACRO);
+
+	local const Instruction /*--------------*/ helpInstruction[] = {END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ expandInstruction[] = {END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ contractInstruction[] = {END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ readConfigInstruction[] = {STRING_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ useTerminalInstruction[] = {NAME_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ useMessengerInstruction[] = {NAME_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ setInstruction[] = {NAME_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ doInstruction[] = {NAME_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ grabKeycodeInstruction[] = {NAME_LIST_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, NAME_LIST_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ grabButtonInstruction[] = {NAME_LIST_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, NAME_LIST_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ grabGestureInstruction[] = {NUMBER_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, NAME_LIST_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ ungrabKeycodeInstruction[] = {NAME_LIST_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ ungrabButtonInstruction[] = {NAME_LIST_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ ungrabGestureInstruction[] = {NUMBER_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ stopInstruction[] = {END_INSTRUCTION_TYPE};
+
+	local const Instruction /*--------------*/ executeDoSubinstruction[] = {NAME_INSTRUCTION_TYPE, STRING_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ executeGrabKeycodeSubinstruction[] = {NAME_LIST_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, NAME_LIST_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, STRING_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ executeGrabButtonSubinstruction[] = {NAME_LIST_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, NAME_LIST_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, STRING_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+	local const Instruction /*--------------*/ executeGrabGestureSubinstruction[] = {NUMBER_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, NUMBER_INSTRUCTION_TYPE, NAME_LIST_INSTRUCTION_TYPE, NAME_INSTRUCTION_TYPE, STRING_INSTRUCTION_TYPE, END_INSTRUCTION_TYPE};
+
+	local StringTreeSystem *const *const /*-*/ helpInstructionData = NULL;
+	local StringTreeSystem *const *const /*-*/ expandInstructionData = NULL;
+	local StringTreeSystem *const *const /*-*/ contractInstructionData = NULL;
+	local StringTreeSystem *const *const /*-*/ readConfigInstructionData = NULL;
+	local StringTreeSystem *const /*--------*/ useTerminalInstructionData[] = {&booleanStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ useMessengerInstructionData[] = {&booleanStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ setInstructionData[] = {&variableStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ doInstructionData[] = {&commandStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ grabKeycodeInstructionData[] = {&modifierStringTreeSystem, &shortcutStateStringTreeSystem, &commandStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ grabButtonInstructionData[] = {&modifierStringTreeSystem, &shortcutStateStringTreeSystem, &commandStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ grabGestureInstructionData[] = {&directionStringTreeSystem, &gestureSettingStringTreeSystem, &commandStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ ungrabKeycodeInstructionData[] = {&modifierStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ ungrabButtonInstructionData[] = {&modifierStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ ungrabGestureInstructionData[] = {&directionStringTreeSystem};
+	local StringTreeSystem *const *const /*-*/ stopInstructionData = NULL;
+
+	local StringTreeSystem *const /*--------*/ executeDoSubinstructionData[] = {&commandStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ executeGrabKeycodeSubinstructionData[] = {&modifierStringTreeSystem, &shortcutStateStringTreeSystem, &commandStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ executeGrabButtonSubinstructionData[] = {&modifierStringTreeSystem, &shortcutStateStringTreeSystem, &commandStringTreeSystem};
+	local StringTreeSystem *const /*--------*/ executeGrabGestureSubinstructionData[] = {&directionStringTreeSystem, &gestureSettingStringTreeSystem, &commandStringTreeSystem};
+
+	#define getInstruction(i) /*-----*/ (i##Instruction)
+	#define getInstructionData(i) /*-*/ (i##InstructionData)
+	#define getGlobalScope(i) /*-----*/ { \
+		  get##i(help) \
+		, get##i(expand) \
+		, get##i(contract) \
+		, get##i(readConfig) \
+		, get##i(useTerminal) \
+		, get##i(useMessenger) \
+		, get##i(set) \
+		, get##i(do) \
+		, get##i(grabKeycode) \
+		, get##i(grabButton) \
+		, get##i(grabGesture) \
+		, get##i(ungrabKeycode) \
+		, get##i(ungrabButton) \
+		, get##i(ungrabGesture) \
+		, get##i(stop) \
+	}
+/*!}*/
+
+int main(int argumentAmount, const char *const *argument){
+	setGlobals:{
+		programName /*---------------*/ = *argument;
+		errorPath /*-----------------*/ = NULL;
+		colorStart /*----------------*/ = MESSAGE_START;
+		colorFatal /*----------------*/ = MESSAGE_FATAL;
+		colorError /*----------------*/ = MESSAGE_ERROR;
+		colorEvent /*----------------*/ = MESSAGE_EVENT;
+		colorEnd /*------------------*/ = MESSAGE_END;
+		connectionName /*------------*/ = NULL;
+		configPath /*----------------*/ = NULL;
+		localeName /*----------------*/ = setlocale(LC_ALL, "");
+		mustOpenErrorStream /*-------*/ = false;
+		errorStream /*---------------*/ = DEFAULT_ERROR_STREAM;
+		errorStreamToken /*----------*/ = 0;
+		quitting /*------------------*/ = false;
+		connection /*----------------*/ = NULL;
+		connectionToken /*-----------*/ = 0;
+		event /*---------------------*/ = NULL;
+		eventToken /*----------------*/ = 0;
+		keyPressNextOffset /*--------*/ = 0;
+		keyReleaseNextOffset /*------*/ = 0;
+		buttonPressNextOffset /*-----*/ = 0;
+		buttonReleaseNextOffset /*---*/ = 0;
+		shortcutCode /*--------------*/ = 0;
+		shortcutModifier /*----------*/ = XCB_NONE;
+		expectingSecondKeyRelease /*-*/ = false;
+		initMemorySystem();
+		initPermissionSystem(&permissionSystem);
+		initMonitorSystem(&monitorSystem);
+		initWindowSystem(&windowSystem);
+		initSleepThreadSystem(&sleepThreadSystem);
+		initLibinputThreadSystem(&libinputThreadSystem);
+		initStringTreeSystem(&globalScopesInstructionStringTreeSystem);
+		initStringTreeSystem(&globalInstructionStringTreeSystem);
+		initStringTreeSystem(&scope1ScopeInstructionStringTreeSystem);
+		initStringTreeSystem(&booleanStringTreeSystem);
+		initStringTreeSystem(&variableStringTreeSystem);
+		initStringTreeSystem(&commandStringTreeSystem);
+		initStringTreeSystem(&modifierStringTreeSystem);
+		initStringTreeSystem(&shortcutStateStringTreeSystem);
+		initStringTreeSystem(&directionStringTreeSystem);
+		initStringTreeSystem(&gestureSettingStringTreeSystem);
+		initStringTreeSystem(&numberTypeStringTreeSystem);
+		initStringTreeSystem(&horizontalAlignmentStringTreeSystem);
+		initStringTreeSystem(&verticalAlignmentStringTreeSystem);
+		initStringTreeSystem(&cornerStringTreeSystem);
+		initStringTreeSystem(&whichMonitorStringTreeSystem);
+		initStringTreeSystem(&macroStringTreeSystem);
+		initSTDINSystem(&stdinSystem);
+		initSharedMemorySystem(&sharedMemorySystem);
+		initShortcutSystem(&keycodeShortcutSystem);
+		initShortcutSystem(&buttonShortcutSystem);
+		initGestureSystem(&gestureSystem);
+		setConfigVariables();
+		setPermissions(&permissionSystem);
+		lowerPermissions(&permissionSystem);
+		processingSignal = false;
+		jmp getProgramArguments;
+	}
+	initSystems:{
+		createMonitors(&monitorSystem);
+		bootLibinputThread(&libinputThreadSystem);
+		bulkInsertString(&globalScopesInstructionStringTreeSystem, globalScopesInstructionList);
+		bulkInsertString(&globalInstructionStringTreeSystem, globalInstructionList);
+		bulkInsertString(&scope1ScopeInstructionStringTreeSystem, scope1ScopeInstructionList);
+		bulkInsertString(&booleanStringTreeSystem, booleanList);
+		bulkInsertString(&variableStringTreeSystem, variableList);
+		bulkInsertString(&commandStringTreeSystem, commandList);
+		bulkInsertString(&modifierStringTreeSystem, modifierList);
+		bulkInsertString(&shortcutStateStringTreeSystem, shortcutStateList);
+		bulkInsertString(&directionStringTreeSystem, directionList);
+		bulkInsertString(&gestureSettingStringTreeSystem, gestureSettingList);
+		bulkInsertString(&numberTypeStringTreeSystem, numberTypeList);
+		bulkInsertString(&horizontalAlignmentStringTreeSystem, horizontalAlignmentList);
+		bulkInsertString(&verticalAlignmentStringTreeSystem, verticalAlignmentList);
+		bulkInsertString(&cornerStringTreeSystem, cornerList);
+		bulkInsertString(&whichMonitorStringTreeSystem, whichMonitorList);
+		bulkInsertString(&macroStringTreeSystem, macroList);
+		jmp readConfig;
+	}
+	switchEvent:{
+		#define XCB_ONE /*-*/ (1)
+		if(((*event).response_type & ~b(10000000)) > XCB_NONE and ((*event).response_type & ~b(10000000)) < XCB_GE_GENERIC){
+			printXEvent(baseEventName);
+		}
+		switch (*event).response_type & ~b(10000000) over
+			to XCB_NONE: /*--------------*/ jmp errorEvent;
+			to XCB_ONE: /*---------------*/ jmp unrecognizedEvent;
+			to XCB_KEY_PRESS: /*---------*/ jmp keyPressEvent;
+			to XCB_KEY_RELEASE: /*-------*/ jmp keyReleaseEvent;
+			to XCB_BUTTON_PRESS: /*------*/ jmp buttonPressEvent;
+			to XCB_BUTTON_RELEASE: /*----*/ jmp buttonReleaseEvent;
+			to XCB_MOTION_NOTIFY: /*-----*/ jmp unexpectedEvent;
+			to XCB_ENTER_NOTIFY: /*------*/ jmp unexpectedEvent;
+			to XCB_LEAVE_NOTIFY: /*------*/ jmp unexpectedEvent;
+			to XCB_FOCUS_IN: /*----------*/ jmp unexpectedEvent;
+			to XCB_FOCUS_OUT: /*---------*/ jmp unexpectedEvent;
+			to XCB_KEYMAP_NOTIFY: /*-----*/ jmp unexpectedEvent;
+			to XCB_EXPOSE: /*------------*/ jmp unexpectedEvent;
+			to XCB_GRAPHICS_EXPOSURE: /*-*/ jmp unexpectedEvent;
+			to XCB_NO_EXPOSURE: /*-------*/ jmp unexpectedEvent;
+			to XCB_VISIBILITY_NOTIFY: /*-*/ jmp unexpectedEvent;
+			to XCB_CREATE_NOTIFY: /*-----*/ jmp unexpectedEvent;
+			to XCB_DESTROY_NOTIFY: /*----*/ jmp unexpectedEvent;
+			to XCB_UNMAP_NOTIFY: /*------*/ jmp unexpectedEvent;
+			to XCB_MAP_NOTIFY: /*--------*/ jmp unexpectedEvent;
+			to XCB_MAP_REQUEST: /*-------*/ jmp unexpectedEvent;
+			to XCB_REPARENT_NOTIFY: /*---*/ jmp unexpectedEvent;
+			to XCB_CONFIGURE_NOTIFY: /*--*/ jmp unexpectedEvent;
+			to XCB_CONFIGURE_REQUEST: /*-*/ jmp unexpectedEvent;
+			to XCB_GRAVITY_NOTIFY: /*----*/ jmp unexpectedEvent;
+			to XCB_RESIZE_REQUEST: /*----*/ jmp unexpectedEvent;
+			to XCB_CIRCULATE_NOTIFY: /*--*/ jmp unexpectedEvent;
+			to XCB_CIRCULATE_REQUEST: /*-*/ jmp unexpectedEvent;
+			to XCB_PROPERTY_NOTIFY: /*---*/ jmp unexpectedEvent;
+			to XCB_SELECTION_CLEAR: /*---*/ jmp unexpectedEvent;
+			to XCB_SELECTION_REQUEST: /*-*/ jmp unexpectedEvent;
+			to XCB_SELECTION_NOTIFY: /*--*/ jmp unexpectedEvent;
+			to XCB_COLORMAP_NOTIFY: /*---*/ jmp unexpectedEvent;
+			to XCB_CLIENT_MESSAGE: /*----*/ jmp unexpectedEvent;
+			to XCB_MAPPING_NOTIFY: /*----*/ jmp eventLoop;
+			to XCB_GE_GENERIC: /*--------*/ jmp genericEvent;
+			off: /*----------------------*/ jmp extensionEvent;
+		end
+		#undef  XCB_ONE
+	}
+	errorEvent:{
+		#define e /*----------------------*/ ((xcb_generic_error_t *)event)
+		#define printExtensionError(n) /*-*/ if((*e).major_code == n##MajorOpcode){ printXError(n##ErrorName); jmp eventLoop; }
+		printExtensionError(randr);
+		printXError(baseErrorName);
+		jmp eventLoop;
+		#undef  printExtensionError
+		#undef  e
+	}
+	keyReleaseEvent:{
+		#define e /*-*/ ((xcb_key_release_event_t *)event)
+		uint8 keycode = (*e).detail;
+		uint16 modifier = (*e).state & b(11111111);
+		if(getNextShortcut(&keycodeShortcutSystem, true, (*e).detail, (*e).state & b(11111111), &keyReleaseNextOffset)){
+			xcb_query_keymap_reply_t *const reply = xcb_wait_for_reply(connection, xcb_query_keymap_unchecked(connection), NULL);
+			uint32 token = pushPointer(reply, "query keymap reply", iFree);
+			if(reply){
+				const bool keyIsPressed = !!(*((*reply).keys + (*e).detail / 8) & (1 << (*e).detail % 8));
+				free(reply);
+				popPointer(token);
+				if(keyIsPressed){
+					keyReleaseNextOffset = 0;
+					jmp eventLoop;
+				}
+			}
+			jmp matchCommandRelease;
+		}
+		if(keycode != shortcutCode and modifier == shortcutModifier){
+			expectingSecondKeyRelease = true;
+			realKeyReleaseModifier = shortcutModifier;
+			jmp eventLoop;
+		}
+		if(keycode == shortcutCode and modifier != shortcutModifier){
+			if(!expectingSecondKeyRelease){
+				jmp eventLoop;
+			}
+			keycode = shortcutCode;
+			modifier = realKeyReleaseModifier;
+			expectingSecondKeyRelease = false;
+			keyReleaseNextOffset = 0;
+			if(getNextShortcut(&keycodeShortcutSystem, true, keycode, modifier, &keyReleaseNextOffset)){
+				jmp matchCommandRelease;
+			}
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	buttonPressEvent:{
+		#define e /*-*/ ((xcb_button_press_event_t *)event)
+		if(getNextShortcut(&buttonShortcutSystem, false, (*e).detail, (*e).state & b(11111111), &buttonPressNextOffset)){
+			jmp matchCommandPress;
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	buttonReleaseEvent:{
+		#define e /*-*/ ((xcb_button_release_event_t *)event)
+		if(getNextShortcut(&buttonShortcutSystem, true, (*e).detail, (*e).state & b(11111111), &buttonReleaseNextOffset)){
+			jmp matchCommandRelease;
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	{
+		uint8 commandOrigin;
+		matchCommandPress:{
+			commandOrigin = PRESS_MATCH_COMMAND_ORIGIN;
+			jmp matchCommand;
+		}
+		matchCommandRelease:{
+			commandOrigin = RELEASE_MATCH_COMMAND_ORIGIN;
+			jmp matchCommand;
+		}
+		matchCommand: switch matchCommand((*eventModifierNode).command, (*eventModifierNode).string, commandOrigin, (*eventModifierNode).field0, (*eventModifierNode).field1, (*eventModifierNode).field2, (*eventModifierNode).field3, (*eventModifierNode).field4) over
+			to TYPICAL_MATCH_COMMAND_TYPE:{
+				jmp eventLoopCheckShortcuts;
+			}
+			to RESTART_MATCH_COMMAND_TYPE:{
+				if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+					printTitledError("pthread error", "could not unlock globals read lock");
+				}
+				jmp readConfig;
+			}
+			to EXIT_MATCH_COMMAND_TYPE:{
+				if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+					printTitledError("pthread error", "could not unlock globals read lock");
+				}
+				jmp mainEmergencyExit;
+			}
+			off:{
+				jmp eventLoopCheckShortcuts;
+			}
+		end
+	}
+	genericEvent:{
+		#define e /*-*/ ((xcb_ge_generic_event_t *)event)
+		printXEvent(baseEventName);
+		jmp unhandledEvent;
+		#undef  e
+	}
+	extensionEvent:{
+		#define isExtensionEvent(e) /*-*/ (eventType >= e##BaseEvent and eventType < e##BaseEvent + countof(e##EventName) - 1)
+		const uint8 eventType = (*event).response_type & ~b(10000000);
+		if(isExtensionEvent(randr)) /*-*/ jmp switchRandrEvent;
+		printXEvent(baseEventName);
+		jmp unhandledEvent;
+		#undef  isExtensionEvent
+	}
+	switchRandrEvent:{
+		printXEvent(randrEventName);
+		switch ((*event).response_type & ~b(10000000)) - randrBaseEvent over
+			to XCB_RANDR_SCREEN_CHANGE_NOTIFY:
+			to XCB_RANDR_NOTIFY:{
+				if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+					printTitledError("pthread error", "could not unlock globals read lock");
+				}
+				if(globalsLockCreated and pthread_rwlock_wrlock(&globalsLock) != PTHREAD_RWLOCK_WRLOCK_SUCCESS){
+					printTitledError("pthread error", "could not lock globals write lock");
+				}
+				{
+					int screenNumber;
+					xcb_connection_t *const connection = xcb_connect_to_display_with_auth_info(connectionName, NULL, &screenNumber);
+					uint32 token = pushPointer(connection, "X connection", iXCBDisconnect);
+					if(connection){
+						xcb_screen_t *const screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data + screenNumber;
+						if(screen){
+							screenWidthInPixels = (*screen).width_in_pixels;
+							screenHeightInPixels = (*screen).height_in_pixels;
+							screenWidthInMillimeters = (*screen).width_in_millimeters;
+							screenHeightInMillimeters = (*screen).height_in_millimeters;
+						}else{
+							screenWidthInPixels = 0;
+							screenHeightInPixels = 0;
+							screenWidthInMillimeters = 0;
+							screenHeightInMillimeters = 0;
+						}
+						xcb_disconnect(connection);
+						popPointer(token);
+					}
+				}
+				createMonitors(&monitorSystem);
+				jmp eventLoop;
+			}
+			off:{
+				jmp unrecognizedEvent;
+			}
+		end
+	}
+	unrecognizedEvent:{
+		printTitledValuedError("X event error", "unrecognized event with type", (*event).response_type & ~b(10000000));
+		jmp eventLoop;
+	}
+	unexpectedEvent:{
+		printTitledValuedError("unexpected X event", "unexpected event with type", (*event).response_type & ~b(10000000));
+		jmp eventLoop;
+	}
+	unhandledEvent:{
+		printTitledValuedError("X event error", "unhandled event with type", (*event).response_type & ~b(10000000));
+		jmp eventLoop;
+	}
+	mainEmergencyExit:{
+		cleanup();
+		ret 0;
+	}
+}
+INITLIBINPUTTHREADSYSTEM(){
+	#define FD_INVALID /*-----------------------------*/ (-1)
+	#define POLL_TIMEOUT_INFINITE /*------------------*/ (-1)
+	#define POLL_FAILURE /*---------------------------*/ (-1)
+	#define CLOSE_FAILURE /*--------------------------*/ (-1)
+	#define OPEN_FAILURE /*---------------------------*/ (-1)
+	#define LIBINPUT_UDEV_ASSIGN_SEAT_FAILURE /*------*/ (-1)
+	#define LIBINPUT_GET_FD_FAILURE /*----------------*/ (-1)
+	#define LIBINPUT_DISPATCH_SUCCESS /*--------------*/ (0)
+	#define LIBINPUT_DEVICE_HAS_CAPABILITY_SUCCESS /*-*/ (0)
+	#define LIBINPUT_DEVICE_GET_SIZE_SUCCESS /*-------*/ (0)
+	if(!libinputThreadSystem){
+		ret false;
+	}
+	(*libinputThreadSystem).udev = NULL;
+	(*libinputThreadSystem).libinput = NULL;
+	(*libinputThreadSystem).libinputEventFD.fd = FD_INVALID;
+	(*libinputThreadSystem).libinputEventFD.events = POLLIN;
+	(*libinputThreadSystem).libinputEventFD.revents = 0;
+	(*libinputThreadSystem).libinputEvent = NULL;
+	(*libinputThreadSystem).libinputThreadCreated = false;
+	ret true;
+}
+BOOTLIBINPUTTHREAD(){
+	if(!libinputThreadSystem){
+		ret false;
+	}
+	(*libinputThreadSystem).libinputThreadCreated = pthread_create(&(*libinputThreadSystem).libinputThread, NULL, &libinputThreadMain, libinputThreadSystem) == PTHREAD_CREATE_SUCCESS;
+	if(!(*libinputThreadSystem).libinputThreadCreated){
+		printTitledError("pthread error", "could not create libinput thread");
+		ret false;
+	}
+	ret true;
+}
+LIBINPUTTHREADMAIN(){
+	LibinputThreadSystem *const libinputThreadSystem = arg;
+	struct libinput_interface interface;
+	if(!libinputThreadSystem){
+		ret NULL;
+	}
+	jmp setThreadCancelationInformation;
+	setThreadCancelationInformation:{
+		int oldState;
+		int oldType;
+		if(pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, &oldState) != PTHREAD_SETCANCELSTATE_SUCCESS){
+			printTitledError("pthread error", "could not set cancel state of libinput thread");
+		}
+		if(pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, &oldType) != PTHREAD_SETCANCELTYPE_SUCCESS){
+			printTitledError("pthread error", "could not set cancel type of libinput thread");
+		}
+		jmp setupUdev;
+	}
+	setupUdev:{
+		if(globalsLockCreated and pthread_rwlock_wrlock(&globalsLock) != PTHREAD_RWLOCK_WRLOCK_SUCCESS){
+			printTitledError("pthread error", "could not lock globals write lock");
+		}
+		raisePermissions(&permissionSystem);
+		if(!((*libinputThreadSystem).udev = udev_new())){
+			printTitledError("udev error", "could not initialize udev");
+			jmp udevLibinputFailed;
+		}
+		jmp setupLibinput;
+	}
+	setupLibinput:{
+		interface.open_restricted = libinputOpenRestricted;
+		interface.close_restricted = libinputCloseRestricted;
+		if(!((*libinputThreadSystem).libinput = libinput_udev_create_context(&interface, NULL, (*libinputThreadSystem).udev))){
+			printTitledError("libinput error", "could not initialize libinput");
+			jmp udevLibinputFailed;
+		}
+		if(libinput_udev_assign_seat((*libinputThreadSystem).libinput, "seat0") == LIBINPUT_UDEV_ASSIGN_SEAT_FAILURE){
+			printTitledError("udev error", "could not assign udev seat");
+			jmp udevLibinputFailed;
+		}
+		libinput_log_set_priority((*libinputThreadSystem).libinput, LIBINPUT_LOG_PRIORITY_ERROR);
+		libinput_log_set_handler((*libinputThreadSystem).libinput, libinputLogHandler);
+		jmp setupFileDescriptor;
+	}
+	setupFileDescriptor:{
+		if(((*libinputThreadSystem).libinputEventFD.fd = libinput_get_fd((*libinputThreadSystem).libinput)) == LIBINPUT_GET_FD_FAILURE){
+			printTitledError("libinput error", "could not acquire event file descriptor");
+			jmp udevLibinputFailed;
+		}
+		lowerPermissions(&permissionSystem);
+		if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+			printTitledError("pthread error", "could not unlock globals write lock");
+		}
+		if(globalsLockCreated and pthread_rwlock_rdlock(&globalsLock) != PTHREAD_RWLOCK_RDLOCK_SUCCESS){
+			printTitledError("pthread error", "could not lock globals read lock");
+		}
+		jmp eventLoop;
+	}
+	udevLibinputFailed:{
+		lowerPermissions(&permissionSystem);
+		if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+			printTitledError("pthread error", "could not unlock globals write lock");
+		}
+		jmp emergencyExit;
+	}
+	eventLoop:{
+		libinput_event_destroy((*libinputThreadSystem).libinputEvent);
+		(*libinputThreadSystem).libinputEvent = NULL;
+		if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+			printTitledError("pthread error", "could not unlock globals read lock");
+		}
+		jmp waitForEventLoop;
+	}
+	waitForEventLoop:{
+		if(!((*libinputThreadSystem).libinputEvent = libinput_get_event((*libinputThreadSystem).libinput))){
+			jmp pollEvent;
+		}
+		if(globalsLockCreated and pthread_rwlock_rdlock(&globalsLock) != PTHREAD_RWLOCK_RDLOCK_SUCCESS){
+			printTitledError("pthread error", "could not lock globals read lock");
+		}
+		printLibinputEvent(libinput_event_get_type((*libinputThreadSystem).libinputEvent));
+		jmp switchEvent;
+	}
+	pollEvent:{
+		if(poll(&(*libinputThreadSystem).libinputEventFD, 1, POLL_TIMEOUT_INFINITE) > 0){
+			if(libinput_dispatch((*libinputThreadSystem).libinput) != LIBINPUT_DISPATCH_SUCCESS){
+				printTitledError("libinput error", "could not dispatch for event");
+				jmp pollEvent;
+			}
+		}
+		if(globalsLockCreated and pthread_rwlock_rdlock(&globalsLock) != PTHREAD_RWLOCK_RDLOCK_SUCCESS){
+			printTitledError("pthread error", "could not lock globals read lock");
+		}
+		jmp eventLoop;
+	}
+	switchEvent: switch libinput_event_get_type((*libinputThreadSystem).libinputEvent) over
+		to LIBINPUT_EVENT_NONE: /*----------------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_DEVICE_ADDED: /*--------------*/ jmp deviceAddedEvent;
+		to LIBINPUT_EVENT_DEVICE_REMOVED: /*------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_KEYBOARD_KEY: /*--------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_POINTER_MOTION: /*------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_POINTER_MOTION_ABSOLUTE: /*---*/ jmp eventLoop;
+		to LIBINPUT_EVENT_POINTER_BUTTON: /*------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_POINTER_AXIS: /*--------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_POINTER_SCROLL_WHEEL: /*------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_POINTER_SCROLL_FINGER: /*-----*/ jmp eventLoop;
+		to LIBINPUT_EVENT_POINTER_SCROLL_CONTINUOUS: /*-*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TOUCH_DOWN: /*----------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TOUCH_UP: /*------------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TOUCH_MOTION: /*--------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TOUCH_CANCEL: /*--------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TOUCH_FRAME: /*---------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TABLET_TOOL_AXIS: /*----------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TABLET_TOOL_PROXIMITY: /*-----*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TABLET_TOOL_TIP: /*-----------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TABLET_TOOL_BUTTON: /*--------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TABLET_PAD_BUTTON: /*---------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TABLET_PAD_RING: /*-----------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TABLET_PAD_STRIP: /*----------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_TABLET_PAD_KEY: /*------------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_GESTURE_SWIPE_BEGIN: /*-------*/ jmp gestureSwipeBeginEvent;
+		to LIBINPUT_EVENT_GESTURE_SWIPE_UPDATE: /*------*/ jmp gestureSwipeUpdateEvent;
+		to LIBINPUT_EVENT_GESTURE_SWIPE_END: /*---------*/ jmp gestureSwipeEndEvent;
+		to LIBINPUT_EVENT_GESTURE_PINCH_BEGIN: /*-------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_GESTURE_PINCH_UPDATE: /*------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_GESTURE_PINCH_END: /*---------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_GESTURE_HOLD_BEGIN: /*--------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_GESTURE_HOLD_END: /*----------*/ jmp eventLoop;
+		to LIBINPUT_EVENT_SWITCH_TOGGLE: /*-------------*/ jmp eventLoop;
+		off: /*-----------------------------------------*/ jmp unhandledEvent;
+	end
+	deviceAddedEvent:{
+		double side;
+		struct libinput_device *device;
+		raisePermissions(&permissionSystem);
+		device = libinput_event_get_device((*libinputThreadSystem).libinputEvent);
+		if(libinput_device_has_capability(device, LIBINPUT_DEVICE_CAP_TOUCH) != LIBINPUT_DEVICE_HAS_CAPABILITY_SUCCESS or libinput_device_get_size(device, &side, &side) != LIBINPUT_DEVICE_GET_SIZE_SUCCESS){
+			if(libinput_device_config_send_events_set_mode(device, LIBINPUT_CONFIG_SEND_EVENTS_DISABLED) != LIBINPUT_CONFIG_STATUS_SUCCESS){
+				printError("%s%s: %s%s:%s %s \"%s\"\n", colorStart, programName, colorError, "libinput error", colorEnd, "could not stop receiving events from device", libinput_device_get_name(device));
+			}
+		}
+		lowerPermissions(&permissionSystem);
+		jmp eventLoop;
+	}
+	gestureSwipeBeginEvent:{
+		resetGestures(&gestureSystem);
+		jmp eventLoop;
+	}
+	gestureSwipeUpdateEvent:{
+		struct libinput_event_gesture *const gestureEvent = libinput_event_get_gesture_event((*libinputThreadSystem).libinputEvent);
+		matchGestures(&gestureSystem, libinput_event_gesture_get_finger_count(gestureEvent), gestureEvent);
+		jmp eventLoop;
+	}
+	gestureSwipeEndEvent:{
+		jmp eventLoop;
+	}
+	unhandledEvent:{
+		printTitledValuedError("libinput event error", "unhandled event with type", libinput_event_get_type((*libinputThreadSystem).libinputEvent));
+		jmp eventLoop;
+	}
+	emergencyExit:{
+		libinput_event_destroy((*libinputThreadSystem).libinputEvent);
+		if((*libinputThreadSystem).libinputEventFD.fd != FD_INVALID and close((*libinputThreadSystem).libinputEventFD.fd) == CLOSE_FAILURE){
+			printTitledError("libinput error", "could not close event file descriptor");
+		}
+		jmp unrefLibinputLoop;
+	}
+	unrefLibinputLoop:{
+		if(((*libinputThreadSystem).libinput = libinput_unref((*libinputThreadSystem).libinput))){
+			printTitledError("libinput error", "libinput_unref used again, look where it is referenced in the program");
+			jmp unrefLibinputLoop;
+		}
+		jmp unrefUdevLoop;
+	}
+	unrefUdevLoop:{
+		if(((*libinputThreadSystem).udev = udev_unref((*libinputThreadSystem).udev))){
+			printTitledError("udev error", "udev_unref used again, look where it is referenced in the program");
+			jmp unrefUdevLoop;
+		}
+		(*libinputThreadSystem).udev = NULL;
+		(*libinputThreadSystem).libinput = NULL;
+		(*libinputThreadSystem).libinputEventFD.fd = FD_INVALID;
+		(*libinputThreadSystem).libinputEventFD.events = POLLIN;
+		(*libinputThreadSystem).libinputEventFD.revents = 0;
+		(*libinputThreadSystem).libinputEvent = NULL;
+		(*libinputThreadSystem).libinputThreadCreated = false;
+		ret NULL;
+	}
+}
+LIBINPUTOPENRESTRICTED(){
+	const int fd = open(path, flags);
+	(void)user_data;
+	if(fd == OPEN_FAILURE){
+		ret -errno;
+	}
+	ret fd;
+}
+LIBINPUTCLOSERESTRICTED(){
+	(void)user_data;
+	close(fd);
+	ret;
+}
+LIBINPUTLOGHANDLER(){
+	(void)libinput;
+	(void)priority;
+	(void)format;
+	(void)args;
+	ret;
+}
+QUITLIBINPUTTHREAD(){
+	if(!libinputThreadSystem or !(*libinputThreadSystem).libinputThreadCreated){
+		ret false;
+	}
+	jmp quitLibinputThread;
+	quitLibinputThread:{
+		if(pthread_cancel((*libinputThreadSystem).libinputThread) != PTHREAD_CANCEL_SUCCESS){
+			printTitledError("pthread error", "could not cancel libinput thread");
+		}
+		if(pthread_join((*libinputThreadSystem).libinputThread, NULL) != PTHREAD_JOIN_SUCCESS){
+			printTitledError("pthread error", "could not join libinput thread");
+		}
+		(*libinputThreadSystem).libinputThreadCreated = false;
+		lowerPermissions(&permissionSystem);
+		jmp freeLibinputEvent;
+	}
+	freeLibinputEvent:{
+		libinput_event_destroy((*libinputThreadSystem).libinputEvent);
+		if((*libinputThreadSystem).libinputEventFD.fd != FD_INVALID and close((*libinputThreadSystem).libinputEventFD.fd) == CLOSE_FAILURE){
+			printTitledError("libinput error", "could not close event file descriptor");
+		}
+		jmp unrefLibinputLoop;
+	}
+	unrefLibinputLoop:{
+		if(((*libinputThreadSystem).libinput = libinput_unref((*libinputThreadSystem).libinput))){
+			printTitledError("libinput error", "libinput_unref used again, look where it is referenced in the program");
+			jmp unrefLibinputLoop;
+		}
+		jmp unrefUdevLoop;
+	}
+	unrefUdevLoop:{
+		if(((*libinputThreadSystem).udev = udev_unref((*libinputThreadSystem).udev))){
+			printTitledError("udev error", "udev_unref used again, look where it is referenced in the program");
+			jmp unrefUdevLoop;
+		}
+		ret true;
+	}
+}
+FINILIBINPUTTHREADSYSTEM(){
+	if(!libinputThreadSystem){
+		ret false;
+	}
+	quitLibinputThread(libinputThreadSystem);
+	(*libinputThreadSystem).udev = NULL;
+	(*libinputThreadSystem).libinput = NULL;
+	(*libinputThreadSystem).libinputEventFD.fd = FD_INVALID;
+	(*libinputThreadSystem).libinputEventFD.events = POLLIN;
+	(*libinputThreadSystem).libinputEventFD.revents = 0;
+	(*libinputThreadSystem).libinputEvent = NULL;
+	(*libinputThreadSystem).libinputThreadCreated = false;
+	ret true;
+	#undef  FD_INVALID
+	#undef  POLL_TIMEOUT_INFINITE
+	#undef  POLL_FAILURE
+	#undef  CLOSE_FAILURE
+	#undef  OPEN_FAILURE
+	#undef  LIBINPUT_UDEV_ASSIGN_SEAT_FAILURE
+	#undef  LIBINPUT_GET_FD_FAILURE
+	#undef  LIBINPUT_DISPATCH_SUCCESS
+	#undef  LIBINPUT_DEVICE_HAS_CAPABILITY_SUCCESS
+	#undef  LIBINPUT_DEVICE_GET_SIZE_SUCCESS
+}
+INITGESTURESYSTEM(){
+	#define GESTURE_BLOCK_SIZE /*-*/ (8)
+	if(!gestureSystem){
+		ret false;
+	}
+	(*gestureSystem).gestureSize = 0;
+	(*gestureSystem).gestureAllocated = 0;
+	(*gestureSystem).gestureStart = NULL;
+	(*gestureSystem).gestureToken = 0;
+	(*gestureSystem).masterGestureOffset = 0;
+	ret true;
+}
+INSERTGESTURE(){
+	Gesture *gesture;
+	if(!gestureSystem or fingerAmount < 3 or fingerAmount > 4 or !direction or direction > UP_RIGHT_DOWN_LEFT_DIRECTION){
+		ret false;
+	}
+	if((*gestureSystem).gestureAllocated == (*gestureSystem).gestureSize){
+		void *temp;
+		(*gestureSystem).gestureSize += GESTURE_BLOCK_SIZE;
+		temp = realloc((*gestureSystem).gestureStart, (*gestureSystem).gestureSize * sizeof(Gesture));
+		if(!(*gestureSystem).gestureToken){
+			(*gestureSystem).gestureToken = pushPointer(temp, "gesture pointer", iFree);
+		}else{
+			updatePointer((*gestureSystem).gestureToken, temp);
+		}
+		if(!temp){
+			printTitledError("memory allocation error", "could not allocate memory for gestures");
+			(*gestureSystem).gestureSize -= GESTURE_BLOCK_SIZE;
+			ret false;
+		}
+		(*gestureSystem).gestureStart = temp;
+		if(!(*gestureSystem).gestureAllocated){
+			(*gestureSystem).gestureAllocated = 1;
+		}
+	}
+	gesture = (*gestureSystem).gestureStart + (*gestureSystem).gestureAllocated;
+	(*gesture).distance = distance;
+	(*gesture).boundary = boundary;
+	(*gesture).dx = libinput_event_gesture_get_dx_unaccelerated;
+	(*gesture).dy = libinput_event_gesture_get_dy_unaccelerated;
+	(*gesture).fingerAmount = fingerAmount;
+	(*gesture).direction = direction;
+	(*gesture).setting = setting;
+	(*gesture).command = command;
+	(*gesture).string = string;
+	(*gesture).stringToken = stringToken;
+	(*gesture).field0 = field0;
+	(*gesture).field1 = field1;
+	(*gesture).field2 = field2;
+	(*gesture).field3 = field3;
+	(*gesture).field4 = field4;
+	if((*gesture).setting & USE_ACCELERATION_GESTURE_SETTING){
+		(*gesture).dx = libinput_event_gesture_get_dx;
+		(*gesture).dy = libinput_event_gesture_get_dy;
+	}
+	inc (*gestureSystem).gestureAllocated;
+	switch (*gesture).direction over
+		to NONE_DIRECTION: /*---------------*/ ret false;
+		to UP_DIRECTION: /*-----------------*/ jmp setupUpDirectionGesture;
+		to DOWN_DIRECTION: /*---------------*/ jmp setupDownDirectionGesture;
+		to LEFT_DIRECTION: /*---------------*/ jmp setupLeftDirectionGesture;
+		to RIGHT_DIRECTION: /*--------------*/ jmp setupRightDirectionGesture;
+		to UP_LEFT_DIRECTION: /*------------*/ jmp setupUpLeftDirectionGesture;
+		to UP_RIGHT_DIRECTION: /*-----------*/ jmp setupUpRightDirectionGesture;
+		to DOWN_LEFT_DIRECTION: /*----------*/ jmp setupDownLeftDirectionGesture;
+		to DOWN_RIGHT_DIRECTION: /*---------*/ jmp setupDownRightDirectionGesture;
+		to UP_DOWN_DIRECTION: /*------------*/ jmp setupUpDownDirectionGesture;
+		to LEFT_RIGHT_DIRECTION: /*---------*/ jmp setupLeftRightDirectionGesture;
+		to UP_LEFT_DOWN_RIGHT_DIRECTION: /*-*/ jmp setupUpLeftDownRightDirectionGesture;
+		to UP_RIGHT_DOWN_LEFT_DIRECTION: /*-*/ jmp setupUpRightDownLeftDirectionGesture;
+		off: /*-----------------------------*/ ret false;
+	end
+	setupUpDirectionGesture:{
+		const double boundary = (*gesture).boundary;
+		const double distance = (*gesture).distance;
+		getGestureSlope(gestureSystem, -boundary,  boundary, -boundary, -distance, false, 0, gesture);
+		getGestureSlope(gestureSystem,  boundary,  boundary,  boundary, -distance,  true, 1, gesture);
+		getGestureSlope(gestureSystem, -boundary,  boundary,  boundary,  boundary,  true, 2, gesture);
+		getGestureSlope(gestureSystem, -boundary, -distance,  boundary, -distance,  true, 3, gesture);
+		ret true;
+	}
+	setupDownDirectionGesture:{
+		const double boundary = (*gesture).boundary;
+		const double distance = (*gesture).distance;
+		getGestureSlope(gestureSystem, -boundary, -boundary, -boundary,  distance, false, 0, gesture);
+		getGestureSlope(gestureSystem,  boundary, -boundary,  boundary,  distance,  true, 1, gesture);
+		getGestureSlope(gestureSystem, -boundary, -boundary,  boundary, -boundary, false, 2, gesture);
+		getGestureSlope(gestureSystem, -boundary,  distance,  boundary,  distance, false, 3, gesture);
+		ret true;
+	}
+	setupLeftDirectionGesture:{
+		const double boundary = (*gesture).boundary;
+		const double distance = (*gesture).distance;
+		getGestureSlope(gestureSystem, -distance,  boundary,  boundary,  boundary,  true, 0, gesture);
+		getGestureSlope(gestureSystem, -distance, -boundary,  boundary, -boundary, false, 1, gesture);
+		getGestureSlope(gestureSystem,  boundary,  boundary,  boundary, -boundary,  true, 2, gesture);
+		getGestureSlope(gestureSystem, -distance,  boundary, -distance, -boundary,  true, 3, gesture);
+		ret true;
+	}
+	setupRightDirectionGesture:{
+		const double boundary = (*gesture).boundary;
+		const double distance = (*gesture).distance;
+		getGestureSlope(gestureSystem, -boundary,  boundary,  distance,  boundary,  true, 0, gesture);
+		getGestureSlope(gestureSystem, -boundary, -boundary,  distance, -boundary, false, 1, gesture);
+		getGestureSlope(gestureSystem, -boundary,  boundary, -boundary, -boundary, false, 2, gesture);
+		getGestureSlope(gestureSystem,  distance,  boundary,  distance, -boundary, false, 3, gesture);
+		ret true;
+	}
+	setupUpLeftDirectionGesture:{
+		const double boundary45 = (*gesture).boundary * sqrt(2);
+		const double distance45 = (*gesture).distance * sqrt(2);
+		getGestureSlope(gestureSystem, 0.0,  boundary45, -boundary45, 0.0, false, 0, gesture);
+		getGestureSlope(gestureSystem, 0.0, -boundary45,  boundary45, 0.0,  true, 1, gesture);
+		getGestureSlope(gestureSystem, 0.0,  boundary45,  boundary45, 0.0,  true, 2, gesture);
+		getGestureSlope(gestureSystem, 0.0, -distance45, -distance45, 0.0,  true, 3, gesture);
+		ret true;
+	}
+	setupUpRightDirectionGesture:{
+		const double boundary45 = (*gesture).boundary * sqrt(2);
+		const double distance45 = (*gesture).distance * sqrt(2);
+		getGestureSlope(gestureSystem, 0.0,  boundary45, -boundary45, 0.0, false, 0, gesture);
+		getGestureSlope(gestureSystem, 0.0,  boundary45,  boundary45, 0.0,  true, 1, gesture);
+		getGestureSlope(gestureSystem, 0.0, -boundary45, -boundary45, 0.0, false, 2, gesture);
+		getGestureSlope(gestureSystem, 0.0, -distance45,  distance45, 0.0, false, 3, gesture);
+		ret true;
+	}
+	setupDownLeftDirectionGesture:{
+		const double boundary45 = (*gesture).boundary * sqrt(2);
+		const double distance45 = (*gesture).distance * sqrt(2);
+		getGestureSlope(gestureSystem, 0.0, -boundary45,  boundary45, 0.0,  true, 0, gesture);
+		getGestureSlope(gestureSystem, 0.0,  boundary45,  boundary45, 0.0,  true, 1, gesture);
+		getGestureSlope(gestureSystem, 0.0, -boundary45, -boundary45, 0.0, false, 2, gesture);
+		getGestureSlope(gestureSystem, 0.0,  distance45, -distance45, 0.0,  true, 3, gesture);
+		ret true;
+	}
+	setupDownRightDirectionGesture:{
+		const double boundary45 = (*gesture).boundary * sqrt(2);
+		const double distance45 = (*gesture).distance * sqrt(2);
+		getGestureSlope(gestureSystem, 0.0,  boundary45, -boundary45, 0.0, false, 0, gesture);
+		getGestureSlope(gestureSystem, 0.0, -boundary45,  boundary45, 0.0,  true, 1, gesture);
+		getGestureSlope(gestureSystem, 0.0, -boundary45, -boundary45, 0.0, false, 2, gesture);
+		getGestureSlope(gestureSystem, 0.0,  distance45,  distance45, 0.0, false, 3, gesture);
+		ret true;
+	}
+	setupUpDownDirectionGesture:{
+		const double boundary = (*gesture).boundary;
+		const double distance = (*gesture).distance;
+		getGestureSlope(gestureSystem, -boundary,  distance, -boundary, -distance, false, 0, gesture);
+		getGestureSlope(gestureSystem,  boundary,  distance,  boundary, -distance,  true, 1, gesture);
+		getGestureSlope(gestureSystem, -boundary, -distance,  boundary, -distance,  true, 2, gesture);
+		getGestureSlope(gestureSystem, -boundary,  distance,  boundary,  distance, false, 3, gesture);
+		ret true;
+	}
+	setupLeftRightDirectionGesture:{
+		const double boundary = (*gesture).boundary;
+		const double distance = (*gesture).distance;
+		getGestureSlope(gestureSystem, -distance,  boundary,  distance,  boundary,  true, 0, gesture);
+		getGestureSlope(gestureSystem, -distance, -boundary,  distance, -boundary, false, 1, gesture);
+		getGestureSlope(gestureSystem, -distance,  boundary, -distance, -boundary,  true, 2, gesture);
+		getGestureSlope(gestureSystem,  distance,  boundary,  distance, -boundary, false, 3, gesture);
+		ret true;
+	}
+	setupUpLeftDownRightDirectionGesture:{
+		const double boundary45 = (*gesture).boundary * sqrt(2);
+		const double distance45 = (*gesture).distance * sqrt(2);
+		getGestureSlope(gestureSystem, 0.0,  boundary45, -boundary45, 0.0, false, 0, gesture);
+		getGestureSlope(gestureSystem, 0.0, -boundary45,  boundary45, 0.0,  true, 1, gesture);
+		getGestureSlope(gestureSystem, 0.0, -distance45, -distance45, 0.0,  true, 2, gesture);
+		getGestureSlope(gestureSystem, 0.0,  distance45,  distance45, 0.0, false, 3, gesture);
+		ret true;
+	}
+	setupUpRightDownLeftDirectionGesture:{
+		const double boundary45 = (*gesture).boundary * sqrt(2);
+		const double distance45 = (*gesture).distance * sqrt(2);
+		getGestureSlope(gestureSystem, 0.0,  boundary45,  boundary45, 0.0,  true, 0, gesture);
+		getGestureSlope(gestureSystem, 0.0, -boundary45, -boundary45, 0.0, false, 1, gesture);
+		getGestureSlope(gestureSystem, 0.0, -distance45,  distance45, 0.0, false, 2, gesture);
+		getGestureSlope(gestureSystem, 0.0,  distance45, -distance45, 0.0,  true, 3, gesture);
+		ret true;
+	}
+}
+RESETGESTURES(){
+	Gesture *current;
+	Gesture *wall;
+	if(!gestureSystem or !(*gestureSystem).gestureAllocated){
+		ret false;
+	}
+	current = (*gestureSystem).gestureStart + 1;
+	wall = (*gestureSystem).gestureStart + (*gestureSystem).gestureAllocated;
+	jmp resetGestureLoop;
+	resetGestureLoop:{
+		if(current < wall){
+			(*current).x = 0.0;
+			(*current).y = 0.0;
+			(*current).allowedToExecute = true;
+			inc current;
+			jmp resetGestureLoop;
+		}
+		(*gestureSystem).masterGestureOffset = 0;
+	}
+	ret true;
+}
+GETGESTURESLOPE(){
+	double slope;
+	uint8 *cookie;
+	if(!gestureSystem or gesture < (*gestureSystem).gestureStart + 1 or gesture >= (*gestureSystem).gestureStart + (*gestureSystem).gestureAllocated){
+		ret false;
+	}
+	slope = 0.0;
+	cookie = (*gesture).cookie + offset;
+	if(startPointX != endPointX and startPointY != endPointY){
+		slope = (startPointY - endPointY) / (startPointX - endPointX);
+	}
+	*((*gesture).slope + offset) = slope;
+	*((*gesture).startPointX + offset) = startPointX;
+	*((*gesture).startPointY + offset) = startPointY;
+	if(startPointX == endPointX and startPointY == endPointY){
+		*cookie = NONE_GESTURE_SLOPE;
+		ret true;
+	}
+	if(slope > 0.0){
+		*cookie = checkUpOrLeft? POSITIVE_UP_LEFT_GESTURE_SLOPE : POSITIVE_DOWN_RIGHT_GESTURE_SLOPE;
+		ret true;
+	}
+	if(slope < 0.0){
+		*cookie = checkUpOrLeft? NEGATIVE_UP_LEFT_GESTURE_SLOPE : NEGATIVE_DOWN_RIGHT_GESTURE_SLOPE;
+		ret true;
+	}
+	if(startPointX == endPointX){
+		*cookie = checkUpOrLeft? VERTICAL_UP_LEFT_GESTURE_SLOPE : VERTICAL_DOWN_RIGHT_GESTURE_SLOPE;
+		ret true;
+	}
+	*cookie = checkUpOrLeft? HORIZONTAL_UP_LEFT_GESTURE_SLOPE : HORIZONTAL_DOWN_RIGHT_GESTURE_SLOPE;
+	ret true;
+}
+MATCHGESTURES(){
+	Gesture *current;
+	Gesture *wall;
+	if(!gestureSystem or fingerAmount < 3 or fingerAmount > 4 or !gestureEvent){
+		ret false;
+	}
+	current = (*gestureSystem).gestureStart + 1;
+	wall = (*gestureSystem).gestureStart + (*gestureSystem).gestureAllocated;
+	if((*gestureSystem).masterGestureOffset){
+		if(!(*((*gestureSystem).gestureStart + (*gestureSystem).masterGestureOffset)).allowedToExecute){
+			ret false;
+		}
+		current = (*gestureSystem).gestureStart + (*gestureSystem).masterGestureOffset;
+		wall = current + 1;
+	}
+	dec current;
+	jmp swipeUpdateLoop;
+	swipeUpdateLoop:{
+		if(inc current < wall){
+			if(!(*current).allowedToExecute){
+				jmp swipeUpdateLoop;
+			}
+			if((*current).fingerAmount != fingerAmount){
+				(*current).allowedToExecute = false;
+				jmp swipeUpdateLoop;
+			}
+			(*current).x += (*current).dx(gestureEvent);
+			(*current).y += (*current).dy(gestureEvent);
+			switch (*current).direction over
+				to NONE_DIRECTION: /*---------------*/ jmp swipeUpdateLoop;
+				to UP_DIRECTION: /*-----------------*/ jmp oneDirection;
+				to DOWN_DIRECTION: /*---------------*/ jmp oneDirection;
+				to LEFT_DIRECTION: /*---------------*/ jmp oneDirection;
+				to RIGHT_DIRECTION: /*--------------*/ jmp oneDirection;
+				to UP_LEFT_DIRECTION: /*------------*/ jmp oneDirection;
+				to UP_RIGHT_DIRECTION: /*-----------*/ jmp oneDirection;
+				to DOWN_LEFT_DIRECTION: /*----------*/ jmp oneDirection;
+				to DOWN_RIGHT_DIRECTION: /*---------*/ jmp oneDirection;
+				to UP_DOWN_DIRECTION: /*------------*/ jmp twoDirections;
+				to LEFT_RIGHT_DIRECTION: /*---------*/ jmp twoDirections;
+				to UP_LEFT_DOWN_RIGHT_DIRECTION: /*-*/ jmp twoDirections;
+				to UP_RIGHT_DOWN_LEFT_DIRECTION: /*-*/ jmp twoDirections;
+				off: /*-----------------------------*/ jmp swipeUpdateLoop;
+			end
+			oneDirection:{
+				if(!lookupPointWithin(gestureSystem, current, 0) or !lookupPointWithin(gestureSystem, current, 1) or !lookupPointWithin(gestureSystem, current, 2)){
+					(*current).allowedToExecute = false;
+					jmp swipeUpdateLoop;
+				}
+				if(lookupPointWithin(gestureSystem, current, 3)){
+					(*current).x = 0.0;
+					(*current).y = 0.0;
+					jmp completeGesture;
+				}
+				jmp swipeUpdateLoop;
+			}
+			twoDirections:{
+				if(!lookupPointWithin(gestureSystem, current, 0) or !lookupPointWithin(gestureSystem, current, 1)){
+					(*current).allowedToExecute = false;
+					jmp swipeUpdateLoop;
+				}
+				if(lookupPointWithin(gestureSystem, current, 2) or lookupPointWithin(gestureSystem, current, 3)){
+					(*current).x = 0.0;
+					(*current).y = 0.0;
+					jmp completeGesture;
+				}
+				jmp swipeUpdateLoop;
+			}
+			completeGesture:{
+				if((*current).setting & EXECUTE_ONCE_GESTURE_SETTING){
+					(*current).allowedToExecute = false;
+				}
+				if((*current).setting & BECOME_MASTER_GESTURE_SETTING){
+					(*gestureSystem).masterGestureOffset = current - (*gestureSystem).gestureStart;
+				}
+				switch matchCommand((*current).command, (*current).string, TOUCHPAD_MATCH_COMMAND_ORIGIN, (*current).field0, (*current).field1, (*current).field2, (*current).field3, (*current).field4) over
+					to TYPICAL_MATCH_COMMAND_TYPE:{
+						jmp postCompleteGesture;
+					}
+					to RESTART_MATCH_COMMAND_TYPE:{
+						if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+							printTitledError("pthread error", "could not unlock globals read lock");
+						}
+						if(globalsLockCreated and pthread_rwlock_wrlock(&globalsLock) != PTHREAD_RWLOCK_WRLOCK_SUCCESS){
+							printTitledError("pthread error", "could not lock globals write lock");
+						}
+						displaySimpleConfigErrors = true;
+						restart(false);
+						readConfig(true, configPath, &ifgetc, NULL);
+						if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+							printTitledError("pthread error", "could not unlock globals write lock");
+						}
+						if(globalsLockCreated and pthread_rwlock_rdlock(&globalsLock) != PTHREAD_RWLOCK_RDLOCK_SUCCESS){
+							printTitledError("pthread error", "could not lock globals read lock");
+						}
+						jmp postCompleteGesture;
+					}
+					to EXIT_MATCH_COMMAND_TYPE:{
+						if(globalsLockCreated and pthread_rwlock_unlock(&globalsLock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS){
+							printTitledError("pthread error", "could not unlock globals read lock");
+						}
+						cleanup();
+						jmp postCompleteGesture;
+					}
+					off:{
+						jmp postCompleteGesture;
+					}
+				end
+			}
+			postCompleteGesture:{
+				if((*gestureSystem).masterGestureOffset){
+					ret true;
+				}
+				jmp swipeUpdateLoop;
+			}
+		}
+		ret true;
+	}
+}
+LOOKUPPOINTWITHIN(){
+	double x0;
+	double y0;
+	double distance;
+	if(!gestureSystem or gesture < (*gestureSystem).gestureStart + 1 or gesture >= (*gestureSystem).gestureStart + (*gestureSystem).gestureAllocated or offset > 3){
+		ret false;
+	}
+	x0 = *((*gesture).startPointX + offset);
+	y0 = *((*gesture).startPointY + offset);
+	distance = *((*gesture).slope + offset) * ((*gesture).x - x0) - ((*gesture).y - y0);
+	switch *((*gesture).cookie + offset) over
+		to VERTICAL_UP_LEFT_GESTURE_SLOPE: /*------*/ ret (*gesture).x <= x0;
+		to VERTICAL_DOWN_RIGHT_GESTURE_SLOPE: /*---*/ ret (*gesture).x >= x0;
+		to HORIZONTAL_UP_LEFT_GESTURE_SLOPE: /*----*/ ret (*gesture).y <= y0;
+		to HORIZONTAL_DOWN_RIGHT_GESTURE_SLOPE: /*-*/ ret (*gesture).y >= y0;
+		to POSITIVE_UP_LEFT_GESTURE_SLOPE: /*------*/ ret distance <= 0;
+		to POSITIVE_DOWN_RIGHT_GESTURE_SLOPE: /*---*/ ret distance >= 0;
+		to NEGATIVE_UP_LEFT_GESTURE_SLOPE: /*------*/ ret distance >= 0;
+		to NEGATIVE_DOWN_RIGHT_GESTURE_SLOPE: /*---*/ ret distance <= 0;
+		off: /*------------------------------------*/ ret false;
+	end
+}
+REMOVEGESTURE(){
+	Gesture *current;
+	Gesture *wall;
+	if(!gestureSystem){
+		ret false;
+	}
+	current = (*gestureSystem).gestureStart + 1;
+	wall = (*gestureSystem).gestureStart + (*gestureSystem).gestureAllocated;
+	jmp removeGestureLoop;
+	removeGestureLoop:{
+		if(current < wall){
+			if((*current).fingerAmount == fingerAmount and (*current).direction == direction){
+				shiftMemory(current + 1, (wall - current - 1) * sizeof(Gesture), -(int)sizeof(Gesture));
+				dec (*gestureSystem).gestureAllocated;
+			}
+			inc current;
+			jmp removeGestureLoop;
+		}
+		ret true;
+	}
+}
+REMOVEGESTURES(){
+	Gesture *current;
+	Gesture *wall;
+	if(!gestureSystem){
+		ret false;
+	}
+	current = (*gestureSystem).gestureStart + 1;
+	wall = (*gestureSystem).gestureStart + (*gestureSystem).gestureAllocated;
+	jmp removeGestureLoop;
+	removeGestureLoop:{
+		if(current < wall){
+			free((*current).string);
+			popPointer((*current).stringToken);
+			inc current;
+			jmp removeGestureLoop;
+		}
+		free((*gestureSystem).gestureStart);
+		popPointer((*gestureSystem).gestureToken);
+		(*gestureSystem).gestureSize = 0;
+		(*gestureSystem).gestureAllocated = 0;
+		(*gestureSystem).gestureStart = NULL;
+		(*gestureSystem).gestureToken = 0;
+		(*gestureSystem).masterGestureOffset = 0;
+		ret true;
+	}
+}
+FINIGESTURESYSTEM(){
+	if(!gestureSystem){
+		ret false;
+	}
+	removeGestures(gestureSystem);
+	free((*gestureSystem).gestureStart);
+	popPointer((*gestureSystem).gestureToken);
+	(*gestureSystem).gestureSize = 0;
+	(*gestureSystem).gestureAllocated = 0;
+	(*gestureSystem).gestureStart = NULL;
+	(*gestureSystem).gestureToken = 0;
+	(*gestureSystem).masterGestureOffset = 0;
+	ret true;
+	#undef  GESTURE_BLOCK_SIZE
+}
+SETCONFIGVARIABLES(){
+	ret;
+}
+READCONFIG(){
+	#define STATEMENT_BLOCK_SIZE /*-*/ (256)
+	#define DEFAULT_CONFIG_PATH /*--*/ ("/etc/" PROGRAM_NAME "/" PROGRAM_NAME ".conf")
+	const Instruction *const *currentScopeInstruction = globalScopeInstruction;
+	const char *const *currentScopeInstructionList = globalInstructionList;
+	const Instruction *instructionStart;
+	const Instruction *instructionStartCopy;
+	const Instruction *instructionCurrent;
+	const Instruction *name0Instruction;
+	const Instruction *name1Instruction;
+	const Instruction *name2Instruction;
+	const Instruction *name3Instruction;
+	const Instruction *name4Instruction;
+	const Instruction *nameList0Instruction;
+	const Instruction *nameList1Instruction;
+	const Instruction *nameList2Instruction;
+	const Instruction *nameList3Instruction;
+	const Instruction *nameList4Instruction;
+	const Instruction *integer0Instruction;
+	const Instruction *integer1Instruction;
+	const Instruction *integer2Instruction;
+	const Instruction *integer3Instruction;
+	const Instruction *integer4Instruction;
+	const Instruction *string0Instruction;
+	const Instruction *string1Instruction;
+	const Instruction *string2Instruction;
+	const Instruction *string3Instruction;
+	const Instruction *string4Instruction;
+	const Instruction *image0Instruction;
+	const Instruction *image1Instruction;
+	const Instruction *image2Instruction;
+	const Instruction *image3Instruction;
+	const Instruction *image4Instruction;
+	const char *imageErrorMessage;
+	FILE *configFile = NULL;
+	uint32 configFileToken;
+	void *system = NULL;
+	uint statementSize = STATEMENT_BLOCK_SIZE;
+	char *statementStart = NULL;
+	uint32 statementToken = 0;
+	char *statementCurrent;
+	char *statementWall = NULL;
+	char *statementConcreteWall;
+	uint8 name0Return;
+	uint8 name1Return;
+	uint8 name2Return;
+	uint8 name3Return;
+	uint8 name4Return;
+	uint8 nameList0Return;
+	uint8 nameList1Return;
+	uint8 nameList2Return;
+	uint8 nameList3Return;
+	uint8 nameList4Return;
+	int64 integer0Return;
+	int64 integer1Return;
+	int64 integer2Return;
+	int64 integer3Return;
+	int64 integer4Return;
+	char *string0Return = NULL;
+	uint32 string0Token = 0;
+	char *string1Return = NULL;
+	uint32 string1Token = 0;
+	char *string2Return = NULL;
+	uint32 string2Token = 0;
+	char *string3Return = NULL;
+	uint32 string3Token = 0;
+	char *string4Return = NULL;
+	uint32 string4Token = 0;
+	Image image0Return;
+	Image image1Return;
+	Image image2Return;
+	Image image3Return;
+	Image image4Return;
+	JmpPoint jmpPoint;
+	uint fileLine = 1;
+	uint statementLine = 0;
+	char fileChar;
+	uint itemAmount;
+	char quote = '\0';
+	uint currentScopeInstructionListSize = countof(globalInstructionList) - 1;
+	StringTreeSystem *const *const *currentScopeInstructionData = globalScopeInstructionData;
+	StringTreeSystem *const *instructionDataStart;
+	StringTreeSystem *const *instructionDataStartCopy;
+	StringTreeSystem *const *instructionDataCurrent;
+	StringTreeSystem *currentScopeInstructionStringTreeSystem = &globalInstructionStringTreeSystem;
+	image0Return.dataStart = NULL;
+	image0Return.dataToken = 0;
+	image1Return.dataStart = NULL;
+	image1Return.dataToken = 0;
+	image2Return.dataStart = NULL;
+	image2Return.dataToken = 0;
+	image3Return.dataStart = NULL;
+	image3Return.dataToken = 0;
+	image4Return.dataStart = NULL;
+	image4Return.dataToken = 0;
+	jmp setupPointers;
+	setupPointers:{
+		if(getNextConfigChar == &ifgetc){
+			if(!createConfigFile){
+				DIR *const dir = opendir(configPath);
+				uint32 token = pushPointer(dir, "config directory argument", closedir);
+				if(dir){
+					closedir(dir);
+					popPointer(token);
+					printConfigError("config error", "config file is directory", '\0', false, false, false, false, configPath, 1, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					jmp configEmergencyExit;
+				}
+			}
+			configFile = fopen(configPath, "r");
+			configFileToken = pushPointer(configFile, "config file", fclose);
+			if(!configFile){
+				#define BUFFER_SIZE /*-*/ (4096)
+				FILE *defaultConfigFile;
+				uint32 defaultConfigFileToken;
+				if(!createConfigFile){
+					printConfigError("config error", "could not open config file", '\0', false, false, false, false, configPath, 1, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					jmp configEmergencyExit;
+				}
+				configFile = fopen(configPath, "w");
+				configFileToken = pushPointer(configFile, "config file", fclose);
+				if(!configFile){
+					printConfigError("config error", "could not create config file", '\0', false, false, false, false, configPath, 1, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					jmp configEmergencyExit;
+				}
+				defaultConfigFile = fopen(DEFAULT_CONFIG_PATH, "r");
+				defaultConfigFileToken = pushPointer(defaultConfigFile, "default config file", fclose);
+				if(!defaultConfigFile){
+					remove(configPath);
+					printTitledNamedError("config file error", "could not copy default configuration file from", DEFAULT_CONFIG_PATH);
+					jmp configEmergencyExit;
+				}
+				copyConfigFileLoop:{
+					char buffer[BUFFER_SIZE];
+					size_t bytesRead;
+					if((bytesRead = fread(buffer, sizeof(*buffer), sizeof(buffer), defaultConfigFile))){
+						if(fwrite(buffer, sizeof(*buffer), bytesRead, configFile) != bytesRead){
+							fclose(defaultConfigFile);
+							popPointer(defaultConfigFileToken);
+							remove(configPath);
+							printTitledError("config copying error", "could not copy default config file correctly");
+							jmp configEmergencyExit;
+						}
+						jmp copyConfigFileLoop;
+					}
+				}
+				fclose(defaultConfigFile);
+				popPointer(defaultConfigFileToken);
+				fclose(configFile);
+				popPointer(configFileToken);
+				if(!(configFile = fopen(configPath, "r"))){
+					printTitledError("config error", "could not open newly written file");
+					jmp configEmergencyExit;
+				}
+				#undef  BUFFER_SIZE
+			}
+		}
+		statementStart = malloc(statementSize * sizeof(char));
+		statementToken = pushPointer(statementStart, "statement pointer", iFree);
+		if(!statementStart){
+			printTitledError("config error", "could not store user data");
+			jmp configEmergencyExit;
+		}
+		if(getNextConfigChar == &ifgetc){
+			system = configFile;
+		}elif(getNextConfigChar == &getNextSTDINCharacter){
+			system = &stdinSystem;
+		}elif(getNextConfigChar == &getNextSharedMemoryCharacter){
+			system = &sharedMemorySystem;
+		}
+		jmp getStatementStart;
+	}
+	getStatementStart:{
+		#define EOF_N1 /*----------------------------*/ (EOF)
+		#define ZER_00 /*----------------------------*/ ('\0')
+		#define EOT_04 /*----------------------------*/ (0x04)
+		#define ALR_07 /*----------------------------*/ ('\a')
+		#define BSP_08 /*----------------------------*/ ('\b')
+		#define TAB_09 /*----------------------------*/ ('\t')
+		#define NLN_10 /*----------------------------*/ ('\n')
+		#define VTB_11 /*----------------------------*/ ('\v')
+		#define FFD_12 /*----------------------------*/ ('\f')
+		#define CRE_13 /*----------------------------*/ ('\r')
+		#define ESC_27 /*----------------------------*/ ('\e')
+		#define SPC_32 /*----------------------------*/ (' ')
+		#define DQT_34 /*----------------------------*/ ('\"')
+		#define SQT_39 /*----------------------------*/ ('\'')
+		#define AST_42 /*----------------------------*/ ('*')
+		#define FSL_47 /*----------------------------*/ ('/')
+		#define ZER_48 /*----------------------------*/ ('0')
+		#define SCL_59 /*----------------------------*/ (';')
+		#define QMK_63 /*----------------------------*/ ('?')
+		#define BSL_92 /*----------------------------*/ ('\\')
+		#define LOA_97 /*----------------------------*/ ('a')
+		#define LOB_98 /*----------------------------*/ ('b')
+		#define LOF_102 /*---------------------------*/ ('f')
+		#define LON_110 /*---------------------------*/ ('n')
+		#define LOR_114 /*---------------------------*/ ('r')
+		#define LOT_116 /*---------------------------*/ ('t')
+		#define LOV_118 /*---------------------------*/ ('v')
+		#define OCB_123 /*---------------------------*/ ('{')
+		#define BAR_124 /*---------------------------*/ ('|')
+		#define CCB_125 /*---------------------------*/ ('}')
+		#define GET_STATEMENT_JMP_POINT /*-----------*/ (0)
+		#define STORE_WHITESPACE_JMP_POINT /*--------*/ (1)
+		#define CHECK_COMMENT_JMP_POINT /*-----------*/ (2)
+		#define STORE_BAR_JMP_POINT /*---------------*/ (3)
+		#define GET_DOUBLE_QUOTATION_JMP_POINT /*----*/ (4)
+		#define GET_SINGLE_QUOTATION_JMP_POINT /*----*/ (5)
+		#define HANDLE_ESCAPE_CHARACTER_JMP_POINT /*-*/ (6)
+		#define ENTER_SCOPE_JMP_POINT /*-------------*/ (7)
+		#define GET_STATEMENT_END_JMP_POINT /*-------*/ (8)
+		statementCurrent = statementStart;
+		statementConcreteWall = statementStart + statementSize * sizeof(char);
+		statementLine = 0;
+		itemAmount = 0;
+		free(string0Return);
+		popPointer(string0Token);
+		free(string1Return);
+		popPointer(string1Token);
+		free(string2Return);
+		popPointer(string2Token);
+		free(string3Return);
+		popPointer(string3Token);
+		free(string4Return);
+		popPointer(string4Token);
+		free(image0Return.dataStart);
+		popPointer(image0Return.dataToken);
+		free(image1Return.dataStart);
+		popPointer(image1Return.dataToken);
+		free(image2Return.dataStart);
+		popPointer(image2Return.dataToken);
+		free(image3Return.dataStart);
+		popPointer(image3Return.dataToken);
+		free(image4Return.dataStart);
+		popPointer(image4Return.dataToken);
+		name0Instruction = NULL;
+		name1Instruction = NULL;
+		name2Instruction = NULL;
+		name3Instruction = NULL;
+		name4Instruction = NULL;
+		nameList0Instruction = NULL;
+		nameList1Instruction = NULL;
+		nameList2Instruction = NULL;
+		nameList3Instruction = NULL;
+		nameList4Instruction = NULL;
+		integer0Instruction = NULL;
+		integer1Instruction = NULL;
+		integer2Instruction = NULL;
+		integer3Instruction = NULL;
+		integer4Instruction = NULL;
+		string0Instruction = NULL;
+		string1Instruction = NULL;
+		string2Instruction = NULL;
+		string3Instruction = NULL;
+		string4Instruction = NULL;
+		image0Instruction = NULL;
+		image1Instruction = NULL;
+		image2Instruction = NULL;
+		image3Instruction = NULL;
+		image4Instruction = NULL;
+		string0Return = NULL;
+		string0Token = 0;
+		string1Return = NULL;
+		string1Token = 0;
+		string2Return = NULL;
+		string2Token = 0;
+		string3Return = NULL;
+		string3Token = 0;
+		string4Return = NULL;
+		string4Token = 0;
+		image0Return.dataStart = NULL;
+		image0Return.dataToken = 0;
+		image1Return.dataStart = NULL;
+		image1Return.dataToken = 0;
+		image2Return.dataStart = NULL;
+		image2Return.dataToken = 0;
+		image3Return.dataStart = NULL;
+		image3Return.dataToken = 0;
+		image4Return.dataStart = NULL;
+		image4Return.dataToken = 0;
+		jmp getStatement;
+	}
+	getStatement: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to ZER_00: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to TAB_09: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp storeWhitespace;
+		to VTB_11: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to FFD_12: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to CRE_13: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to SPC_32: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to DQT_34: /*--*/ quote = '\"'; /*--------------------*/ jmp getDoubleQuotation;
+		to SQT_39: /*--*/ quote = '\''; /*--------------------*/ jmp getSingleQuotation;
+		to FSL_47: /*--*/ /*----------------------------------*/ jmp checkCommentStoreCharacter;
+		to SCL_59: /*--*/ /*----------------------------------*/ jmp completeStatement;
+		to OCB_123: /*-*/ /*----------------------------------*/ jmp handleOpeningBracket;
+		to BAR_124: /*-*/ /*----------------------------------*/ jmp attemptStoreBar;
+		to CCB_125: /*-*/ /*----------------------------------*/ jmp handleClosingBracket;
+		off: /*--------*/ /*----------------------------------*/ jmp getStatementStoreCharacter;
+	end
+	getDoubleQuotation: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to ZER_00: /*--*/ fileChar = ' '; /*------------------*/ jmp getDoubleQuotationStoreCharacter;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp getDoubleQuotationStoreCharacter;
+		to DQT_34: /*--*/ fileChar = '\0'; inc itemAmount; /*-*/ jmp getStatementStoreCharacter;
+		to BSL_92: /*--*/ /*----------------------------------*/ jmp handleEscapeCharacterStoreCharacter;
+		off: /*--------*/ /*----------------------------------*/ jmp getDoubleQuotationStoreCharacter;
+	end
+	getSingleQuotation: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to ZER_00: /*--*/ fileChar = ' '; /*------------------*/ jmp getSingleQuotationStoreCharacter;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp getSingleQuotationStoreCharacter;
+		to SQT_39: /*--*/ fileChar = '\0'; inc itemAmount; /*-*/ jmp getStatementStoreCharacter;
+		to BSL_92: /*--*/ /*----------------------------------*/ jmp handleEscapeCharacterStoreCharacter;
+		off: /*--------*/ /*----------------------------------*/ jmp getSingleQuotationStoreCharacter;
+	end
+	handleEscapeCharacter: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to DQT_34: /*--*/ fileChar = '\"'; /*-----------------*/ jmp storeEscapedCharacter;
+		to SQT_39: /*--*/ fileChar = '\''; /*-----------------*/ jmp storeEscapedCharacter;
+		to ZER_48: /*--*/ fileChar = '\0'; /*-----------------*/ jmp storeEscapedCharacter;
+		to QMK_63: /*--*/ fileChar = '\?'; /*-----------------*/ jmp storeEscapedCharacter;
+		to BSL_92: /*--*/ fileChar = '\\'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOA_97: /*--*/ fileChar = '\a'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOB_98: /*--*/ fileChar = '\b'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOF_102: /*-*/ fileChar = '\f'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LON_110: /*-*/ fileChar = '\n'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOR_114: /*-*/ fileChar = '\r'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOT_116: /*-*/ fileChar = '\t'; /*-----------------*/ jmp storeEscapedCharacter;
+		to LOV_118: /*-*/ fileChar = '\v'; /*-----------------*/ jmp storeEscapedCharacter;
+		off: /*--------*/ /*----------------------------------*/ jmp getStatementStoreCharacter;
+	end
+	checkComment: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to ZER_00: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to TAB_09: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp storeWhitespace;
+		to VTB_11: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to FFD_12: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to CRE_13: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to SPC_32: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		to DQT_34: /*--*/ quote = '\"'; /*--------------------*/ jmp getDoubleQuotation;
+		to SQT_39: /*--*/ quote = '\''; /*--------------------*/ jmp getSingleQuotation;
+		to AST_42: /*--*/ dec statementCurrent; /*------------*/ jmp ignoreMultipleLineComment;
+		to FSL_47: /*--*/ dec statementCurrent; /*------------*/ jmp ignoreSingleLineComment;
+		to SCL_59: /*--*/ /*----------------------------------*/ jmp completeStatement;
+		to OCB_123: /*-*/ /*----------------------------------*/ jmp handleOpeningBracket;
+		to BAR_124: /*-*/ /*----------------------------------*/ jmp attemptStoreBar;
+		to CCB_125: /*-*/ /*----------------------------------*/ jmp handleClosingBracket;
+		off: /*--------*/ /*----------------------------------*/ jmp getStatementStoreCharacter;
+	end
+	ignoreMultipleLineComment: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp ignoreMultipleLineComment;
+		to AST_42: /*--*/ /*----------------------------------*/ jmp checkMultipleLineCommentEnd;
+		off: /*--------*/ /*----------------------------------*/ jmp ignoreMultipleLineComment;
+	end
+	checkMultipleLineCommentEnd: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp ignoreMultipleLineComment;
+		to FSL_47: /*--*/ /*----------------------------------*/ jmp storeWhitespace;
+		off: /*--------*/ /*----------------------------------*/ jmp ignoreMultipleLineComment;
+	end
+	ignoreSingleLineComment: switch fileChar = getNextConfigChar(system) over
+		to EOF_N1: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to EOT_04: /*--*/ /*----------------------------------*/ jmp endOfFile;
+		to NLN_10: /*--*/ inc fileLine; /*--------------------*/ jmp storeWhitespace;
+		off: /*--------*/ /*----------------------------------*/ jmp ignoreSingleLineComment;
+	end
+	endOfFile:{
+		if(statementCurrent == statementStart){
+			jmp successfulConfig;
+		}
+		if(getPreviousConfigChar){
+			getPreviousConfigChar(system);
+		}
+		jmp completeStatement;
+	}
+	storeWhitespace:{
+		if(statementCurrent <= statementStart or !*(statementCurrent - 1)){
+			jmp getStatement;
+		}
+		inc itemAmount;
+		fileChar = '\0';
+		jmp getStatementStoreCharacter;
+	}
+	completeStatement:{
+		if(statementCurrent <= statementStart){
+			jmp getStatement;
+		}
+		if(!*(statementCurrent - 1)){
+			jmp getStatementEnd;
+		}
+		inc itemAmount;
+		fileChar = '\0';
+		jmpPoint = GET_STATEMENT_END_JMP_POINT;
+		jmp storeCharacter;
+	}
+	handleOpeningBracket:{
+		if(statementCurrent <= statementStart){
+			*statementCurrent = '\0';
+			statementLine = fileLine;
+			statementWall = statementCurrent;
+			printConfigError("stray opening bracket error", "could not enter nameless scope", '{', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(*(statementCurrent - 1)){
+			inc itemAmount;
+			fileChar = '\0';
+			jmpPoint = ENTER_SCOPE_JMP_POINT;
+			jmp storeCharacter;
+		}
+		jmp enterScope;
+	}
+	enterScope:{
+		StringTreeSystem *stringTreeSystem;
+		statementWall = statementCurrent - 1;
+		statementCurrent = statementStart;
+		if(currentScopeInstruction == globalScopeInstruction){
+			stringTreeSystem = &globalScopesInstructionStringTreeSystem;
+		}else{
+			printConfigError("invalid scope error", "no scopes inside current scope", '{', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(!findStringTreeString(stringTreeSystem, &statementCurrent)){
+			printConfigError("invalid scope error", "invalid scope name", '{', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(itemAmount > 1){
+			/*! missing space between final argument and scope imminent */
+			printConfigError("scope argument error", "too many arguments", '{', true, true, true, false, configPath, statementLine, statementStart, statementWall, (void *)1, (void *)1, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		currentScopeInstruction = scope1ScopeInstruction;
+		currentScopeInstructionData = scope1ScopeInstructionData;
+		currentScopeInstructionList = scope1ScopeInstructionList;
+		currentScopeInstructionStringTreeSystem = &scope1ScopeInstructionStringTreeSystem;
+		currentScopeInstructionListSize = countof(scope1ScopeInstructionList) - 1;
+		jmp getStatementStart;
+	}
+	attemptStoreBar:{
+		if(statementCurrent <= statementStart or !*(statementCurrent - 1)){
+			jmp storeBar;
+		}
+		inc itemAmount;
+		fileChar = '\0';
+		jmpPoint = STORE_BAR_JMP_POINT;
+		jmp storeCharacter;
+	}
+	storeBar:{
+		fileChar = '|';
+		jmpPoint = STORE_WHITESPACE_JMP_POINT;
+		jmp storeCharacter;
+	}
+	handleClosingBracket:{
+		if(statementCurrent > statementStart){
+			if(getNextConfigChar != &ifgetc){
+				getPreviousConfigChar(system);
+				jmp completeStatement;
+			}
+			fseek(configFile, -1, SEEK_CUR);
+			jmp completeStatement;
+		}
+		if(currentScopeInstruction == globalScopeInstruction){
+			*statementCurrent = '\0';
+			statementLine = fileLine;
+			statementWall = statementCurrent;
+			printConfigError("stray closing bracket error", "could not drop to previous config scope", '}', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(currentScopeInstruction == scope1ScopeInstruction){
+			currentScopeInstruction = globalScopeInstruction;
+			currentScopeInstructionData = globalScopeInstructionData;
+			currentScopeInstructionList = globalInstructionList;
+			currentScopeInstructionStringTreeSystem = &globalInstructionStringTreeSystem;
+			currentScopeInstructionListSize = countof(globalInstructionList) - 1;
+		}
+		jmp getStatementStart;
+	}
+	storeEscapedCharacter:{
+		*(statementCurrent - 1) = fileChar;
+		if(quote == '\"'){
+			jmp getDoubleQuotation;
+		}
+		jmp getSingleQuotation;
+	}
+	getStatementStoreCharacter:{
+		jmpPoint = GET_STATEMENT_JMP_POINT;
+		jmp storeCharacter;
+	}
+	getDoubleQuotationStoreCharacter:{
+		jmpPoint = GET_DOUBLE_QUOTATION_JMP_POINT;
+		jmp storeCharacter;
+	}
+	getSingleQuotationStoreCharacter:{
+		jmpPoint = GET_SINGLE_QUOTATION_JMP_POINT;
+		jmp storeCharacter;
+	}
+	handleEscapeCharacterStoreCharacter:{
+		jmpPoint = HANDLE_ESCAPE_CHARACTER_JMP_POINT;
+		jmp storeCharacter;
+	}
+	checkCommentStoreCharacter:{
+		jmpPoint = CHECK_COMMENT_JMP_POINT;
+		jmp storeCharacter;
+	}
+	storeCharacter:{
+		if(statementCurrent >= statementConcreteWall){
+			const uint offset = statementCurrent - statementStart;
+			void *temp;
+			statementSize += STATEMENT_BLOCK_SIZE;
+			temp = realloc(statementStart, statementSize * sizeof(char));
+			updatePointer(statementToken, temp);
+			if(!temp){
+				printConfigError("memory allocation error", "could not allocate memory for config statement", ';', true, false, false, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				statementSize -= STATEMENT_BLOCK_SIZE;
+				jmp getStatementStart;
+			}
+			statementStart = temp;
+			statementCurrent = statementStart + offset;
+			statementConcreteWall = statementStart + statementSize * sizeof(char);
+		}
+		if(jmpPoint != CHECK_COMMENT_JMP_POINT and !statementLine){
+			statementLine = fileLine;
+		}
+		*statementCurrent = fileChar;
+		inc statementCurrent;
+		switch jmpPoint over
+			to GET_STATEMENT_JMP_POINT: /*-----------*/ jmp getStatement;
+			to STORE_WHITESPACE_JMP_POINT: /*--------*/ jmp storeWhitespace;
+			to CHECK_COMMENT_JMP_POINT: /*-----------*/ jmp checkComment;
+			to STORE_BAR_JMP_POINT: /*---------------*/ jmp storeBar;
+			to GET_DOUBLE_QUOTATION_JMP_POINT: /*----*/ jmp getDoubleQuotation;
+			to GET_SINGLE_QUOTATION_JMP_POINT: /*----*/ jmp getSingleQuotation;
+			to HANDLE_ESCAPE_CHARACTER_JMP_POINT: /*-*/ jmp handleEscapeCharacter;
+			to ENTER_SCOPE_JMP_POINT: /*-------------*/ jmp enterScope;
+			off: /*----------------------------------*/ jmp getStatementEnd;
+		end
+	}
+	getStatementEnd:{
+		if(statementCurrent > statementStart) /*-*/ jmp findStatement;
+		if(!feof(configFile)) /*-----------------*/ jmp getStatementStart;
+		/*---------------------------------------*/ jmp successfulConfig;
+		#undef  GET_STATEMENT_END_JMP_POINT
+		#undef  ENTER_SCOPE_JMP_POINT
+		#undef  HANDLE_ESCAPE_CHARACTER_JMP_POINT
+		#undef  GET_SINGLE_QUOTATION_JMP_POINT
+		#undef  GET_DOUBLE_QUOTATION_JMPPOINT
+		#undef  STORE_BAR_JMP_POINT
+		#undef  CHECK_COMMENT_JMP_POINT
+		#undef  STORE_WHITESPACE_JMP_POINT
+		#undef  GET_STATEMENT_JMP_POINT
+		#undef  CCB_125
+		#undef  BAR_124
+		#undef  OCB_123
+		#undef  LOV_118
+		#undef  LOT_116
+		#undef  LOR_114
+		#undef  LON_110
+		#undef  LOF_102
+		#undef  LOB_98
+		#undef  LOA_97
+		#undef  BSL_92
+		#undef  QMK_63
+		#undef  SCL_59
+		#undef  ZER_48
+		#undef  FSL_47
+		#undef  AST_42
+		#undef  SQT_39
+		#undef  DQT_34
+		#undef  SPC_32
+		#undef  ESC_27
+		#undef  CRE_13
+		#undef  FFD_12
+		#undef  VTB_11
+		#undef  NLN_10
+		#undef  TAB_09
+		#undef  BSP_08
+		#undef  ALR_07
+		#undef  EOT_04
+		#undef  ZER_00
+		#undef  EOF_N1
+	}
+	findStatement:{
+		statementWall = statementCurrent - 1;
+		statementCurrent = statementStart;
+		if(!findStringTreeString(currentScopeInstructionStringTreeSystem, &statementCurrent)){
+			printConfigError("config error", "unrecognized instruction", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp printAllInstructionPatterns;
+		}
+		instructionStart = *(currentScopeInstruction + (*currentScopeInstructionStringTreeSystem).returnedCounter);
+		instructionStartCopy = instructionStart;
+		instructionCurrent = instructionStart;
+		instructionDataStart = *(currentScopeInstructionData + (*currentScopeInstructionStringTreeSystem).returnedCounter);
+		instructionDataStartCopy = instructionDataStart;
+		instructionDataCurrent = instructionDataStart;
+		if(*instructionCurrent == NONE_INSTRUCTION_TYPE){
+			jmp unimplementedInstruction;
+		}
+		if(statementCurrent >= statementWall and *instructionCurrent != END_INSTRUCTION_TYPE){
+			printConfigError("config error", "missing instruction body", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		inc statementCurrent;
+		jmp switchInstructionLoop;
+	}
+	switchInstructionLoop: switch *instructionCurrent over
+		to NONE_INSTRUCTION_TYPE: /*------*/ jmp unimplementedInstruction;
+		to NAME_INSTRUCTION_TYPE: /*------*/ jmp matchName;
+		to NAME_LIST_INSTRUCTION_TYPE: /*-*/ jmp matchNameList;
+		to NUMBER_INSTRUCTION_TYPE: /*----*/ jmp matchInteger;
+		to STRING_INSTRUCTION_TYPE: /*----*/ jmp matchString;
+		to IMAGE_INSTRUCTION_TYPE: /*-----*/ jmp matchImageString;
+		off: /*---------------------------*/ jmp endOfInstruction;
+	end
+	unimplementedInstruction:{
+		printConfigError("implementation error", "using unimplemented instruction", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	matchName:{
+		char *s;
+		uint8 *namePointer;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!name0Instruction){
+			namePointer = &name0Return;
+			name0Instruction = instructionCurrent;
+		}elif(!name1Instruction){
+			namePointer = &name1Return;
+			name1Instruction = instructionCurrent;
+		}elif(!name2Instruction){
+			namePointer = &name2Return;
+			name2Instruction = instructionCurrent;
+		}elif(!name3Instruction){
+			namePointer = &name3Return;
+			name3Instruction = instructionCurrent;
+		}else{
+			namePointer = &name4Return;
+			name4Instruction = instructionCurrent;
+		}
+		s = statementCurrent;
+		if(!findStringTreeString(*instructionDataCurrent, &s)){
+			printConfigError("match string error", "invalid name", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		statementCurrent = s;
+		inc statementCurrent;
+		*namePointer = (**instructionDataCurrent).returnedCounter;
+		jmp advanceDataInstruction;
+	}
+	matchNameList:{
+		uint8 *nameListPointer;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!nameList0Instruction){
+			nameListPointer = &nameList0Return;
+			nameList0Instruction = instructionCurrent;
+		}elif(!nameList1Instruction){
+			nameListPointer = &nameList1Return;
+			nameList1Instruction = instructionCurrent;
+		}elif(!nameList2Instruction){
+			nameListPointer = &nameList2Return;
+			nameList2Instruction = instructionCurrent;
+		}elif(!nameList3Instruction){
+			nameListPointer = &nameList3Return;
+			nameList3Instruction = instructionCurrent;
+		}else{
+			nameListPointer = &nameList4Return;
+			nameList4Instruction = instructionCurrent;
+		}
+		switch matchNameList(*instructionDataCurrent, statementWall, &statementCurrent, nameListPointer) over
+			to INVALID_NAME_NAME_LIST: /*--*/ jmp invalidNameNameList;
+			to PREMATURE_END_NAME_LIST: /*-*/ jmp prematureEndNameList;
+			off: /*------------------------*/ jmp advanceDataInstruction;
+		end
+	}
+	invalidNameNameList:{
+		printConfigError("bar list error", "invalid name", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	prematureEndNameList:{
+		printConfigError("bar list error", "missing final name", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	matchInteger:{
+		int64 *integerPointer;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!integer0Instruction){
+			integerPointer = &integer0Return;
+			integer0Instruction = instructionCurrent;
+		}elif(!integer1Instruction){
+			integerPointer = &integer1Return;
+			integer1Instruction = instructionCurrent;
+		}elif(!integer2Instruction){
+			integerPointer = &integer2Return;
+			integer2Instruction = instructionCurrent;
+		}elif(!integer3Instruction){
+			integerPointer = &integer3Return;
+			integer3Instruction = instructionCurrent;
+		}else{
+			integerPointer = &integer4Return;
+			integer4Instruction = instructionCurrent;
+		}
+		switch matchInteger(&statementCurrent, statementWall, integerPointer) over
+			to NON_NUMBER_NUMBER: /*-------*/ jmp printNonNumberError;
+			to OVERFLOWN_NUMBER_NUMBER: /*-*/ jmp printOverflownNumberError;
+			to DIVIDED_BY_ZERO_NUMBER: /*--*/ jmp printDividedByZeroNumberError;
+			off: /*------------------------*/ jmp advanceInstruction;
+		end
+	}
+	printNonNumberError:{
+		printConfigError("match integer error", "not a number", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printOverflownNumberError:{
+		printConfigError("match integer error", "integer overflow", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printDividedByZeroNumberError:{
+		printConfigError("match integer error", "integer divided by zero", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	matchString:{
+		char **stringPointer;
+		uint32 *stringTokenPointer;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!string0Instruction){
+			stringPointer = &string0Return;
+			stringTokenPointer = &string0Token;
+			string0Instruction = instructionCurrent;
+		}elif(!string1Instruction){
+			stringPointer = &string1Return;
+			stringTokenPointer = &string1Token;
+			string1Instruction = instructionCurrent;
+		}elif(!string2Instruction){
+			stringPointer = &string2Return;
+			stringTokenPointer = &string2Token;
+			string2Instruction = instructionCurrent;
+		}elif(!string3Instruction){
+			stringPointer = &string3Return;
+			stringTokenPointer = &string3Token;
+			string3Instruction = instructionCurrent;
+		}else{
+			stringPointer = &string4Return;
+			stringTokenPointer = &string4Token;
+			string4Instruction = instructionCurrent;
+		}
+		if(!matchString(&statementCurrent, stringPointer, stringTokenPointer)){
+			printConfigError("match string error", "could not allocate string data", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		jmp advanceInstruction;
+	}
+	matchImageString:{
+		char *string = NULL;
+		uint32 token = 0;
+		Image *imagePointer;
+		uint8 matchImageReturn;
+		if(statementCurrent >= statementWall){
+			jmp printMissingArgumentError;
+		}
+		if(!image0Instruction){
+			imagePointer = &image0Return;
+			image0Instruction = instructionCurrent;
+		}elif(!image1Instruction){
+			imagePointer = &image1Return;
+			image1Instruction = instructionCurrent;
+		}elif(!image2Instruction){
+			imagePointer = &image2Return;
+			image2Instruction = instructionCurrent;
+		}elif(!image3Instruction){
+			imagePointer = &image3Return;
+			image3Instruction = instructionCurrent;
+		}else{
+			imagePointer = &image4Return;
+			image4Instruction = instructionCurrent;
+		}
+		if(!matchString(&statementCurrent, &string, &token)){
+			printConfigError("match image error", "could not allocate image string data", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		matchImageReturn = matchImage(string, &imageErrorMessage, &image0Return);
+		free(string);
+		popPointer(token);
+		switch matchImageReturn over
+			to CANNOT_OPEN_MATCH_IMAGE: /*--------*/ jmp printCannotOpenReadConfig;
+			to CANNOT_READ_MATCH_IMAGE: /*--------*/ jmp printCannotReadReadConfig;
+			to UNSUPPORTED_FORMAT_MATCH_IMAGE: /*-*/ jmp printUnsupportedFormatReadConfig;
+			to BAD_HEADER_MATCH_IMAGE: /*---------*/ jmp printBadHeaderReadConfig;
+			to BAD_DEPTH_MATCH_IMAGE: /*----------*/ jmp printBadDepthReadConfig;
+			to BAD_COMPRESSION_MATCH_IMAGE: /*----*/ jmp printBadCompressionReadConfig;
+			to UNSUPPORTED_HEIGHT_MATCH_IMAGE: /*-*/ jmp printUnsupportedHeightReadConfig;
+			to BAD_SIZE_MATCH_IMAGE: /*-----------*/ jmp printBadSizeReadConfig;
+			to FAILED_MATCH_IMAGE: /*-------------*/ jmp printFailedReadConfig;
+			to BAD_PIXELS_MATCH_IMAGE: /*---------*/ jmp printBadPixelsReadConfig;
+			to BAD_IMAGE_MATCH_IMAGE: /*----------*/ jmp printBadImageReadConfig;
+			off: /*-------------------------------*/ jmp advanceInstruction;
+		end
+	}
+	printCannotOpenReadConfig:{
+		printConfigError("match image error", "could not open image file", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printCannotReadReadConfig:{
+		printConfigError("match image error", "could not read image file", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printUnsupportedFormatReadConfig:{
+		printConfigError("match image error", "image file not bmp", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadHeaderReadConfig:{
+		printConfigError("match image error", imageErrorMessage, ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadDepthReadConfig:{
+		printConfigError("match image error", imageErrorMessage, ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadCompressionReadConfig:{
+		printConfigError("match image error", imageErrorMessage, ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printUnsupportedHeightReadConfig:{
+		printConfigError("match image error", "negative height is not supported", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadSizeReadConfig:{
+		printConfigError("match image error", "could not traverse image past the header", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printFailedReadConfig:{
+		printConfigError("match image error", "could not allocate pixels", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadPixelsReadConfig:{
+		printConfigError("match image error", "could not read pixels", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printBadImageReadConfig:{
+		printConfigError("match image error", "image is broken", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	endOfInstruction:{
+		if(instructionStart == setInstruction){
+			#define applySubinstruction(s, i) /*-*/ instructionStart = s##i##Subinstruction; instructionDataStart = s##i##SubinstructionData
+			switch name0Return over
+				off: /*-*/ brk;
+			end
+		}
+		if(instructionStart == doInstruction){
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ applySubinstruction(execute, Do); jmp assessSubinstruction;
+				off: /*----------------*/ /*-----------------------------*/ brk;
+			end
+		}
+		if(instructionStart == grabKeycodeInstruction){
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ applySubinstruction(execute, GrabKeycode); jmp assessSubinstruction;
+				off: /*----------------*/ /*--------------------------------------*/ brk;
+			end
+		}
+		if(instructionStart == grabButtonInstruction){
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ applySubinstruction(execute, GrabButton); jmp assessSubinstruction;
+				off: /*----------------*/ /*-------------------------------------*/ brk;
+			end
+		}
+		if(instructionStart == grabGestureInstruction){
+			switch name1Return over
+				to EXECUTE_COMMAND: /*-*/ applySubinstruction(execute, GrabGesture); jmp assessSubinstruction;
+				off: /*----------------*/ /*--------------------------------------*/ brk;
+			end
+			#undef  applySubinstruction
+		}
+		if(statementCurrent < statementWall){
+			printConfigError("config error", "extra parameters error", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == helpInstruction){
+			printError("%s%s: %s: line %u: %s%s:%s %s:\n", colorStart, programName, configPath, statementLine, colorError, "config help menu", colorEnd, displaySimpleConfigErrors? "contracted" : "expanded");
+			jmp printAllInstructionPatterns;
+		}
+		if(instructionStartCopy == expandInstruction){
+			displaySimpleConfigErrors = false;
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == contractInstruction){
+			displaySimpleConfigErrors = true;
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == readConfigInstruction){
+			readConfig(false, string0Return, &ifgetc, NULL);
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == useTerminalInstruction){
+			switch name0Return over
+				to TRUE_BOOLEAN:{
+					if(!connectSTDIN(&stdinSystem)){
+						printConfigError("config error", "terminal messaging already enabled", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					}
+					jmp getStatementStart;
+				}
+				to FALSE_BOOLEAN:{
+					if(!disconnectSTDIN(&stdinSystem)){
+						printConfigError("config error", "terminal messaging not enabled", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+						jmp getStatementStart;
+					}
+					jmp getStatementStart;
+				}
+				off:{
+					jmp getStatementStart;
+				}
+			end
+		}
+		if(instructionStartCopy == useMessengerInstruction){
+			switch name0Return over
+				to TRUE_BOOLEAN:{
+					if(!connectSharedMemory(&sharedMemorySystem)){
+						printConfigError("config error", "shared memory messaging already enabled", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					}
+					jmp getStatementStart;
+				}
+				to FALSE_BOOLEAN:{
+					if(!disconnectSharedMemory(&sharedMemorySystem)){
+						printConfigError("config error", "shared memory messaging not enabled", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					}
+					jmp getStatementStart;
+				}
+				off:{
+					jmp getStatementStart;
+				}
+			end
+		}
+		if(instructionStartCopy == setInstruction){
+			switch name0Return over
+				off:{
+					jmp getStatementStart;
+				}
+			end
+		}
+		if(instructionStartCopy == doInstruction){
+			int32 field0 = 0;
+			int32 field1 = 0;
+			int32 field2 = 0;
+			int32 field3 = 0;
+			int32 field4 = 0;
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ brk;
+				off: /*----------------*/ brk;
+			end
+			switch matchCommand(name0Return, string0Return, getNextConfigChar == &ifgetc? CONFIG_MATCH_COMMAND_ORIGIN : getNextConfigChar == &getNextSTDINCharacter? STDIN_MATCH_COMMAND_ORIGIN : TRANSMITTER_MATCH_COMMAND_ORIGIN, field0, field1, field2, field3, field4) over
+				to TYPICAL_MATCH_COMMAND_TYPE:{
+					jmp getStatementStart;
+				}
+				to RESTART_MATCH_COMMAND_TYPE:{
+					jmp getStatementStart;
+				}
+				to EXIT_MATCH_COMMAND_TYPE:{
+					jmp getStatementStart;
+				}
+				off:{
+					printConfigError("config error", "do subinstruction not implemented yet", ';', true, true, true, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionStart, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					jmp getStatementStart;
+				}
+			end
+		}
+		if(instructionStartCopy == grabKeycodeInstruction){
+			int32 field0 = 0;
+			int32 field1 = 0;
+			int32 field2 = 0;
+			int32 field3 = 0;
+			int32 field4 = 0;
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ brk;
+				off: /*----------------*/ brk;
+			end
+			if(!insertShortcut(&keycodeShortcutSystem, integer0Return, nameList0Return, nameList1Return, name0Return, string0Return, string0Token, field0, field1, field2, field3, field4)){
+				printConfigError("shortcut error", "could not insert shortcut", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			string0Return = NULL;
+			string0Token = 0;
+			{
+				const xcb_void_cookie_t cookie = xcb_grab_key_checked(connection, true, (*screen).root, nameList0Return, integer0Return, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC);
+				xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+				uint32 token = pushPointer(error, "grab key check pointer", iFree);
+				if(error){
+					printConfigError("shortcut error", "could not grab key on root", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					free(error);
+					popPointer(token);
+				}
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == grabButtonInstruction){
+			int32 field0 = 0;
+			int32 field1 = 0;
+			int32 field2 = 0;
+			int32 field3 = 0;
+			int32 field4 = 0;
+			switch name0Return over
+				to EXECUTE_COMMAND: /*-*/ brk;
+				off: /*----------------*/ brk;
+			end
+			if(!insertShortcut(&buttonShortcutSystem, integer0Return, nameList0Return, nameList1Return, name0Return, string0Return, string0Token, field0, field1, field2, field3, field4)){
+				printConfigError("shortcut error", "could not insert shortcut", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			string0Return = NULL;
+			string0Token = 0;
+			{
+				const xcb_void_cookie_t cookie = xcb_grab_button_checked(connection, true, (*screen).root, XCB_EVENT_MASK_NO_EVENT, XCB_GRAB_MODE_ASYNC, XCB_GRAB_MODE_ASYNC, XCB_NONE, XCB_NONE, integer0Return, nameList0Return);
+				xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+				uint32 token = pushPointer(error, "grab button check pointer", iFree);
+				if(error){
+					printConfigError("shortcut error", "could not grab button on root", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					free(error);
+					popPointer(token);
+				}
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == grabGestureInstruction){
+			int32 field0 = 0;
+			int32 field1 = 0;
+			int32 field2 = 0;
+			int32 field3 = 0;
+			int32 field4 = 0;
+			switch name1Return over
+				to EXECUTE_COMMAND: /*-*/ brk;
+				off: /*----------------*/ brk;
+			end
+			if(!insertGesture(&gestureSystem, integer0Return, name0Return, integer1Return, integer2Return, nameList0Return, name1Return, string0Return, string0Token, field0, field1, field2, field3, field4)){
+				printConfigError("shortcut error", "could not insert gesture", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+			}
+			string0Return = NULL;
+			string0Token = 0;
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == ungrabKeycodeInstruction){
+			if(!removeShortcut(&keycodeShortcutSystem, integer0Return, nameList0Return)){
+				printConfigError("shortcut error", "could not find key to ungrab", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			{
+				const xcb_void_cookie_t cookie = xcb_ungrab_key_checked(connection, integer0Return, (*screen).root, nameList0Return);
+				xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+				uint32 token = pushPointer(error, "ungrab key check pointer", iFree);
+				if(error){
+					printConfigError("shortcut error", "could not ungrab key from root", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					free(error);
+					popPointer(token);
+				}
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == ungrabButtonInstruction){
+			if(!removeShortcut(&buttonShortcutSystem, integer0Return, nameList0Return)){
+				printConfigError("shortcut error", "could not find button to ungrab", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			{
+				const xcb_void_cookie_t cookie = xcb_ungrab_button_checked(connection, integer0Return, (*screen).root, nameList0Return);
+				xcb_generic_error_t *const error = xcb_request_check(connection, cookie);
+				uint32 token = pushPointer(error, "ungrab button check pointer", iFree);
+				if(error){
+					printConfigError("shortcut error", "could not ungrab button from root", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+					free(error);
+					popPointer(token);
+				}
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == ungrabGestureInstruction){
+			if(!removeGesture(&gestureSystem, integer0Return, name0Return)){
+				printConfigError("shortcut error", "could not find gesture to ungrab", ';', true, true, false, false, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+				jmp getStatementStart;
+			}
+			jmp getStatementStart;
+		}
+		if(instructionStartCopy == stopInstruction){
+			jmp successfulConfig;
+		}
+		jmp getStatementStart;
+	}
+	advanceInstruction:{
+		inc instructionCurrent;
+		jmp switchInstructionLoop;
+	}
+	advanceDataInstruction:{
+		inc instructionCurrent;
+		inc instructionDataCurrent;
+		jmp switchInstructionLoop;
+	}
+	assessSubinstruction:{
+		instructionCurrent = instructionStart + (instructionCurrent - instructionStartCopy);
+		instructionDataCurrent = instructionDataStart + (instructionDataCurrent - instructionDataStartCopy);
+		if(statementCurrent < statementWall){
+			jmp switchInstructionLoop;
+		}
+		jmp printMissingArgumentError;
+	}
+	printMissingArgumentError:{
+		printConfigError("config error", "missing argument error", ';', true, true, true, true, configPath, statementLine, statementStart, statementWall, instructionStart, instructionCurrent, instructionDataStart, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		jmp getStatementStart;
+	}
+	printAllInstructionPatterns:{
+		const char *const *const wall = currentScopeInstructionList + currentScopeInstructionListSize;
+		const char *const *current = currentScopeInstructionList;
+		const Instruction *const *in = currentScopeInstruction;
+		StringTreeSystem *const *const *da = currentScopeInstructionData;
+		jmp printExpandedHelpInstructions;
+		printExpandedHelpInstructions:{
+			const Instruction *n = *in - 1;
+			StringTreeSystem *const *d = *da;
+			printError("\tpattern | %s", *current);
+			jmp printHelpInstructionParametersLoop;
+			printHelpInstructionParametersLoop: switch *(inc n) over
+				to NONE_INSTRUCTION_TYPE: /*------*/ jmp noneInstruction;
+				to NAME_INSTRUCTION_TYPE: /*------*/ jmp nameInstruction;
+				to NAME_LIST_INSTRUCTION_TYPE: /*-*/ jmp nameListInstruction;
+				to NUMBER_INSTRUCTION_TYPE: /*----*/ jmp numberInstruction;
+				to STRING_INSTRUCTION_TYPE: /*----*/ jmp stringInstruction;
+				to IMAGE_INSTRUCTION_TYPE: /*-----*/ jmp imageInstruction;
+				off: /*---------------------------*/ jmp printHelpInstructionParametersLoopExit;
+			end
+			noneInstruction:{
+				printError(" <unimplemented>");
+				jmp printHelpInstructionParametersLoopExit;
+			}
+			nameInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" name");
+					jmp printHelpInstructionParametersLoop;
+				}
+				if((**d).stringArray){
+					const char *const *stringArray = (**d).stringArray;
+					printError(" (%s", *stringArray);
+					inc stringArray;
+					jmp printNameLoop;
+					printNameLoop:{
+						if(*stringArray){
+							printError("|%s", *stringArray);
+							inc stringArray;
+							jmp printNameLoop;
+						}
+						printError(")");
+					}
+				}
+				inc d;
+				jmp printHelpInstructionParametersLoop;
+			}
+			nameListInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" list");
+					jmp printHelpInstructionParametersLoop;
+				}
+				if((**d).stringArray){
+					const char *const *stringArray = (**d).stringArray;
+					printError(" ((%s", *stringArray);
+					inc stringArray;
+					jmp printNameListOnceLoop;
+					printNameListOnceLoop:{
+						if(*stringArray){
+							printError("|%s", *stringArray);
+							inc stringArray;
+							jmp printNameListOnceLoop;
+						}
+						stringArray = (**d).stringArray;
+						printError(")[\\s]*([\\s]*[|][\\s]*(%s", *stringArray);
+						inc stringArray;
+						jmp printNameListTwiceLoop;
+					}
+					printNameListTwiceLoop:{
+						if(*stringArray){
+							printError("|%s", *stringArray);
+							inc stringArray;
+							jmp printNameListTwiceLoop;
+						}
+						printError("))*(?![\\s]*[|]))");
+					}
+				}
+				inc d;
+				jmp printHelpInstructionParametersLoop;
+			}
+			numberInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" number");
+					jmp printHelpInstructionParametersLoop;
+				}
+				printError(" (([0][\\s]*[x][\\s]*([a-fA-F0-9][\\s]*)*|([0-9][\\s]*)+|[+*/][\\s]*)+)");
+				jmp printHelpInstructionParametersLoop;
+			}
+			stringInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" string");
+					jmp printHelpInstructionParametersLoop;
+				}
+				printError(" ([\"].*[\"]|[\'].*[\'])");
+				jmp printHelpInstructionParametersLoop;
+			}
+			imageInstruction:{
+				if(displaySimpleConfigErrors){
+					printError(" image");
+					jmp printHelpInstructionParametersLoop;
+				}
+				printError(" ([\"].*[\"]|[\'].*[\'])");
+				jmp printHelpInstructionParametersLoop;
+			}
+		}
+		printHelpInstructionParametersLoopExit:{
+			inc in;
+			inc da;
+			if(displaySimpleConfigErrors){
+				printError("\n");
+			}else{
+				printError(" $\n");
+			}
+			if(inc current < wall){
+				jmp printExpandedHelpInstructions;
+			}
+			printError("\n");
+			jmp getStatementStart;
+		}
+	}
+	successfulConfig:{
+		if(currentScopeInstruction != globalScopeInstruction){
+			*statementCurrent = '\0';
+			statementWall = statementCurrent;
+			statementLine = fileLine;
+			if(fileLine != 1){
+				dec statementLine;
+			}
+			printConfigError("config error", "missing closing scope bracket", '\0', true, false, false, false, configPath, statementLine, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		}
+		jmp configEmergencyExit;
+	}
+	configEmergencyExit:{
+		if(configFile and fileLine == 1 and !statementLine){
+			printConfigError("config warning", "empty config file", '\0', false, false, false, false, configPath, 1, statementStart, statementWall, NULL, NULL, NULL, currentScopeInstructionList, currentScopeInstructionStringTreeSystem);
+		}
+		free(statementStart);
+		popPointer(statementToken);
+		if(configFile){
+			fclose(configFile);
+			popPointer(configFileToken);
+		}
+		jmp postReadConfig;
+	}
+	postReadConfig:{
+		xcb_flush(connection);
+		ret;
+	}
+	#undef  DEFAULT_CONFIG_PATH
+	#undef  STATEMENT_BLOCK_SIZE
+}
+MATCHCOMMAND(){
+	uint8 commandReturned = TYPICAL_MATCH_COMMAND_TYPE;
+	(void)field0;
+	(void)field1;
+	(void)field2;
+	(void)field3;
+	(void)field4;
+	switch origin over
+		to PRESS_MATCH_COMMAND_ORIGIN:{
+			printCommand("press", command);
+			if(!((*eventModifierNode).onState & PRESS_SHORTCUT_STATE)){
+				jmp emergencyExit;
+			}
+			jmp matchCommand;
+		}
+		to RELEASE_MATCH_COMMAND_ORIGIN:{
+			printCommand("release", command);
+			if(!((*eventModifierNode).onState & RELEASE_SHORTCUT_STATE)){
+				jmp emergencyExit;
+			}
+			jmp matchCommand;
+		}
+		to CONFIG_MATCH_COMMAND_ORIGIN:{
+			printCommand("config", command);
+			jmp matchCommand;
+		}
+		to STDIN_MATCH_COMMAND_ORIGIN:{
+			printCommand("stdin", command);
+			jmp matchCommand;
+		}
+		to TRANSMITTER_MATCH_COMMAND_ORIGIN:{
+			printCommand("transmitter", command);
+			jmp matchCommand;
+		}
+		to TOUCHPAD_MATCH_COMMAND_ORIGIN:{
+			printCommand("touchpad", command);
+			jmp matchCommand;
+		}
+		off:{
+			jmp emergencyExit;
+		}
+	end
+	matchCommand: switch command over
+		to NONE_COMMAND: /*----*/ jmp noneCommand;
+		to EXECUTE_COMMAND: /*-*/ jmp executeCommand;
+		to RESTART_COMMAND: /*-*/ jmp restartCommand;
+		to EXIT_COMMAND: /*----*/ jmp exitCommand;
+		off: /*----------------*/ jmp unrecognizedCommand;
+	end
+	noneCommand:{
+		jmp emergencyExit;
+	}
+	executeCommand:{
+		spawnProcess(execute);
+		jmp emergencyExit;
+	}
+	restartCommand:{
+		commandReturned = RESTART_MATCH_COMMAND_TYPE;
+		jmp emergencyExit;
+	}
+	exitCommand:{
+		commandReturned = EXIT_MATCH_COMMAND_TYPE;
+		jmp emergencyExit;
+	}
+	unrecognizedCommand:{
+		printTitledValuedError("command error", "executed unrecognized command with type", command);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		ret commandReturned;
+	}
+}
+RESTART(){
+	if(!isInsideConfig){
+		disconnectSharedMemory(&sharedMemorySystem);
+		disconnectSTDIN(&stdinSystem);
+	}
+	freeConfigVariables();
+	ungrabShortcuts();
+	finiGestureSystem(&gestureSystem);
+	finiShortcutSystem(&buttonShortcutSystem);
+	finiShortcutSystem(&keycodeShortcutSystem);
+	setConfigVariables();
+	ret;
+}
+CLEANUP(){
+	free(event);
+	popPointer(eventToken);
+	event = NULL;
+	eventToken = 0;
+	finiSharedMemorySystem(&sharedMemorySystem);
+	finiSTDINSystem(&stdinSystem);
+	finiSleepThreadSystem(&sleepThreadSystem);
+	finiLibinputThreadSystem(&libinputThreadSystem);
+	cancelThreads();
+	ungrabShortcuts();
+	freeConfigVariables();
+	finiWindowSystem(&windowSystem);
+	finiGestureSystem(&gestureSystem);
+	finiMonitorSystem(&monitorSystem);
+	if(connection){
+		xcb_flush(connection);
+		xcb_disconnect(connection);
+		popPointer(connectionToken);
+		connection = NULL;
+		connectionToken = 0;
+	}
+	finiShortcutSystem(&buttonShortcutSystem);
+	finiShortcutSystem(&keycodeShortcutSystem);
+	finiStringTreeSystem(&macroStringTreeSystem);
+	finiStringTreeSystem(&whichMonitorStringTreeSystem);
+	finiStringTreeSystem(&cornerStringTreeSystem);
+	finiStringTreeSystem(&verticalAlignmentStringTreeSystem);
+	finiStringTreeSystem(&horizontalAlignmentStringTreeSystem);
+	finiStringTreeSystem(&numberTypeStringTreeSystem);
+	finiStringTreeSystem(&gestureSettingStringTreeSystem);
+	finiStringTreeSystem(&directionStringTreeSystem);
+	finiStringTreeSystem(&shortcutStateStringTreeSystem);
+	finiStringTreeSystem(&modifierStringTreeSystem);
+	finiStringTreeSystem(&commandStringTreeSystem);
+	finiStringTreeSystem(&variableStringTreeSystem);
+	finiStringTreeSystem(&booleanStringTreeSystem);
+	finiStringTreeSystem(&scope1ScopeInstructionStringTreeSystem);
+	finiStringTreeSystem(&globalInstructionStringTreeSystem);
+	finiStringTreeSystem(&globalScopesInstructionStringTreeSystem);
+	finiPermissionSystem(&permissionSystem);
+	if(memoryManagementSystem.allocated > 1){
+		printError("%s%s: %s%s:%s %s", colorStart, programName, colorError, "warning", colorEnd, "program exited with unaccounted for data pointers, namely:\n");
+		printUnaccountedForPointers(memoryManagementSystem.data + 1, memoryManagementSystem.data + memoryManagementSystem.allocated);
+	}
+	finiMemorySystem();
+	closeErrorStream();
+	exit(EXIT_SUCCESS);
+}
+PRINTCONFIGERROR(){
+	const char *statementCurrent = statementStart;
+	const uint itemAmountWall = instructionCurrent - instructionStart;
+	uint itemAmount = 0;
+	uint spaceAmount = 0;
+	StringTreeSystem *const *data;
+	if(!openErrorStream()){
+		ret;
+	}
+	flockfile(errorStream);
+	fprintf(errorStream, "%s%s: %s: ", colorStart, programName, configPath);
+	if(printLine){
+		fprintf(errorStream, "line %u: ", statementLine);
+	}
+	fprintf(errorStream, "%s%s:%s %s", colorError, type, colorEnd, message);
+	if(printConfig){
+		fprintf(errorStream, ":\n\t config |");
+	}else{
+		fprintf(errorStream, "\n");
+		jmp emergencyExit;
+	}
+	jmp printStatementItemLoop;
+	printStatementItemLoop:{
+		if(statementCurrent < statementWall){
+			fprintf(errorStream, " %s", statementCurrent);
+			jmp pushOutTermLoop;
+			pushOutTermLoop:{
+				if(*(inc statementCurrent)){
+					jmp pushOutTermLoop;
+				}
+				inc statementCurrent;
+			}
+			if(itemAmount == itemAmountWall and instructionStart){
+				spaceAmount = statementCurrent - statementStart;
+			}
+			inc itemAmount;
+			jmp printStatementItemLoop;
+		}
+		if(spaceAmount == 0 and finalStatementCharacter != ';'){
+			fprintf(errorStream, " ");
+		}
+		fprintf(errorStream, "%c\n", finalStatementCharacter);
+		jmp printPattern;
+	}
+	printPattern:{
+		if(printPointer){
+			if(spaceAmount == statementCurrent - statementStart){
+				dec spaceAmount;
+			}
+			fprintf(errorStream, "\t        |%*c^\n", inc spaceAmount, ' ');
+		}
+		if(!printPattern or !instructionStart){
+			fprintf(errorStream, "\n");
+			jmp emergencyExit;
+		}
+		fprintf(errorStream, "\n\tpattern | %s", *(currentScopeInstructionList + (*currentScopeInstructionStringTreeSystem).returnedCounter));
+		dec instructionStart;
+		data = instructionDataStart;
+		jmp printInstructionParameterLoop;
+	}
+	printInstructionParameterLoop: switch *(inc instructionStart) over
+		to NONE_INSTRUCTION_TYPE: /*------*/ jmp noneInstruction;
+		to NAME_INSTRUCTION_TYPE: /*------*/ jmp nameInstruction;
+		to NAME_LIST_INSTRUCTION_TYPE: /*-*/ jmp nameListInstruction;
+		to NUMBER_INSTRUCTION_TYPE: /*----*/ jmp numberInstruction;
+		to STRING_INSTRUCTION_TYPE: /*----*/ jmp stringInstruction;
+		to IMAGE_INSTRUCTION_TYPE: /*-----*/ jmp imageInstruction;
+		off: /*---------------------------*/ jmp printInstructionParameterLoopExit;
+	end
+	noneInstruction:{
+		fprintf(errorStream, " <unimplemented>");
+		jmp printInstructionParameterLoopExit;
+	}
+	nameInstruction:{
+		if(instructionStart < instructionCurrent){
+			inc data;
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " name");
+			jmp printInstructionParameterLoop;
+		}
+		if((**data).stringArray){
+			const char *const *stringArray = (**data).stringArray;
+			fprintf(errorStream, " (%s", *stringArray);
+			inc stringArray;
+			jmp printNameLoop;
+			printNameLoop:{
+				if(*stringArray){
+					fprintf(errorStream, "|%s", *stringArray);
+					inc stringArray;
+					jmp printNameLoop;
+				}
+				fprintf(errorStream, ")");
+			}
+		}
+		inc data;
+		jmp printInstructionParameterLoop;
+	}
+	nameListInstruction:{
+		if(instructionStart < instructionCurrent){
+			inc data;
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " list");
+			jmp printInstructionParameterLoop;
+		}
+		if((**data).stringArray){
+			const char *const *stringArray = (**data).stringArray;
+			fprintf(errorStream, " ((%s", *stringArray);
+			inc stringArray;
+			jmp printNameListOnceLoop;
+			printNameListOnceLoop:{
+				if(*stringArray){
+					fprintf(errorStream, "|%s", *stringArray);
+					inc stringArray;
+					jmp printNameListOnceLoop;
+				}
+				stringArray = (**data).stringArray;
+				fprintf(errorStream, ")[\\s]*([\\s]*[|][\\s]*(%s", *stringArray);
+				inc stringArray;
+				jmp printNameListTwiceLoop;
+			}
+			printNameListTwiceLoop:{
+				if(*stringArray){
+					fprintf(errorStream, "|%s", *stringArray);
+					inc stringArray;
+					jmp printNameListTwiceLoop;
+				}
+				fprintf(errorStream, "))*(?![\\s]*[|]))");
+			}
+		}
+		inc data;
+		jmp printInstructionParameterLoop;
+	}
+	numberInstruction:{
+		if(instructionStart < instructionCurrent){
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " number");
+			jmp printInstructionParameterLoop;
+		}
+		fprintf(errorStream, " (([0][\\s]*[x][\\s]*([a-fA-F0-9][\\s]*)*|([0-9][\\s]*)+|[+*/][\\s]*)+)");
+		jmp printInstructionParameterLoop;
+	}
+	stringInstruction:{
+		if(instructionStart < instructionCurrent){
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " string");
+			jmp printInstructionParameterLoop;
+		}
+		fprintf(errorStream, " ([\"].*[\"]|[\'].*[\'])");
+		jmp printInstructionParameterLoop;
+	}
+	imageInstruction:{
+		if(instructionStart < instructionCurrent){
+			jmp printTilde;
+		}
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, " image");
+			jmp printInstructionParameterLoop;
+		}
+		fprintf(errorStream, " ([\"].*[\"]|[\'].*[\'])");
+		jmp printInstructionParameterLoop;
+	}
+	printTilde:{
+		fprintf(errorStream, " ~");
+		jmp printInstructionParameterLoop;
+	}
+	printInstructionParameterLoopExit:{
+		if(displaySimpleConfigErrors){
+			fprintf(errorStream, "\n\n");
+			jmp emergencyExit;
+		}
+		fprintf(errorStream, " $\n\n");
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		funlockfile(errorStream);
+		closeErrorStream();
+		ret;
+	}
+}
+

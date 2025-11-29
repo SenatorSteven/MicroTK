@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! get-bit-amount-function.cold
 
 MIT License
 
@@ -21,11 +21,20 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/functions/get-bit-amount-function.hold"
+
+GETBITAMOUNT(){
+	variable = variable - ((variable >> 1) & b4(0101010101010101, 0101010101010101, 0101010101010101, 0101010101010101));
+	variable = (variable & b4(0011001100110011, 0011001100110011, 0011001100110011, 0011001100110011)) + ((variable >> 2) & b4(0011001100110011, 0011001100110011, 0011001100110011, 0011001100110011));
+	variable = (variable + (variable >> 4)) & b4(0000111100001111, 0000111100001111, 0000111100001111, 0000111100001111);
+	variable = variable + (variable >> 8);
+	variable = variable + (variable >> 16);
+	variable = variable + (variable >> 32);
+	ret variable & b(01111111);
+}
 

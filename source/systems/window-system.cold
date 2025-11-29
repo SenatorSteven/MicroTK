@@ -1,0 +1,1512 @@
+
+/*! window-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Expand on value list functions.
+#warning Use flags to say which of every propery to set on the windows. Use another flag on top for specific normal hints and hints.
+#warning Consider introducing a copy window and a find window function separately, just so that the user can have control of the element itself and not have to manage copies of it in case of single thread usage to more swiftly operate on it.
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <locale.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <xcb/xcb.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/locale.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/unistd.hold"
+#include "../../headers/x.hold"
+#include "../../headers/icccm.hold"
+#include "../../headers/ewmh.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/stack-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/avl-tree-system.hold"
+#include "../../headers/systems/atom-system.hold"
+#include "../../headers/systems/window-system.hold"
+#include "../../headers/functions/round-up-to-multiple-function.hold"
+#include "../../headers/functions/find-string-size-function.hold"
+
+INITWINDOWSYSTEM(){
+	if(!windowSystem){
+		ret false;
+	}
+	initMutexSystem(&(*windowSystem).mutexSystem);
+	initStackSystem(&(*windowSystem).stackSystem);
+	(*windowSystem).memoryManagementSystem = NULL;
+	(*windowSystem).printSystem = NULL;
+	(*windowSystem).connectionSystem = NULL;
+	(*windowSystem).atomSystem = NULL;
+	(*windowSystem).windowStart = NULL;
+	(*windowSystem).windowToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*windowSystem).windowSize = 0;
+	(*windowSystem).windowAllocated = 0;
+	(*windowSystem).windowBlockSize = 0;
+	(*windowSystem).operation = NONE_WINDOW_OPERATION;
+	(*windowSystem).code = NONE_WINDOW_CODE;
+	(*windowSystem).multithreaded = false;
+	ret true;
+}
+SETWINDOWMEMORYMANAGEMENTSYSTEM(){
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*windowSystem).memoryManagementSystem){
+		code = NOTHING_DONE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(memoryManagementSystem){
+		(*windowSystem).windowToken = insertMemoryManagementPointer(memoryManagementSystem, (*windowSystem).windowStart, "WindowSystem setWindowMemoryManagementSystem() window pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*windowSystem).memoryManagementSystem, (*windowSystem).windowToken);
+	}
+	setStackMemoryManagementSystem(&(*windowSystem).stackSystem, memoryManagementSystem);
+	(*windowSystem).memoryManagementSystem = memoryManagementSystem;
+	code = SUCCESS_WINDOW_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*windowSystem).operation = SET_WINDOW_MEMORY_MANAGEMENT_SYSTEM_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETWINDOWPRINTSYSTEM(){
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(printSystem == (*windowSystem).printSystem){
+		code = NOTHING_DONE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	(*windowSystem).printSystem = printSystem;
+	code = SUCCESS_WINDOW_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*windowSystem).operation = SET_WINDOW_PRINT_SYSTEM_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETWINDOWCONNECTIONSYSTEM(){
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(connectionSystem == (*windowSystem).connectionSystem){
+		code = NOTHING_DONE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	(*windowSystem).connectionSystem = connectionSystem;
+	code = SUCCESS_WINDOW_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*windowSystem).operation = SET_WINDOW_CONNECTION_SYSTEM_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETWINDOWATOMSYSTEM(){
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(atomSystem == (*windowSystem).atomSystem){
+		code = NOTHING_DONE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	(*windowSystem).atomSystem = atomSystem;
+	code = SUCCESS_WINDOW_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*windowSystem).operation = SET_WINDOW_ATOM_SYSTEM_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETWINDOWBLOCKSIZE(){
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(blockSize == (*windowSystem).windowBlockSize){
+		code = NOTHING_DONE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	setStackBlockSize(&(*windowSystem).stackSystem, blockSize);
+	setStackElementWidth(&(*windowSystem).stackSystem, sizeof(uint));
+	(*windowSystem).windowBlockSize = blockSize;
+	code = SUCCESS_WINDOW_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*windowSystem).operation = SET_WINDOW_BLOCK_SIZE_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETWINDOWMULTITHREADING(){
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*windowSystem).multithreaded){
+		code = NOTHING_DONE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*windowSystem).mutexSystem)){
+			code = FAILED_MUTEX_WINDOW_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyMutex(&(*windowSystem).mutexSystem)){
+			code = FAILED_MUTEX_WINDOW_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setMutexMultithreading(&(*windowSystem).mutexSystem, multithreaded);
+	(*windowSystem).multithreaded = multithreaded;
+	code = SUCCESS_WINDOW_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*windowSystem).operation = SET_WINDOW_MULTITHREADING_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+CREATEWINDOW(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	uint current;
+	uint wall;
+	uint8 code;
+	struct{
+		uint32 /*---------*/ backgroundColor;
+		uint32 /*---------*/ borderColor;
+		uint32 /*---------*/ overrideRedirect;
+		xcb_colormap_t /*-*/ colormap;
+	} windowValueList;
+	struct{
+		uint32 /*---------*/ generateExpose;
+	} gcValueList;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!amount or !width or !height or !depth or !visual or !colormap){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_ATOM_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	current = 0;
+	wall = current + amount;
+	windowValueList.backgroundColor = 0xFF000000;
+	windowValueList.borderColor = 0xFF000000;
+	windowValueList.overrideRedirect = !!overrideRedirect;
+	windowValueList.colormap = colormap;
+	gcValueList.generateExpose = false;
+	jmp allocateWindows;
+	allocateWindows:{
+		if((*windowSystem).windowAllocated + amount > (*windowSystem).windowSize){
+			uint addedAmount;
+			void *temp;
+			if(!(*windowSystem).windowBlockSize){
+				unlockLock(&(*connectionSystem).lockSystem);
+				code = UNSET_VALUE_WINDOW_CODE;
+				jmp emergencyExit;
+			}
+			addedAmount = roundUpToMultiple((*windowSystem).windowAllocated + amount, (*windowSystem).windowBlockSize) - (*windowSystem).windowSize;
+			(*windowSystem).windowSize += addedAmount;
+			temp = realloc((*windowSystem).windowStart, (*windowSystem).windowSize * sizeof(WindowInfo));
+			if(!(*windowSystem).windowToken){
+				(*windowSystem).windowToken = insertMemoryManagementPointer((*windowSystem).memoryManagementSystem, temp, "WindowSystem createWindow() window pointer", &memoryManagementFree);
+			}else{
+				updateMemoryManagementPointer((*windowSystem).memoryManagementSystem, (*windowSystem).windowToken, temp);
+			}
+			if(!temp){
+				(*windowSystem).windowSize -= addedAmount;
+				unlockLock(&(*connectionSystem).lockSystem);
+				code = FAILED_ALLOCATION_WINDOW_CODE;
+				jmp emergencyExit;
+			}
+			(*windowSystem).windowStart = temp;
+		}
+		jmp insertWindowLoop;
+	}
+	insertWindowLoop:{
+		if(current < wall){
+			const xcb_window_t window = xcb_generate_id(connection);
+			uint offset;
+			WindowInfo *windowInfo;
+			if(!popStackElement(&(*windowSystem).stackSystem, &offset)){
+				offset = (*windowSystem).windowAllocated;
+				inc (*windowSystem).windowAllocated;
+			}
+			windowInfo = (*windowSystem).windowStart + offset;
+			(*windowInfo).offset = offset;
+			(*windowInfo).window = window;
+			(*windowInfo).buffer0 = xcb_generate_id(connection);
+			(*windowInfo).buffer1 = xcb_generate_id(connection);
+			(*windowInfo).gc = xcb_generate_id(connection);
+			(*windowInfo).depth = depth;
+			(*windowInfo).visual = visual;
+			(*windowInfo).colormap = colormap;
+			(*windowInfo).x = x;
+			(*windowInfo).y = y;
+			(*windowInfo).width = width;
+			(*windowInfo).height = height;
+			(*windowInfo).border = border;
+			(*windowInfo).mapped = false;
+			(*windowInfo).inUse = true;
+			xcb_create_window(connection, depth, window, (*connectionSystem).rootWindow, x, y, width, height, border, XCB_WINDOW_CLASS_INPUT_OUTPUT, visual, XCB_CW_BACK_PIXEL | XCB_CW_BORDER_PIXEL | XCB_CW_OVERRIDE_REDIRECT | XCB_CW_COLORMAP, &windowValueList);
+			xcb_create_pixmap(connection, depth, (*windowInfo).buffer0, window, width, height);
+			xcb_create_pixmap(connection, depth, (*windowInfo).buffer1, window, width, height);
+			xcb_create_gc(connection, (*windowInfo).gc, (*windowInfo).buffer0, XCB_GC_GRAPHICS_EXPOSURES, &gcValueList);
+			xcb_change_window_attributes(connection, window, XCB_CW_BACK_PIXMAP, &(*windowInfo).buffer0);
+			inc current;
+			jmp insertWindowLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = SUCCESS_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = CREATE_WINDOW_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+CHANGEWINDOWEVENTMASK(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo)){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp changeWindowEventMaskLoop;
+	changeWindowEventMaskLoop:{
+		if(current < wall){
+			if((*current).inUse){
+				xcb_change_window_attributes(connection, (*current).window, XCB_CW_EVENT_MASK, &eventMask);
+				code = SUCCESS_WINDOW_CODE;
+			}
+			inc current;
+			jmp changeWindowEventMaskLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = CHANGE_WINDOW_EVENT_MASK_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+CHANGEWINDOWPROPERTIES(){
+	AtomSystem *atomSystem;
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint nameSize;
+	uint iconNameSize;
+	xcb_atom_t protocol[4];
+	uint protocolAmount;
+	char hostname[256];
+	char *localeName;
+	xcb_atom_t type[8];
+	uint typeAmount;
+	xcb_atom_t state[12];
+	uint stateAmount;
+	pid_t pid;
+	uint8 code;
+	struct{
+		uint32 /*-------*/ flags;
+		uint8 /*--------*/ pad0[16];
+		int32 /*--------*/ minimumWidth;
+		int32 /*--------*/ minimumHeight;
+		int32 /*--------*/ maximumWidth;
+		int32 /*--------*/ maximumHeight;
+		int32 /*--------*/ widthIncrement;
+		int32 /*--------*/ heightIncrement;
+		int32 /*--------*/ minimumAspectNumerator;
+		int32 /*--------*/ minimumAspectDenominarator;
+		int32 /*--------*/ maximumAspectNumerator;
+		int32 /*--------*/ maximumAspectDenominarator;
+		int32 /*--------*/ baseWidth;
+		int32 /*--------*/ baseHeight;
+		uint32 /*-------*/ windowGravity;
+	} normalHints;
+	struct{
+		uint32 /*-------*/ flags;
+		uint32 /*-------*/ input;
+		uint32 /*-------*/ initialState;
+		xcb_pixmap_t /*-*/ iconPixmap;
+		xcb_window_t /*-*/ iconWindow;
+		int32 /*--------*/ iconX;
+		int32 /*--------*/ iconY;
+		xcb_pixmap_t /*-*/ iconMask;
+		xcb_window_t /*-*/ windowGroup;
+	} hints;
+	struct{
+		uint32 /*-------*/ left;
+		uint32 /*-------*/ right;
+		uint32 /*-------*/ top;
+		uint32 /*-------*/ bottom;
+		uint32 /*-------*/ leftStartY;
+		uint32 /*-------*/ leftEndY;
+		uint32 /*-------*/ rightStartY;
+		uint32 /*-------*/ rightEndY;
+		uint32 /*-------*/ topStartX;
+		uint32 /*-------*/ topEndX;
+		uint32 /*-------*/ bottomStartX;
+		uint32 /*-------*/ bottomEndX;
+	} strut;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo) or windowGravity > XCB_GRAVITY_STATIC or position > RIGHT_WINDOW_POSITION or (position and (!positionWidth or !positionHeight)) or initialState == 2 or initialState > ICONIC_STATE or windowProtocol > (TAKE_FOCUS_CLIENT_PROTOCOL | DELETE_WINDOW_CLIENT_PROTOCOL | PING_CLIENT_PROTOCOL | SYNC_REQUEST_CLIENT_PROTOCOL) or windowState > (MODAL_STATE | STICKY_STATE | MAXIMIZED_HORZ_STATE | MAXIMIZED_VERT_STATE | SHADED_STATE | SKIP_TASKBAR_STATE | SKIP_PAGER_STATE | HIDDEN_STATE | FULLSCREEN_STATE | ABOVE_STATE | BELOW_STATE | DEMANDS_ATTENTION_STATE)){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	atomSystem = (*windowSystem).atomSystem;
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!atomSystem or !connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*atomSystem).lockSystem)){
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		unlockLock(&(*atomSystem).lockSystem);
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*atomSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp changeWindowPropertyLoop;
+	changeWindowPropertyLoop:{
+		if(current < wall){
+			if((*current).inUse){
+				const xcb_window_t window = (*current).window;
+				if(code == BAD_INPUT_WINDOW_CODE){
+					nameSize = findStringSize(name);
+					iconNameSize = findStringSize(iconName);
+					{
+						uint32 flags = NONE_NORMAL_HINT;
+						if(minimumWidth and minimumHeight){
+							normalHints.minimumWidth = minimumWidth;
+							normalHints.minimumHeight = minimumHeight;
+							flags |= PROGRAM_MINIMUM_SIZE_NORMAL_HINT;
+						}
+						if(maximumWidth and maximumHeight){
+							normalHints.maximumWidth = maximumWidth;
+							normalHints.maximumHeight = maximumHeight;
+							flags |= PROGRAM_MAXIMUM_SIZE_NORMAL_HINT;
+						}
+						{
+							normalHints.widthIncrement = widthIncrement;
+							normalHints.heightIncrement = heightIncrement;
+							flags |= PROGRAM_RESIZE_INCREMENT_NORMAL_HINT;
+						}
+						if(minimumAspectNumerator and minimumAspectDenominarator and maximumAspectNumerator and maximumAspectDenominarator){
+							normalHints.minimumAspectNumerator = minimumAspectNumerator;
+							normalHints.minimumAspectDenominarator = minimumAspectDenominarator;
+							normalHints.maximumAspectNumerator = maximumAspectNumerator;
+							normalHints.maximumAspectDenominarator = maximumAspectDenominarator;
+							flags |= PROGRAM_ASPECT_NORMAL_HINT;
+						}
+						if(baseWidth and baseHeight){
+							normalHints.baseWidth = baseWidth;
+							normalHints.baseHeight = baseHeight;
+							flags |= PROGRAM_BASE_SIZE_NORMAL_HINT;
+						}
+						{
+							normalHints.windowGravity = windowGravity;
+							flags |= PROGRAM_WINDOW_GRAVITY_NORMAL_HINT;
+						}
+						normalHints.flags = flags;
+					}
+					{
+						uint32 flags = NONE_HINT;
+						{
+							hints.input = !!takesInput;
+							flags |= INPUT_HINT;
+						}
+						{
+							hints.initialState = initialState;
+							flags |= STATE_HINT;
+						}
+						if(iconPixmap){
+							hints.iconPixmap = iconPixmap;
+							flags |= ICON_PIXMAP_HINT;
+						}
+						if(iconWindow){
+							hints.iconWindow = iconWindow;
+							flags |= ICON_WINDOW_HINT;
+						}
+						if(iconPixmap or iconWindow){
+							hints.iconX = iconX;
+							hints.iconY = iconY;
+							flags |= ICON_POSITION_HINT;
+						}
+						if((iconPixmap or iconWindow) and iconMask){
+							hints.iconMask = iconMask;
+							flags |= ICON_MASK_HINT;
+						}
+						if(windowGroup){
+							hints.windowGroup = windowGroup;
+							flags |= WINDOW_GROUP_HINT;
+						}
+						if(!!urgent){
+							flags |= URGENCY_HINT;
+						}
+						hints.flags = flags;
+					}
+					protocolAmount = 0;
+					if(windowProtocol){
+						xcb_atom_t *current = protocol - 1;
+						if(windowProtocol & TAKE_FOCUS_CLIENT_PROTOCOL) /*----*/ *(inc current) = (*atomSystem).ICCCM_TAKE_FOCUS;
+						if(windowProtocol & DELETE_WINDOW_CLIENT_PROTOCOL) /*-*/ *(inc current) = (*atomSystem).ICCCM_DELETE_WINDOW;
+						if(windowProtocol & PING_CLIENT_PROTOCOL) /*----------*/ *(inc current) = (*atomSystem).EWMH_PING;
+						if(windowProtocol & SYNC_REQUEST_CLIENT_PROTOCOL) /*--*/ *(inc current) = (*atomSystem).EWMH_SYNC_REQUEST;
+						protocolAmount = current + 1 - protocol;
+					}
+					if(gethostname(hostname, countof(hostname)) == GETHOSTNAME_FAILURE){
+						*hostname = '\0';
+					}
+					localeName = setlocale(LC_ALL, NULL);
+					typeAmount = 0;
+					if(windowType){
+						xcb_atom_t *current = type - 1;
+						if(windowType & DESKTOP_WINDOW_TYPE) /*-*/ *(inc current) = (*atomSystem).EWMH_WINDOW_TYPE_DESKTOP;
+						if(windowType & DOCK_WINDOW_TYPE) /*----*/ *(inc current) = (*atomSystem).EWMH_WINDOW_TYPE_DOCK;
+						if(windowType & TOOLBAR_WINDOW_TYPE) /*-*/ *(inc current) = (*atomSystem).EWMH_WINDOW_TYPE_TOOLBAR;
+						if(windowType & MENU_WINDOW_TYPE) /*----*/ *(inc current) = (*atomSystem).EWMH_WINDOW_TYPE_MENU;
+						if(windowType & UTILITY_WINDOW_TYPE) /*-*/ *(inc current) = (*atomSystem).EWMH_WINDOW_TYPE_UTILITY;
+						if(windowType & SPLASH_WINDOW_TYPE) /*--*/ *(inc current) = (*atomSystem).EWMH_WINDOW_TYPE_SPLASH;
+						if(windowType & DIALOG_WINDOW_TYPE) /*--*/ *(inc current) = (*atomSystem).EWMH_WINDOW_TYPE_DIALOG;
+						if(windowType & NORMAL_WINDOW_TYPE) /*--*/ *(inc current) = (*atomSystem).EWMH_WINDOW_TYPE_NORMAL;
+						typeAmount = current + 1 - type;
+					}
+					stateAmount = 0;
+					if(windowState){
+						xcb_atom_t *current = state - 1;
+						if(windowState & MODAL_STATE) /*-------------*/ *(inc current) = (*atomSystem).EWMH_STATE_MODAL;
+						if(windowState & STICKY_STATE) /*------------*/ *(inc current) = (*atomSystem).EWMH_STATE_STICKY;
+						if(windowState & MAXIMIZED_HORZ_STATE) /*----*/ *(inc current) = (*atomSystem).EWMH_STATE_MAXIMIZED_HORZ;
+						if(windowState & MAXIMIZED_VERT_STATE) /*----*/ *(inc current) = (*atomSystem).EWMH_STATE_MAXIMIZED_VERT;
+						if(windowState & SHADED_STATE) /*------------*/ *(inc current) = (*atomSystem).EWMH_STATE_SHADED;
+						if(windowState & SKIP_TASKBAR_STATE) /*------*/ *(inc current) = (*atomSystem).EWMH_STATE_SKIP_TASKBAR;
+						if(windowState & SKIP_PAGER_STATE) /*--------*/ *(inc current) = (*atomSystem).EWMH_STATE_SKIP_PAGER;
+						if(windowState & HIDDEN_STATE) /*------------*/ *(inc current) = (*atomSystem).EWMH_STATE_HIDDEN;
+						if(windowState & FULLSCREEN_STATE) /*--------*/ *(inc current) = (*atomSystem).EWMH_STATE_FULLSCREEN;
+						if(windowState & ABOVE_STATE) /*-------------*/ *(inc current) = (*atomSystem).EWMH_STATE_ABOVE;
+						if(windowState & BELOW_STATE) /*-------------*/ *(inc current) = (*atomSystem).EWMH_STATE_BELOW;
+						if(windowState & DEMANDS_ATTENTION_STATE) /*-*/ *(inc current) = (*atomSystem).EWMH_STATE_DEMANDS_ATTENTION;
+						stateAmount = current + 1 - state;
+					}
+					if(position){
+						strut.left = 0;
+						strut.right = 0;
+						strut.top = 0;
+						strut.bottom = 0;
+						strut.leftStartY = 0;
+						strut.leftEndY = 0;
+						strut.rightStartY = 0;
+						strut.rightEndY = 0;
+						strut.topStartX = 0;
+						strut.topEndX = 0;
+						strut.bottomStartX = 0;
+						strut.bottomEndX = 0;
+						switch(position){
+							to NONE_WINDOW_POSITION: /*---*/ /*--------------------------------*/ /*---------------------------------*/ /*-----------------------------------------------*/ brk;
+							to TOP_WINDOW_POSITION: /*----*/ strut.top = positionHeight; /*----*/ strut.topStartX = positionX; /*----*/ strut.topEndX = positionX + positionWidth; /*----*/ brk;
+							to BOTTOM_WINDOW_POSITION: /*-*/ strut.bottom = positionHeight; /*-*/ strut.bottomStartX = positionX; /*-*/ strut.bottomEndX = positionX + positionWidth; /*-*/ brk;
+							to LEFT_WINDOW_POSITION: /*---*/ strut.left = positionWidth; /*----*/ strut.leftStartY = positionY; /*---*/ strut.leftEndY = positionY + positionHeight; /*--*/ brk;
+							to RIGHT_WINDOW_POSITION: /*--*/ strut.right = positionWidth; /*---*/ strut.rightStartY = positionY; /*--*/ strut.rightEndY = positionY + positionHeight; /*-*/ brk;
+							off: /*-----------------------*/ /*--------------------------------*/ /*---------------------------------*/ /*-----------------------------------------------*/ brk;
+						}
+					}
+					pid = getpid();
+				}
+				if(name and (*atomSystem).ICCCM_NAME){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).ICCCM_NAME, XCB_ATOM_STRING, bitsof(uint8), nameSize, name);
+				}
+				if(iconName and (*atomSystem).ICCCM_ICON_NAME){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).ICCCM_ICON_NAME, XCB_ATOM_STRING, bitsof(uint8), iconNameSize, iconName);
+				}
+				if((*atomSystem).ICCCM_NORMAL_HINTS and (*atomSystem).ICCCM_SIZE_HINTS){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).ICCCM_NORMAL_HINTS, (*atomSystem).ICCCM_SIZE_HINTS, bitsof(uint32), sizeof(normalHints) / sizeof(uint32), &normalHints);
+				}
+				if((*atomSystem).ICCCM_HINTS){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).ICCCM_HINTS, (*atomSystem).ICCCM_HINTS, bitsof(uint32), sizeof(hints) / sizeof(uint32), &hints);
+				}
+				if(className and classNameSize and (*atomSystem).ICCCM_CLASS){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).ICCCM_CLASS, XCB_ATOM_STRING, bitsof(uint8), classNameSize, className);
+				}
+				if((*atomSystem).ICCCM_PROTOCOLS){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).ICCCM_PROTOCOLS, XCB_ATOM_ATOM, bitsof(uint32), protocolAmount, protocol);
+				}
+				if(*hostname and (*atomSystem).ICCCM_CLIENT_MACHINE){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).ICCCM_CLIENT_MACHINE, XCB_ATOM_STRING, bitsof(uint8), findStringSize(hostname), hostname);
+				}
+				if(localeName and (*atomSystem).ICCCM_LOCALE_NAME){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).ICCCM_LOCALE_NAME, XCB_ATOM_STRING, bitsof(uint8), findStringSize(localeName), localeName);
+				}
+				if(name and (*atomSystem).EWMH_NAME and (*atomSystem).EWMH_UTF8_STRING){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_NAME, (*atomSystem).EWMH_UTF8_STRING, bitsof(uint8), nameSize, name);
+				}
+				if(iconName and (*atomSystem).EWMH_ICON_NAME and (*atomSystem).EWMH_UTF8_STRING){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_ICON_NAME, (*atomSystem).EWMH_UTF8_STRING, bitsof(uint8), iconNameSize, iconName);
+				}
+				if(desktop != NONE_WINDOW_DESKTOP and (*atomSystem).EWMH_DESKTOP){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_DESKTOP, XCB_ATOM_CARDINAL, bitsof(uint32), 1, &desktop);
+				}
+				if((*atomSystem).EWMH_WINDOW_TYPE){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_WINDOW_TYPE, XCB_ATOM_ATOM, bitsof(uint32), typeAmount, type);
+				}
+				if((*atomSystem).EWMH_STATE){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_STATE, XCB_ATOM_ATOM, bitsof(uint32), stateAmount, state);
+				}
+				if(position and position <= RIGHT_WINDOW_POSITION and (*atomSystem).EWMH_STRUT){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_STRUT, XCB_ATOM_CARDINAL, bitsof(uint32), 4, &strut);
+				}
+				if(position and position <= RIGHT_WINDOW_POSITION and (*atomSystem).EWMH_STRUT_PARTIAL){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_STRUT_PARTIAL, XCB_ATOM_CARDINAL, bitsof(uint32), 12, &strut);
+				}
+				if(icon and iconSize and (*atomSystem).EWMH_ICON){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_ICON, XCB_ATOM_CARDINAL, bitsof(uint32), iconSize, icon);
+				}
+				if((*atomSystem).EWMH_PID){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, window, (*atomSystem).EWMH_PID, XCB_ATOM_CARDINAL, bitsof(uint32), 1, &pid);
+				}
+				code = SUCCESS_WINDOW_CODE;
+			}
+			inc current;
+			jmp changeWindowPropertyLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*atomSystem).lockSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = CHANGE_WINDOW_PROPERTIES_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+CONFIGUREWINDOW(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint16 valueMask;
+	uint8 code;
+	struct{
+		int32 /*--*/ x;
+		int32 /*--*/ y;
+		uint32 /*-*/ width;
+		uint32 /*-*/ height;
+		uint32 /*-*/ border;
+		uint32 /*-*/ stackMode;
+	} valueList;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo) or !width or !height or stackMode > BELOW_WINDOW_STACK_MODE){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp configureWindowLoop;
+	configureWindowLoop:{
+		if(current < wall){
+			if((*current).inUse){
+				if(code == BAD_INPUT_WINDOW_CODE){
+					valueMask = XCB_CONFIG_WINDOW_X | XCB_CONFIG_WINDOW_Y | XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT | XCB_CONFIG_WINDOW_BORDER_WIDTH;
+					valueList.x = x;
+					valueList.y = y;
+					valueList.width = width;
+					valueList.height = height;
+					valueList.border = border;
+					switch(stackMode){
+						to NONE_WINDOW_STACK_MODE: /*--*/ /*----------------------------------------------------------------------------------*/ brk;
+						to ABOVE_WINDOW_STACK_MODE: /*-*/ valueMask |= XCB_CONFIG_WINDOW_STACK_MODE; valueList.stackMode = XCB_STACK_MODE_ABOVE; brk;
+						to BELOW_WINDOW_STACK_MODE: /*-*/ valueMask |= XCB_CONFIG_WINDOW_STACK_MODE; valueList.stackMode = XCB_STACK_MODE_BELOW; brk;
+						off: /*------------------------*/ /*----------------------------------------------------------------------------------*/ ret false;
+					}
+				}
+				xcb_configure_window(connection, (*current).window, valueMask, &valueList);
+				code = SUCCESS_WINDOW_CODE;
+			}
+			inc current;
+			jmp configureWindowLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = CONFIGURE_WINDOW_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+DRAWWINDOWBUFFER(){
+	ConnectionSystem *connectionSystem;
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo) or !drawFunction){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp drawWindowBufferLoop;
+	drawWindowBufferLoop:{
+		if(current < wall){
+			if((*current).inUse){
+				if(!(*drawFunction)(windowSystem, current, (*current).buffer1, argument)){
+					unlockLock(&(*connectionSystem).lockSystem);
+					code = FAILURE_WINDOW_CODE;
+					jmp emergencyExit;
+				}
+				code = SUCCESS_WINDOW_CODE;
+			}
+			inc current;
+			jmp drawWindowBufferLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = DRAW_WINDOW_BUFFER_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SWAPWINDOWBUFFER(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo)){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp swapWindowBufferLoop;
+	swapWindowBufferLoop:{
+		if(current < wall){
+			if((*current).inUse){
+				const xcb_pixmap_t temp = (*current).buffer0;
+				(*current).buffer0 = (*current).buffer1;
+				(*current).buffer1 = temp;
+				xcb_change_window_attributes(connection, (*current).window, XCB_CW_BACK_PIXMAP, &(*current).buffer0);
+				code = SUCCESS_WINDOW_CODE;
+			}
+			inc current;
+			jmp swapWindowBufferLoop;
+		}
+		if(code != SUCCESS_WINDOW_CODE){
+			unlockLock(&(*connectionSystem).lockSystem);
+			jmp emergencyExit;
+		}
+		if(windowInfo){
+			current = (*windowSystem).windowStart + (*windowInfo).offset;
+		}else{
+			current = (*windowSystem).windowStart;
+		}
+		jmp updateWindowLoop;
+	}
+	updateWindowLoop:{
+		if(current < wall){
+			if((*current).inUse and (*current).mapped){
+				xcb_clear_area(connection, false, (*current).window, 0, 0, 0, 0);
+			}
+			inc current;
+			jmp updateWindowLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = SWAP_WINDOW_BUFFER_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+MAPWINDOW(){
+	AtomSystem *atomSystem;
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	WindowInfo *current;
+	WindowInfo *wall;
+	bool setUserTime;
+	uint8 code;
+	struct{
+		uint32 /*-*/ stackMode;
+	} valueList;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo) or stackMode > BELOW_WINDOW_STACK_MODE){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	atomSystem = (*windowSystem).atomSystem;
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(atomSystem){
+		if(!lockReadLock(&(*atomSystem).lockSystem)){
+			code = FAILED_MUTEX_WINDOW_CODE;
+			jmp emergencyExit;
+		}
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		if(atomSystem){
+			unlockLock(&(*atomSystem).lockSystem);
+		}
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		if(atomSystem){
+			unlockLock(&(*atomSystem).lockSystem);
+		}
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	setUserTime = false;
+	if(atomSystem){
+		setUserTime = userTime != NONE_WINDOW_USER_TIME and (*atomSystem).EWMH_USER_TIME;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp configureWindowLoop;
+	configureWindowLoop:{
+		if(current < wall){
+			if((*current).inUse and !(*current).mapped){
+				if(code == BAD_INPUT_WINDOW_CODE){
+					switch(stackMode){
+						to NONE_WINDOW_STACK_MODE: /*--*/ /*---------------------------------------*/ brk;
+						to ABOVE_WINDOW_STACK_MODE: /*-*/ valueList.stackMode = XCB_STACK_MODE_ABOVE; brk;
+						to BELOW_WINDOW_STACK_MODE: /*-*/ valueList.stackMode = XCB_STACK_MODE_BELOW; brk;
+						off: /*------------------------*/ /*---------------------------------------*/ ret false;
+					}
+				}
+				if(stackMode){
+					xcb_configure_window(connection, (*current).window, XCB_CONFIG_WINDOW_STACK_MODE, &valueList);
+				}
+				if(setUserTime){
+					xcb_change_property(connection, XCB_PROP_MODE_REPLACE, (*current).window, (*atomSystem).EWMH_USER_TIME, XCB_ATOM_CARDINAL, bitsof(uint32), 1, &userTime);
+				}
+				code = SUCCESS_WINDOW_CODE;
+			}
+			inc current;
+			jmp configureWindowLoop;
+		}
+		if(code != SUCCESS_WINDOW_CODE){
+			unlockLock(&(*connectionSystem).lockSystem);
+			if(atomSystem){
+				unlockLock(&(*atomSystem).lockSystem);
+			}
+			jmp emergencyExit;
+		}
+		if(windowInfo){
+			current = (*windowSystem).windowStart + (*windowInfo).offset;
+		}else{
+			current = (*windowSystem).windowStart;
+		}
+		jmp mapWindowLoop;
+	}
+	mapWindowLoop:{
+		if(current < wall){
+			if((*current).inUse and !(*current).mapped){
+				xcb_map_window(connection, (*current).window);
+				(*current).mapped = true;
+			}
+			inc current;
+			jmp mapWindowLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		if(atomSystem){
+			unlockLock(&(*atomSystem).lockSystem);
+		}
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = MAP_WINDOW_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+RECONFIGUREWINDOW(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint8 code;
+	struct{
+		uint32 /*-*/ generateExpose;
+	} valueList;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo) or !width or !height){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp reconfigureWindowLoop;
+	reconfigureWindowLoop:{
+		if(current < wall){
+			if((*current).inUse){
+				if(code == BAD_INPUT_WINDOW_CODE){
+					valueList.generateExpose = false;
+					code = NOTHING_DONE_WINDOW_CODE;
+				}
+				if(x != (*current).x or y != (*current).y or border != (*current).border){
+					(*current).x = x;
+					(*current).y = y;
+					(*current).border = border;
+					if(width != (*current).width or height != (*current).height){
+						const xcb_window_t window = (*current).window;
+						xcb_free_gc(connection, (*current).gc);
+						xcb_free_pixmap(connection, (*current).buffer1);
+						xcb_free_pixmap(connection, (*current).buffer0);
+						(*current).buffer0 = xcb_generate_id(connection);
+						(*current).buffer1 = xcb_generate_id(connection);
+						(*current).gc = xcb_generate_id(connection);
+						(*current).width = width;
+						(*current).height = height;
+						xcb_create_pixmap(connection, (*current).depth, (*current).buffer0, window, width, height);
+						xcb_create_pixmap(connection, (*current).depth, (*current).buffer1, window, width, height);
+						xcb_create_gc(connection, (*current).gc, (*current).buffer0, XCB_GC_GRAPHICS_EXPOSURES, &valueList);
+						xcb_change_window_attributes(connection, window, XCB_CW_BACK_PIXMAP, &(*current).buffer0);
+					}
+					code = SUCCESS_WINDOW_CODE;
+				}
+			}
+			inc current;
+			jmp reconfigureWindowLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = RECONFIGURE_WINDOW_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+UNMAPWINDOW(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo)){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp unmapWindowLoop;
+	unmapWindowLoop:{
+		if(current < wall){
+			if((*current).inUse and (*current).mapped){
+				xcb_unmap_window(connection, (*current).window);
+				(*current).mapped = false;
+				code = SUCCESS_WINDOW_CODE;
+			}
+			inc current;
+			jmp unmapWindowLoop;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = UNMAP_WINDOW_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+DESTROYWINDOW(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	WindowInfo *start;
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!isValidWindow(windowSystem, windowInfo)){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connectionSystem = (*windowSystem).connectionSystem;
+	if(!connectionSystem){
+		code = UNSET_VALUE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		code = FAILED_MUTEX_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		code = CLOSED_CONNECTION_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	connection = (*connectionSystem).connection;
+	start = (*windowSystem).windowStart;
+	if(windowInfo){
+		current = (*windowSystem).windowStart + (*windowInfo).offset;
+		wall = current + 1;
+	}else{
+		current = (*windowSystem).windowStart;
+		wall = current + (*windowSystem).windowAllocated;
+	}
+	code = BAD_INPUT_WINDOW_CODE;
+	jmp unmapWindowLoop;
+	unmapWindowLoop:{
+		if(current < wall){
+			if((*current).inUse){
+				if((*current).mapped){
+					xcb_unmap_window(connection, (*current).window);
+					(*current).mapped = false;
+				}
+				code = SUCCESS_WINDOW_CODE;
+			}
+			inc current;
+			jmp unmapWindowLoop;
+		}
+		if(code != SUCCESS_WINDOW_CODE){
+			unlockLock(&(*connectionSystem).lockSystem);
+			jmp emergencyExit;
+		}
+		if(windowInfo){
+			current = (*windowSystem).windowStart + (*windowInfo).offset;
+		}else{
+			current = wall - 1;
+		}
+		jmp destroyWindowLoop;
+	}
+	destroyWindowLoop:{
+		if(current >= start){
+			if((*current).inUse){
+				xcb_free_gc(connection, (*current).gc);
+				xcb_free_pixmap(connection, (*current).buffer1);
+				xcb_free_pixmap(connection, (*current).buffer0);
+				xcb_destroy_window(connection, (*current).window);
+				(*current).inUse = false;
+				if(current == start + (*windowSystem).windowAllocated - 1){
+					dec (*windowSystem).windowAllocated;
+				}else{
+					const uint element = current - start;
+					pushStackElement(&(*windowSystem).stackSystem, &element);
+				}
+			}
+			dec current;
+			jmp destroyWindowLoop;
+		}
+		if(!((*windowSystem).windowAllocated - (*windowSystem).stackSystem.elementAllocated)){
+			removeAllStackElements(&(*windowSystem).stackSystem);
+			free((*windowSystem).windowStart);
+			removeMemoryManagementPointer((*windowSystem).memoryManagementSystem, (*windowSystem).windowToken);
+			(*windowSystem).windowStart = NULL;
+			(*windowSystem).windowToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+			(*windowSystem).windowSize = 0;
+			(*windowSystem).windowAllocated = 0;
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = DESTROY_WINDOW_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+ISVALIDWINDOW(){
+	if(!windowSystem or !((*windowSystem).windowAllocated - (*windowSystem).stackSystem.elementAllocated) or (windowInfo and (*windowInfo).offset >= (*windowSystem).windowAllocated)){
+		ret false;
+	}
+	ret true;
+}
+FINDWINDOW(){
+	WindowInfo *current;
+	WindowInfo *wall;
+	uint8 code;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!window or !windowInfoReturn){
+		code = BAD_INPUT_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	if(!((*windowSystem).windowAllocated - (*windowSystem).stackSystem.elementAllocated)){
+		code = NOTHING_DONE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	current = (*windowSystem).windowStart;
+	wall = current + (*windowSystem).windowAllocated;
+	jmp findWindowLoop;
+	findWindowLoop:{
+		if(current < wall){
+			if((*current).inUse and (*current).window == window){
+				*windowInfoReturn = *current;
+				code = SUCCESS_WINDOW_CODE;
+				jmp emergencyExit;
+			}
+			inc current;
+			jmp findWindowLoop;
+		}
+		code = NOTHING_DONE_WINDOW_CODE;
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*windowSystem).operation = FIND_WINDOW_WINDOW_OPERATION;
+		(*windowSystem).code = code;
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(code != SUCCESS_WINDOW_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+FINIWINDOWSYSTEM(){
+	if(!windowSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	if(!finiStackSystem(&(*windowSystem).stackSystem)){
+		ret false;
+	}
+	(*windowSystem).multithreaded = false;
+	destroyWindow(windowSystem, ALL_WINDOWS);
+	(*windowSystem).code = NONE_WINDOW_CODE;
+	(*windowSystem).operation = NONE_WINDOW_OPERATION;
+	(*windowSystem).windowBlockSize = 0;
+	free((*windowSystem).windowStart);
+	removeMemoryManagementPointer((*windowSystem).memoryManagementSystem, (*windowSystem).windowToken);
+	(*windowSystem).windowStart = NULL;
+	(*windowSystem).windowToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*windowSystem).windowSize = 0;
+	(*windowSystem).windowAllocated = 0;
+	(*windowSystem).atomSystem = NULL;
+	(*windowSystem).connectionSystem = NULL;
+	(*windowSystem).printSystem = NULL;
+	(*windowSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+PRINTWINDOWLOG(){
+	const char *operation;
+	const char *code;
+	PrintSystem *printSystem;
+	bool success;
+	if(!windowSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*windowSystem).mutexSystem)){
+		ret false;
+	}
+	printSystem = (*windowSystem).printSystem;
+	success = false;
+	if(!printSystem){
+		jmp emergencyExit;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		jmp emergencyExit;
+	}
+	switch((*windowSystem).operation){
+		to NONE_WINDOW_OPERATION: /*--------------------------------*/ operation = NULL; /*------------------------------*/ brk;
+		to SET_WINDOW_MEMORY_MANAGEMENT_SYSTEM_WINDOW_OPERATION: /*-*/ operation = "setWindowMemoryManagementSystem"; /*-*/ brk;
+		to SET_WINDOW_PRINT_SYSTEM_WINDOW_OPERATION: /*-------------*/ operation = "setWindowPrintSystem"; /*------------*/ brk;
+		to SET_WINDOW_CONNECTION_SYSTEM_WINDOW_OPERATION: /*--------*/ operation = "setWindowConnectionSystem"; /*-------*/ brk;
+		to SET_WINDOW_ATOM_SYSTEM_WINDOW_OPERATION: /*--------------*/ operation = "setWindowAtomSystem"; /*-------------*/ brk;
+		to SET_WINDOW_BLOCK_SIZE_WINDOW_OPERATION: /*---------------*/ operation = "setWindowBlockSize"; /*--------------*/ brk;
+		to SET_WINDOW_MULTITHREADING_WINDOW_OPERATION: /*-----------*/ operation = "setWindowMultithreading"; /*---------*/ brk;
+		to CREATE_WINDOW_WINDOW_OPERATION: /*-----------------------*/ operation = "createWindow"; /*--------------------*/ brk;
+		to CHANGE_WINDOW_EVENT_MASK_WINDOW_OPERATION: /*------------*/ operation = "changeWindowEventEask"; /*-----------*/ brk;
+		to CHANGE_WINDOW_PROPERTIES_WINDOW_OPERATION: /*------------*/ operation = "changeWindowProperties"; /*----------*/ brk;
+		to CONFIGURE_WINDOW_WINDOW_OPERATION: /*--------------------*/ operation = "configureWindow"; /*-----------------*/ brk;
+		to DRAW_WINDOW_BUFFER_WINDOW_OPERATION: /*------------------*/ operation = "drawWindowBuffer"; /*----------------*/ brk;
+		to SWAP_WINDOW_BUFFER_WINDOW_OPERATION: /*------------------*/ operation = "swapWindowBuffer"; /*----------------*/ brk;
+		to MAP_WINDOW_WINDOW_OPERATION: /*--------------------------*/ operation = "mapWindow"; /*-----------------------*/ brk;
+		to RECONFIGURE_WINDOW_WINDOW_OPERATION: /*------------------*/ operation = "reconfigureWindow"; /*---------------*/ brk;
+		to UNMAP_WINDOW_WINDOW_OPERATION: /*------------------------*/ operation = "unmapWindow"; /*---------------------*/ brk;
+		to DESTROY_WINDOW_WINDOW_OPERATION: /*----------------------*/ operation = "destroyWindow"; /*-------------------*/ brk;
+		to FIND_WINDOW_WINDOW_OPERATION: /*-------------------------*/ operation = "findWindow"; /*----------------------*/ brk;
+		off: /*-----------------------------------------------------*/ operation = "<operation>"; /*---------------------*/ brk;
+	}
+	switch((*windowSystem).code){
+		to NONE_WINDOW_CODE: /*-------------------------------------*/ code = NULL; /*-----------------------------------*/ brk;
+		to SUCCESS_WINDOW_CODE: /*----------------------------------*/ code = "success"; /*------------------------------*/ brk;
+		to NOTHING_DONE_WINDOW_CODE: /*-----------------------------*/ code = "nothing done"; /*-------------------------*/ brk;
+		to BAD_INPUT_WINDOW_CODE: /*--------------------------------*/ code = "bad input"; /*----------------------------*/ brk;
+		to UNSET_VALUE_WINDOW_CODE: /*------------------------------*/ code = "unset value"; /*--------------------------*/ brk;
+		to CLOSED_CONNECTION_WINDOW_CODE: /*------------------------*/ code = "closed connection"; /*--------------------*/ brk;
+		to FAILED_ALLOCATION_WINDOW_CODE: /*------------------------*/ code = "failed allocation"; /*--------------------*/ brk;
+		to FAILED_MUTEX_WINDOW_CODE: /*-----------------------------*/ code = "failed mutex"; /*-------------------------*/ brk;
+		to FAILURE_WINDOW_CODE: /*----------------------------------*/ code = "failure"; /*------------------------------*/ brk;
+		off: /*-----------------------------------------------------*/ code = "<code>"; /*-------------------------------*/ brk;
+	}
+	if(operation and code){
+		if((*windowSystem).code == SUCCESS_WINDOW_CODE){
+			if(printUnlockedOutput(printSystem, "%s%s: [%ssuccess%s%s] window system:%s %s() reported \"%s\"\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorEvent, (*printSystem).outputColorEnd, (*printSystem).outputColorStart, (*printSystem).outputColorEnd, operation, code)){
+				success = true;
+			}
+		}else{
+			if(printUnlockedError(printSystem, "%s%s: [%sfailure%s%s] window system:%s %s() reported \"%s\"\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, (*printSystem).errorColorEnd, (*printSystem).errorColorStart, (*printSystem).errorColorEnd, operation, code)){
+				success = true;
+			}
+		}
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	jmp emergencyExit;
+	emergencyExit:{
+		unlockMutex(&(*windowSystem).mutexSystem);
+		if(!success){
+			ret false;
+		}
+		ret true;
+	}
+}
+

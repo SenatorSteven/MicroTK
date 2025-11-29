@@ -1,0 +1,96 @@
+
+/*! get-focused-window-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/avl-tree-system.hold"
+#include "../../headers/systems/atom-system.hold"
+#include "../../headers/functions/get-focused-window-function.hold"
+
+GETFOCUSEDWINDOW(){
+	xcb_connection_t *connection;
+	xcb_get_property_cookie_t propertyCookie;
+	xcb_get_input_focus_cookie_t inputFocusCookie;
+	xcb_window_t focusedWindow;
+	if(!connectionIsOpen(connectionSystem)){
+		ret XCB_NONE;
+	}
+	connection = (*connectionSystem).connection;
+	focusedWindow = XCB_NONE;
+	jmp getCookies;
+	getCookies:{
+		if(atomSystem and (*atomSystem).EWMH_ACTIVE_WINDOW){
+			propertyCookie = xcb_get_property_unchecked(connection, false, (*connectionSystem).rootWindow, (*atomSystem).EWMH_ACTIVE_WINDOW, XCB_ATOM_WINDOW, 0, 1);
+			inputFocusCookie = xcb_get_input_focus_unchecked(connection);
+			jmp getActiveWindow;
+		}
+		inputFocusCookie = xcb_get_input_focus_unchecked(connection);
+		jmp getFocusedWindow;
+	}
+	getActiveWindow:{
+		xcb_get_property_reply_t *const reply = xcb_wait_for_reply(connection, propertyCookie, NULL);
+		uint32 token = insertMemoryManagementPointer((*connectionSystem).memoryManagementSystem, reply, "getFocusedWindow() xcb_get_property() reply", &memoryManagementFree);
+		bool found = false;
+		if(reply){
+			if(xcb_get_property_value_length(reply) == sizeof(xcb_window_t)){
+				focusedWindow = *(xcb_window_t *)xcb_get_property_value(reply);
+				found = true;
+			}
+			free(reply);
+			removeMemoryManagementPointer((*connectionSystem).memoryManagementSystem, token);
+			if(found){
+				xcb_discard_reply(connection, inputFocusCookie);
+				ret focusedWindow;
+			}
+		}
+		jmp getFocusedWindow;
+	}
+	getFocusedWindow:{
+		xcb_get_input_focus_reply_t *const reply = xcb_wait_for_reply(connection, inputFocusCookie, NULL);
+		uint32 token = insertMemoryManagementPointer((*connectionSystem).memoryManagementSystem, reply, "getFocusedWindow() xcb_get_input_focus() reply", &memoryManagementFree);
+		if(reply){
+			focusedWindow = (*reply).focus;
+			free(reply);
+			removeMemoryManagementPointer((*connectionSystem).memoryManagementSystem, token);
+		}
+		ret focusedWindow;
+	}
+}
+

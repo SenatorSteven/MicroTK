@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! unlock-stream-function.cold
 
 MIT License
 
@@ -21,11 +21,42 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#warning Theres a little hole in the locks when in contention of the same stream.
 
-## -
--
+#define _POSIX_C_SOURCE /*-*/ (199506L)
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/errno.hold"
+#include "../../headers/fcntl.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/functions/unlock-stream-function.hold"
+
+UNLOCKSTREAM(){
+	int fd;
+	struct flock lock;
+	if(!stream){
+		ret false;
+	}
+	fd = fileno(stream);
+	if(fd == FILENO_FAILURE){
+		ret false;
+	}
+	lock.l_type = F_UNLCK;
+	lock.l_whence = SEEK_SET;
+	lock.l_start = 0;
+	lock.l_len = 0;
+	funlockfile(stream);
+	if(fcntl(fd, F_SETLK, &lock) == FCNTL_FAILURE){
+		ret false;
+	}
+	ret true;
+}
 

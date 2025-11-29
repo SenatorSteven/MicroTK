@@ -1,0 +1,462 @@
+
+/*! queue-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+/*!
+	allocated = 1 + 3
+
+	[-] [-] [2] [3] [-] [-] [-] [-]
+			 ^s
+				 ^e
+		 ^t
+*/
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/queue-system.hold"
+#include "../../headers/functions/copy-memory-function.hold"
+
+INITQUEUESYSTEM(){
+	if(!queueSystem){
+		ret false;
+	}
+	initMutexSystem(&(*queueSystem).mutexSystem);
+	(*queueSystem).memoryManagementSystem = NULL;
+	(*queueSystem).printSystem = NULL;
+	(*queueSystem).elementStart = NULL;
+	(*queueSystem).elementToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*queueSystem).elementSize = 0;
+	(*queueSystem).elementAllocated = 0;
+	(*queueSystem).elementBlockSize = 0;
+	(*queueSystem).elementWidth = 0;
+	(*queueSystem).elementStartOffset = 0;
+	(*queueSystem).elementEndOffset = 0;
+	(*queueSystem).elementTrailingOffset = 0;
+	(*queueSystem).operation = NONE_QUEUE_OPERATION;
+	(*queueSystem).code = NONE_QUEUE_CODE;
+	(*queueSystem).multithreaded = false;
+	ret true;
+}
+SETQUEUEMEMORYMANAGEMENTSYSTEM(){
+	uint8 code;
+	if(!queueSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*queueSystem).memoryManagementSystem){
+		code = NOTHING_DONE_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	if(memoryManagementSystem){
+		(*queueSystem).elementToken = insertMemoryManagementPointer(memoryManagementSystem, (*queueSystem).elementStart, "QueueSystem setQueueMemoryManagementSystem() element pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*queueSystem).memoryManagementSystem, (*queueSystem).elementToken);
+	}
+	(*queueSystem).memoryManagementSystem = memoryManagementSystem;
+	code = SUCCESS_QUEUE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*queueSystem).operation = SET_QUEUE_MEMORY_MANAGEMENT_SYSTEM_QUEUE_OPERATION;
+		(*queueSystem).code = code;
+		unlockMutex(&(*queueSystem).mutexSystem);
+		if(code != SUCCESS_QUEUE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETQUEUEPRINTSYSTEM(){
+	uint8 code;
+	if(!queueSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	if(printSystem == (*queueSystem).printSystem){
+		code = NOTHING_DONE_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	(*queueSystem).printSystem = printSystem;
+	code = SUCCESS_QUEUE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*queueSystem).operation = SET_QUEUE_PRINT_SYSTEM_QUEUE_OPERATION;
+		(*queueSystem).code = code;
+		unlockMutex(&(*queueSystem).mutexSystem);
+		if(code != SUCCESS_QUEUE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETQUEUEBLOCKSIZE(){
+	uint8 code;
+	if(!queueSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	if(blockSize == (*queueSystem).elementBlockSize){
+		code = NOTHING_DONE_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	(*queueSystem).elementBlockSize = blockSize;
+	code = SUCCESS_QUEUE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*queueSystem).operation = SET_QUEUE_BLOCK_SIZE_QUEUE_OPERATION;
+		(*queueSystem).code = code;
+		unlockMutex(&(*queueSystem).mutexSystem);
+		if(code != SUCCESS_QUEUE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETQUEUEELEMENTWIDTH(){
+	uint8 code;
+	if(!queueSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	if((*queueSystem).elementAllocated){
+		code = LOCKED_VARIABLE_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	if(elementWidth == (*queueSystem).elementWidth){
+		code = NOTHING_DONE_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	if((*queueSystem).elementStart){
+		free((*queueSystem).elementStart);
+		removeMemoryManagementPointer((*queueSystem).memoryManagementSystem, (*queueSystem).elementToken);
+		(*queueSystem).elementStart = NULL;
+		(*queueSystem).elementToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+		(*queueSystem).elementSize = 0;
+		(*queueSystem).elementAllocated = 0;
+	}
+	(*queueSystem).elementWidth = elementWidth;
+	code = SUCCESS_QUEUE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*queueSystem).operation = SET_QUEUE_ELEMENT_WIDTH_QUEUE_OPERATION;
+		(*queueSystem).code = code;
+		unlockMutex(&(*queueSystem).mutexSystem);
+		if(code != SUCCESS_QUEUE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETQUEUEMULTITHREADING(){
+	uint8 code;
+	if(!queueSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*queueSystem).multithreaded){
+		code = NOTHING_DONE_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*queueSystem).mutexSystem)){
+			code = FAILED_MUTEX_QUEUE_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyMutex(&(*queueSystem).mutexSystem)){
+			code = FAILED_MUTEX_QUEUE_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setMutexMultithreading(&(*queueSystem).mutexSystem, multithreaded);
+	(*queueSystem).multithreaded = multithreaded;
+	code = SUCCESS_QUEUE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*queueSystem).operation = SET_QUEUE_MULTITHREADING_QUEUE_OPERATION;
+		(*queueSystem).code = code;
+		if(code != SUCCESS_QUEUE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PUSHQUEUEELEMENT(){
+	uint elementAllocated;
+	void *elementStart;
+	uint nodeSize;
+	uint elementEndOffset;
+	uint8 code;
+	if(!queueSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	if(!element){
+		code = BAD_INPUT_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	elementAllocated = (*queueSystem).elementAllocated;
+	elementStart = (*queueSystem).elementStart;
+	nodeSize = sizeof(uint32) + (*queueSystem).elementWidth;
+	elementEndOffset = (*queueSystem).elementEndOffset;
+	jmp insertElement;
+	insertElement:{
+		if(elementAllocated == (*queueSystem).elementSize){
+			void *temp;
+			if(!(*queueSystem).elementBlockSize){
+				code = UNSET_VALUE_QUEUE_CODE;
+				jmp emergencyExit;
+			}
+			(*queueSystem).elementSize += (*queueSystem).elementBlockSize;
+			temp = realloc(elementStart, (*queueSystem).elementSize * nodeSize);
+			if(!(*queueSystem).elementToken){
+				(*queueSystem).elementToken = insertMemoryManagementPointer((*queueSystem).memoryManagementSystem, temp, "QueueSystem pushQueueElement() element pointer", &memoryManagementFree);
+			}else{
+				updateMemoryManagementPointer((*queueSystem).memoryManagementSystem, (*queueSystem).elementToken, temp);
+			}
+			if(!temp){
+				(*queueSystem).elementStart = elementStart;
+				(*queueSystem).elementAllocated = elementAllocated;
+				(*queueSystem).elementSize -= (*queueSystem).elementBlockSize;
+				code = FAILED_ALLOCATION_QUEUE_CODE;
+				jmp emergencyExit;
+			}
+			elementStart = temp;
+			if(!elementAllocated){
+				inc elementAllocated;
+				jmp insertElement;
+			}
+		}
+		if(!(*queueSystem).elementStartOffset){
+			(*queueSystem).elementStartOffset = 1;
+			elementEndOffset = 1;
+			inc elementAllocated;
+		}elif((*queueSystem).elementTrailingOffset){
+			uint elementTrailingOffset = (*queueSystem).elementTrailingOffset;
+			uint nextOffset = *(uint32 *)((uint8 *)elementStart + elementTrailingOffset * nodeSize);
+			*(uint32 *)((uint8 *)elementStart + elementEndOffset * nodeSize) = elementTrailingOffset;
+			elementEndOffset = elementTrailingOffset;
+			elementTrailingOffset = (nextOffset != (*queueSystem).elementStartOffset) * nextOffset;
+			(*queueSystem).elementTrailingOffset = elementTrailingOffset;
+		}else{
+			*(uint32 *)((uint8 *)elementStart + elementEndOffset * nodeSize) = elementAllocated;
+			elementEndOffset = elementAllocated;
+			inc elementAllocated;
+		}
+		copyMemory(element, (uint8 *)elementStart + elementEndOffset * nodeSize + sizeof(uint32), nodeSize - sizeof(uint32));
+		(*queueSystem).elementEndOffset = elementEndOffset;
+		(*queueSystem).elementStart = elementStart;
+		(*queueSystem).elementAllocated = elementAllocated;
+		code = SUCCESS_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		(*queueSystem).operation = PUSH_QUEUE_ELEMENT_QUEUE_OPERATION;
+		(*queueSystem).code = code;
+		unlockMutex(&(*queueSystem).mutexSystem);
+		if(code != SUCCESS_QUEUE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+POPQUEUEELEMENT(){
+	uint elementStartOffset;
+	uint nodeSize;
+	uint8 code;
+	if(!queueSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	if(!element){
+		code = BAD_INPUT_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	elementStartOffset = (*queueSystem).elementStartOffset;
+	if(!elementStartOffset){
+		code = NOTHING_DONE_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	nodeSize = sizeof(uint32) + (*queueSystem).elementWidth;
+	copyMemory((uint8 *)(*queueSystem).elementStart + elementStartOffset * nodeSize + sizeof(uint32), element, nodeSize - sizeof(uint32));
+	if(elementStartOffset == (*queueSystem).elementEndOffset){
+		elementStartOffset = 0;
+		(*queueSystem).elementEndOffset = 0;
+		(*queueSystem).elementTrailingOffset = 0;
+		(*queueSystem).elementAllocated = 1;
+	}else{
+		if(!(*queueSystem).elementTrailingOffset){
+			(*queueSystem).elementTrailingOffset = elementStartOffset;
+		}
+		elementStartOffset = *(uint32 *)((uint8 *)(*queueSystem).elementStart + elementStartOffset * nodeSize);
+	}
+	(*queueSystem).elementStartOffset = elementStartOffset;
+	code = SUCCESS_QUEUE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*queueSystem).operation = POP_QUEUE_ELEMENT_QUEUE_OPERATION;
+		(*queueSystem).code = code;
+		unlockMutex(&(*queueSystem).mutexSystem);
+		if(code != SUCCESS_QUEUE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+REMOVEALLQUEUEELEMENTS(){
+	uint8 code;
+	if(!queueSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	if(!(*queueSystem).elementStart){
+		code = NOTHING_DONE_QUEUE_CODE;
+		jmp emergencyExit;
+	}
+	free((*queueSystem).elementStart);
+	removeMemoryManagementPointer((*queueSystem).memoryManagementSystem, (*queueSystem).elementToken);
+	(*queueSystem).elementStart = NULL;
+	(*queueSystem).elementToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*queueSystem).elementSize = 0;
+	(*queueSystem).elementAllocated = 0;
+	code = SUCCESS_QUEUE_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*queueSystem).operation = REMOVE_ALL_QUEUE_ELEMENTS_QUEUE_OPERATION;
+		(*queueSystem).code = code;
+		unlockMutex(&(*queueSystem).mutexSystem);
+		if(code != SUCCESS_QUEUE_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+FINIQUEUESYSTEM(){
+	if(!queueSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	(*queueSystem).multithreaded = false;
+	(*queueSystem).elementTrailingOffset = 0;
+	(*queueSystem).elementEndOffset = 0;
+	(*queueSystem).elementStartOffset = 0;
+	(*queueSystem).elementWidth = 0;
+	(*queueSystem).elementBlockSize = 0;
+	removeAllQueueElements(queueSystem);
+	(*queueSystem).code = NONE_QUEUE_CODE;
+	(*queueSystem).operation = NONE_QUEUE_OPERATION;
+	(*queueSystem).printSystem = NULL;
+	(*queueSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+PRINTQUEUELOG(){
+	const char *operation;
+	const char *code;
+	PrintSystem *printSystem;
+	bool success;
+	if(!queueSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*queueSystem).mutexSystem)){
+		ret false;
+	}
+	printSystem = (*queueSystem).printSystem;
+	success = false;
+	if(!printSystem){
+		jmp emergencyExit;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		jmp emergencyExit;
+	}
+	switch((*queueSystem).operation){
+		to NONE_QUEUE_OPERATION: /*-------------------------------*/ operation = NULL; /*-----------------------------*/ brk;
+		to SET_QUEUE_MEMORY_MANAGEMENT_SYSTEM_QUEUE_OPERATION: /*-*/ operation = "setQueueMemoryManagementSystem"; /*-*/ brk;
+		to SET_QUEUE_PRINT_SYSTEM_QUEUE_OPERATION: /*-------------*/ operation = "setQueuePrintSystem"; /*------------*/ brk;
+		to SET_QUEUE_BLOCK_SIZE_QUEUE_OPERATION: /*---------------*/ operation = "setQueueBlockSize"; /*--------------*/ brk;
+		to SET_QUEUE_ELEMENT_WIDTH_QUEUE_OPERATION: /*------------*/ operation = "setQueueElementWidth"; /*-----------*/ brk;
+		to SET_QUEUE_MULTITHREADING_QUEUE_OPERATION: /*-----------*/ operation = "setQueueMultithreading"; /*---------*/ brk;
+		to PUSH_QUEUE_ELEMENT_QUEUE_OPERATION: /*-----------------*/ operation = "pushQueueElement"; /*---------------*/ brk;
+		to POP_QUEUE_ELEMENT_QUEUE_OPERATION: /*------------------*/ operation = "popQueueElement"; /*----------------*/ brk;
+		to REMOVE_ALL_QUEUE_ELEMENTS_QUEUE_OPERATION: /*----------*/ operation = "removeAllQueueElements"; /*---------*/ brk;
+		off: /*---------------------------------------------------*/ operation = "<operation>"; /*--------------------*/ brk;
+	}
+	switch((*queueSystem).code){
+		to NONE_QUEUE_CODE: /*------------------------------------*/ code = NULL; /*----------------------------------*/ brk;
+		to SUCCESS_QUEUE_CODE: /*---------------------------------*/ code = "success"; /*-----------------------------*/ brk;
+		to NOTHING_DONE_QUEUE_CODE: /*----------------------------*/ code = "nothing done"; /*------------------------*/ brk;
+		to BAD_INPUT_QUEUE_CODE: /*-------------------------------*/ code = "bad input"; /*---------------------------*/ brk;
+		to UNSET_VALUE_QUEUE_CODE: /*-----------------------------*/ code = "unset value"; /*-------------------------*/ brk;
+		to LOCKED_VARIABLE_QUEUE_CODE: /*-------------------------*/ code = "locked variable"; /*---------------------*/ brk;
+		to FAILED_ALLOCATION_QUEUE_CODE: /*-----------------------*/ code = "failed allocation"; /*-------------------*/ brk;
+		to FAILED_MUTEX_QUEUE_CODE: /*----------------------------*/ code = "failed mutex"; /*------------------------*/ brk;
+		off: /*---------------------------------------------------*/ code = "<code>"; /*------------------------------*/ brk;
+	}
+	if(operation and code){
+		if((*queueSystem).code == SUCCESS_QUEUE_CODE){
+			if(printUnlockedOutput(printSystem, "%s%s: [%ssuccess%s%s] queue system:%s %s() reported \"%s\"\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorEvent, (*printSystem).outputColorEnd, (*printSystem).outputColorStart, (*printSystem).outputColorEnd, operation, code)){
+				success = true;
+			}
+		}else{
+			if(printUnlockedError(printSystem, "%s%s: [%sfailure%s%s] queue system:%s %s() reported \"%s\"\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, (*printSystem).errorColorEnd, (*printSystem).errorColorStart, (*printSystem).errorColorEnd, operation, code)){
+				success = true;
+			}
+		}
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	jmp emergencyExit;
+	emergencyExit:{
+		unlockMutex(&(*queueSystem).mutexSystem);
+		if(!success){
+			ret false;
+		}
+		ret true;
+	}
+}
+

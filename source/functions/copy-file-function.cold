@@ -1,0 +1,145 @@
+
+/*! copy-file-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Consider allowing the big file size and block size to be set.
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/functions/get-stream-size-function.hold"
+#include "../../headers/functions/lock-stream-function.hold"
+#include "../../headers/functions/unlock-stream-function.hold"
+#include "../../headers/functions/copy-file-function.hold"
+
+COPYFILE(){
+	#define BIG_FILE_SIZE /*-*/ (64 * 1024 * 1024)
+	#define BLOCK_SIZE /*----*/ (8 * 1024 * 1024)
+	FILE *sourceFile;
+	uint32 sourceToken;
+	FILE *destinationFile;
+	uint32 destinationToken;
+	uint8 *bufferStart;
+	uint32 bufferToken;
+	uint64 bufferSize;
+	uint64 bufferBlockSize;
+	bool lockedSource;
+	bool lockedDestination;
+	bool copied;
+	if(!sourcePath or !destinationPath){
+		ret false;
+	}
+	sourceFile = NULL;
+	sourceToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	destinationFile = NULL;
+	destinationToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	bufferStart = NULL;
+	bufferToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	lockedSource = false;
+	lockedDestination = false;
+	copied = false;
+	jmp openFiles;
+	openFiles:{
+		sourceFile = fopen(sourcePath, "r");
+		sourceToken = insertMemoryManagementPointer(memoryManagementSystem, sourceFile, "copyFile() source file", &memoryManagementFclose);
+		if(!sourceFile){
+			jmp emergencyExit;
+		}
+		destinationFile = fopen(destinationPath, "w");
+		destinationToken = insertMemoryManagementPointer(memoryManagementSystem, destinationFile, "copyFile() destination file", &memoryManagementFclose);
+		if(!destinationFile){
+			jmp emergencyExit;
+		}
+		jmp createBuffer;
+	}
+	createBuffer:{
+		bufferSize = getStreamSize(sourceFile);
+		bufferBlockSize = bufferSize;
+		if(bufferBlockSize > BIG_FILE_SIZE){
+			bufferBlockSize = BLOCK_SIZE;
+		}
+		bufferStart = malloc(bufferBlockSize * sizeof(uint8));
+		bufferToken = insertMemoryManagementPointer(memoryManagementSystem, bufferStart, "copyFile() file buffer pointer", &memoryManagementFree);
+		if(!bufferStart){
+			jmp emergencyExit;
+		}
+		jmp lockFiles;
+	}
+	lockFiles:{
+		if(!lockStream(sourceFile, READ_LOCK_STREAM)){
+			jmp emergencyExit;
+		}
+		lockedSource = true;
+		if(!lockStream(destinationFile, WRITE_LOCK_STREAM)){
+			jmp emergencyExit;
+		}
+		lockedDestination = true;
+		jmp copyFileBlockLoop;
+	}
+	copyFileBlockLoop:{
+		uint64 bytesRead;
+		if((bytesRead = fread(bufferStart, sizeof(uint8), bufferBlockSize, sourceFile))){
+			if(fwrite(bufferStart, sizeof(uint8), bytesRead, destinationFile) != bytesRead){
+				jmp emergencyExit;
+			}
+			jmp copyFileBlockLoop;
+		}
+		if(!ferror(sourceFile)){
+			copied = true;
+		}
+		clearerr(sourceFile);
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		if(lockedDestination){
+			unlockStream(destinationFile);
+		}
+		if(lockedSource){
+			unlockStream(sourceFile);
+		}
+		free(bufferStart);
+		removeMemoryManagementPointer(memoryManagementSystem, bufferToken);
+		if(destinationFile){
+			fclose(destinationFile);
+			removeMemoryManagementPointer(memoryManagementSystem, destinationToken);
+		}
+		if(sourceFile){
+			fclose(sourceFile);
+			removeMemoryManagementPointer(memoryManagementSystem, sourceToken);
+		}
+		if(!copied){
+			remove(destinationPath);
+			ret false;
+		}
+		ret true;
+	}
+	#undef  BLOCK_SIZE
+	#undef  BIG_FILE_SIZE
+}
+

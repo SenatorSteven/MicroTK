@@ -1,0 +1,438 @@
+
+/*! string-tree-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Complete the String Tree system.
+#warning Handle local functions.
+#warning Create stack structure to store empty nodes.
+
+#define _DEFAULT_SOURCE
+#include <dirent.h>
+#undef  _DEFAULT_SOURCE
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/string-tree-system.hold"
+
+INITSTRINGTREESYSTEM(){
+	if(!stringTreeSystem){
+		ret false;
+	}
+	(*stringTreeSystem).nodeStart = NULL;
+	(*stringTreeSystem).nodeToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*stringTreeSystem).nodeSize = 0;
+	(*stringTreeSystem).nodeAllocated = 0;
+	(*stringTreeSystem).nodeBlockSize = 0;
+	(*stringTreeSystem).setting = NONE_STRING_TREE_SETTING;
+	ret true;
+}
+SETSTRINGTREEMEMORYMANAGEMENTSYSTEM(){
+	if(!stringTreeSystem or memoryManagementSystem == (*stringTreeSystem).memoryManagementSystem){
+		ret false;
+	}
+	if(memoryManagementSystem){
+		(*stringTreeSystem).nodeToken = insertMemoryManagementPointer(memoryManagementSystem, (*stringTreeSystem).nodeStart, "node tree pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*stringTreeSystem).memoryManagementSystem, (*stringTreeSystem).nodeToken);
+	}
+	(*stringTreeSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETSTRINGTREEBLOCKSIZE(){
+	if(!stringTreeSystem){
+		ret false;
+	}
+	(*stringTreeSystem).nodeBlockSize = blockSize;
+	ret true;
+}
+SETSTRINGTREESETTING(){
+	if(!stringTreeSystem or (*stringTreeSystem).nodeStart or !setting){
+		ret false;
+	}
+	(*stringTreeSystem).setting = setting;
+	ret true;
+}
+PATHINSERTSTRINGTREESTRING(){
+	#define DELIMITER /*-*/ (':')
+	char *pathCurrent;
+	char nameStart[PATH_MAX];
+	char *nameCurrent;
+	if(!stringTreeSystem or !path){
+		ret false;
+	}
+	pathCurrent = getenv(path);
+	if(!pathCurrent or !*pathCurrent){
+		ret false;
+	}
+	nameCurrent = nameStart;
+	jmp findNextPathLengthLoop;
+	findNextPathLengthLoop:{
+		const char c = *pathCurrent;
+		if(c and c != DELIMITER){
+			*nameCurrent = c;
+			inc nameCurrent;
+			inc pathCurrent;
+			jmp findNextPathLengthLoop;
+		}
+		*nameCurrent = '\0';
+		jmp getPathName;
+	}
+	getPathName:{
+		DIR *const dir = opendir(nameStart);
+		uint32 token = insertMemoryManagementPointer((*stringTreeSystem).memoryManagementSystem, dir, "executable path pointer", &memoryManagementClosedir);
+		if(dir){
+			jmp storeExecutableNameLoop;
+			storeExecutableNameLoop:{
+				struct dirent *entry;
+				if((entry = readdir(dir))){
+					const char *const name = (*entry).d_name;
+					if((*entry).d_type != DT_LNK and (*entry).d_type != DT_REG){
+						jmp storeExecutableNameLoop;
+					}
+					if(*name == '.' and (*(name + 1) == '\0' or (*(name + 1) == '.' and *(name + 2) == '\0'))){
+						jmp storeExecutableNameLoop;
+					}
+					insertStringTreeString(stringTreeSystem, name);
+					jmp storeExecutableNameLoop;
+				}
+				closedir(dir);
+				removeMemoryManagementPointer((*stringTreeSystem).memoryManagementSystem, token);
+			}
+		}
+		if(*pathCurrent == DELIMITER and *(inc pathCurrent)){
+			nameCurrent = nameStart;
+			jmp findNextPathLengthLoop;
+		}
+		ret true;
+	}
+	#undef  DELIMITER
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*!*/
+
+INSERTSTRINGTREESTRING(){
+	uint size;
+	uint allocated;
+	StringTreeNode *data;
+	StringTreeNode *node;
+	bool returnValue;
+	if(!stringTreeSystem or !string){
+		ret false;
+	}
+	size = (*stringTreeSystem).nodeSize;
+	allocated = (*stringTreeSystem).nodeAllocated;
+	data = (*stringTreeSystem).nodeStart;
+	jmp findPrefix;
+	findPrefix:{
+		node = getStringTreePrefix(stringTreeSystem, &string);
+		if((!node or (*node).byte == b(00000000)) and data and node != data){
+			ret false;
+		}
+		jmp addLetterLoop;
+	}
+	addLetterLoop:{
+		char byte;
+		uint nextSiblingOffset;
+		if(allocated == size){
+			const uint nodeOffset = node - data;
+			void *temp;
+			if(!(*stringTreeSystem).nodeBlockSize){
+
+
+
+				/*! exit gracefully. */
+
+
+
+			}
+			size += (*stringTreeSystem).nodeBlockSize;
+			temp = realloc(data, size * sizeof(StringTreeNode));
+			if(!(*stringTreeSystem).nodeToken){
+				(*stringTreeSystem).nodeToken = insertMemoryManagementPointer((*stringTreeSystem).memoryManagementSystem, temp, "node tree pointer", &memoryManagementFree);
+			}else{
+				updateMemoryManagementPointer((*stringTreeSystem).memoryManagementSystem, (*stringTreeSystem).nodeToken, temp);
+			}
+			if(!temp){
+				size -= (*stringTreeSystem).nodeBlockSize;
+				if(node){
+					(*node).inUse = true;
+					(*node).byte = b(00000000);
+					(*node).nextSiblingOffset = 0;
+					(*node).firstChildOffset = 0;
+				}
+				returnValue = false;
+				jmp completeString;
+			}
+			data = temp;
+			node = data + nodeOffset;
+			if(!allocated){
+				(*node).inUse = true;
+				(*node).byte = b(00000000);
+				(*node).nextSiblingOffset = 0;
+				(*node).firstChildOffset = 0;
+				inc allocated;
+			}
+		}
+		byte = *string;
+		if((*node).firstChildOffset){
+			StringTreeNode *sibling = data + (*node).firstChildOffset;
+			StringTreeNode *previousSibling = NULL;
+			jmp findHorizontalPositionLoop;
+			findHorizontalPositionLoop:{
+				if((*sibling).byte < byte){
+					previousSibling = sibling;
+					if((*sibling).nextSiblingOffset){
+						sibling = data + (*sibling).nextSiblingOffset;
+						jmp findHorizontalPositionLoop;
+					}
+				}
+				if(!previousSibling){
+					(*node).firstChildOffset = allocated;
+				}else{
+					(*previousSibling).nextSiblingOffset = allocated;
+				}
+				nextSiblingOffset = 0;
+				if(sibling != previousSibling){
+					nextSiblingOffset = sibling - data;
+				}
+			}
+		}else{
+			(*node).firstChildOffset = allocated;
+			nextSiblingOffset = 0;
+		}
+		node = data + allocated;
+		(*node).inUse = true;
+		(*node).byte = byte;
+		(*node).nextSiblingOffset = nextSiblingOffset;
+		(*node).firstChildOffset = 0;
+		inc allocated;
+		if(byte){
+			inc string;
+			jmp addLetterLoop;
+		}
+		returnValue = true;
+		jmp completeString;
+	}
+	completeString:{
+		if(node){
+			(*stringTreeSystem).nodeSize = size;
+			(*stringTreeSystem).nodeAllocated = allocated;
+			(*stringTreeSystem).nodeStart = data;
+		}
+		ret returnValue;
+	}
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+REMOVESTRINGTREESTRING(){
+	uint size;
+	uint allocated;
+	StringTreeNode *data;
+	StringTreeNode *node;
+	if(!stringTreeSystem or !(*stringTreeSystem).nodeStart or !((*stringTreeSystem).setting & REMOVE_STRING_TREE_SETTING) or !prefix){
+		ret false;
+	}
+	size = (*stringTreeSystem).nodeSize;
+	allocated = (*stringTreeSystem).nodeAllocated;
+	data = (*stringTreeSystem).nodeStart;
+	jmp findPrefix;
+	findPrefix:{
+		node = getStringTreePrefix(stringTreeSystem, &prefix);
+		if(!node){
+			ret false;
+		}
+		jmp removeLetterLoop;
+	}
+	removeLetterLoop:{
+
+
+
+
+
+
+
+
+
+		/*! remove all the below nodes in a depth first fashion and then try to remove upwards until parent has more than one child. */
+
+
+
+
+
+
+
+
+
+		ret true;
+	}
+}
+GETSTRINGTREEPREFIX(){
+	const char *string;
+	StringTreeNode *data;
+	StringTreeNode *node;
+	StringTreeNode *child;
+	char byte;
+	if(!stringTreeSystem or !(*stringTreeSystem).nodeStart or !stringReturn){
+		ret NULL;
+	}
+	data = (*stringTreeSystem).nodeStart;
+	node = data;
+	string = *stringReturn;
+	jmp findLetterLoop;
+	findLetterLoop:{
+		child = data + (*node).firstChildOffset;
+		byte = *string;
+		jmp nextLetterLoop;
+	}
+	nextLetterLoop:{
+		if(child != data){
+			if((*child).byte == byte){
+				node = child;
+				if(byte){
+					inc string;
+					jmp findLetterLoop;
+				}
+			}elif((*child).byte < byte){
+				child = data + (*child).nextSiblingOffset;
+				jmp nextLetterLoop;
+			}
+		}
+		*stringReturn = string;
+		ret node;
+	}
+}
+
+/*!*/
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FINDSTRINGTREESTRING(){
+	StringTreeNode *node;
+	if(!stringTreeSystem or !string){
+		ret false;
+	}
+	node = getStringTreePrefix(stringTreeSystem, &string);
+	if(!node or node == (*stringTreeSystem).nodeStart or (*node).byte != b(00000000)){
+		ret false;
+	}
+	ret true;
+}
+FINISTRINGTREESYSTEM(){
+	if(!stringTreeSystem){
+		ret false;
+	}
+	free((*stringTreeSystem).nodeStart);
+	removeMemoryManagementPointer((*stringTreeSystem).memoryManagementSystem, (*stringTreeSystem).nodeToken);
+	(*stringTreeSystem).nodeStart = NULL;
+	(*stringTreeSystem).nodeToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*stringTreeSystem).nodeSize = 0;
+	(*stringTreeSystem).nodeAllocated = 0;
+	(*stringTreeSystem).nodeBlockSize = 0;
+	(*stringTreeSystem).setting = NONE_STRING_TREE_SETTING;
+	ret true;
+}
+

@@ -1,0 +1,123 @@
+
+/*! pthread.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef PTHREAD_HOLD
+#define PTHREAD_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../cold/cold.hold"
+#endif
+
+#define PTHREAD_MUTEXATTR_INIT_SUCCESS /*-----------*/ (0)
+#define PTHREAD_MUTEXATTR_GETPROTOCOL_SUCCESS /*----*/ (0)
+#define PTHREAD_MUTEXATTR_SETPROTOCOL_SUCCESS /*----*/ (0)
+#define PTHREAD_MUTEXATTR_GETPRIOCEILING_SUCCESS /*-*/ (0)
+#define PTHREAD_MUTEXATTR_SETPRIOCEILING_SUCCESS /*-*/ (0)
+#define PTHREAD_MUTEXATTR_GETPSHARED_SUCCESS /*-----*/ (0)
+#define PTHREAD_MUTEXATTR_SETPSHARED_SUCCESS /*-----*/ (0)
+#define PTHREAD_MUTEXATTR_GETTYPE_SUCCESS /*--------*/ (0)
+#define PTHREAD_MUTEXATTR_SETTYPE_SUCCESS /*--------*/ (0)
+#define PTHREAD_MUTEXATTR_GETROBUST_SUCCESS /*------*/ (0)
+#define PTHREAD_MUTEXATTR_SETROBUST_SUCCESS /*------*/ (0)
+#define PTHREAD_MUTEXATTR_DESTROY_SUCCESS /*--------*/ (0)
+
+#define PTHREAD_MUTEX_INIT_SUCCESS /*---------------*/ (0)
+#define PTHREAD_MUTEX_GETPRIOCEILING_SUCCESS /*-----*/ (0)
+#define PTHREAD_MUTEX_SETPRIOCEILING_SUCCESS /*-----*/ (0)
+#define PTHREAD_MUTEX_TRYLOCK_SUCCESS /*------------*/ (0)
+#define PTHREAD_MUTEX_LOCK_SUCCESS /*---------------*/ (0)
+#define PTHREAD_MUTEX_UNLOCK_SUCCESS /*-------------*/ (0)
+#define PTHREAD_MUTEX_DESTROY_SUCCESS /*------------*/ (0)
+
+#define PTHREAD_RWLOCKATTR_INIT_SUCCESS /*----------*/ (0)
+#define PTHREAD_RWLOCKATTR_GETPSHARED_SUCCESS /*----*/ (0)
+#define PTHREAD_RWLOCKATTR_SETPSHARED_SUCCESS /*----*/ (0)
+#define PTHREAD_RWLOCKATTR_GETKIND_NP_SUCCESS /*----*/ (0)
+#define PTHREAD_RWLOCKATTR_SETKIND_NP_SUCCESS /*----*/ (0)
+#define PTHREAD_RWLOCKATTR_DESTROY_SUCCESS /*-------*/ (0)
+
+#define PTHREAD_RWLOCK_INIT_SUCCESS /*--------------*/ (0)
+#define PTHREAD_RWLOCK_TRYRDLOCK_SUCCESS /*---------*/ (0)
+#define PTHREAD_RWLOCK_TRYWRLOCK_SUCCESS /*---------*/ (0)
+#define PTHREAD_RWLOCK_RDLOCK_SUCCESS /*------------*/ (0)
+#define PTHREAD_RWLOCK_WRLOCK_SUCCESS /*------------*/ (0)
+#define PTHREAD_RWLOCK_UNLOCK_SUCCESS /*------------*/ (0)
+#define PTHREAD_RWLOCK_DESTROY_SUCCESS /*-----------*/ (0)
+
+#define PTHREAD_CONDATTR_INIT_SUCCESS /*------------*/ (0)
+#define PTHREAD_CONDATTR_GETPSHARED_SUCCESS /*------*/ (0)
+#define PTHREAD_CONDATTR_SETPSHARED_SUCCESS /*------*/ (0)
+#define PTHREAD_CONDATTR_DESTROY_SUCCESS /*---------*/ (0)
+
+#define PTHREAD_COND_INIT_SUCCESS /*----------------*/ (0)
+#define PTHREAD_COND_TIMEDWAIT_SUCCESS /*-----------*/ (0)
+#define PTHREAD_COND_WAIT_SUCCESS /*----------------*/ (0)
+#define PTHREAD_COND_SIGNAL_SUCCESS /*--------------*/ (0)
+#define PTHREAD_COND_BROADCAST_SUCCESS /*-----------*/ (0)
+#define PTHREAD_COND_DESTROY_SUCCESS /*-------------*/ (0)
+
+#define PTHREAD_ATTR_INIT_SUCCESS /*----------------*/ (0)
+#define PTHREAD_ATTR_GETDETACHSTATE_SUCCESS /*------*/ (0)
+#define PTHREAD_ATTR_SETDETACHSTATE_SUCCESS /*------*/ (0)
+#define PTHREAD_ATTR_GETGUARDSIZE_SUCCESS /*--------*/ (0)
+#define PTHREAD_ATTR_SETGUARDSIZE_SUCCESS /*--------*/ (0)
+#define PTHREAD_ATTR_GETINHERITSCHED_SUCCESS /*-----*/ (0)
+#define PTHREAD_ATTR_SETINHERITSCHED_SUCCESS /*-----*/ (0)
+#define PTHREAD_ATTR_GETSCHEDPARAM_SUCCESS /*-------*/ (0)
+#define PTHREAD_ATTR_SETSCHEDPARAM_SUCCESS /*-------*/ (0)
+#define PTHREAD_ATTR_GETSCHEDPOLICY_SUCCESS /*------*/ (0)
+#define PTHREAD_ATTR_SETSCHEDPOLICY_SUCCESS /*------*/ (0)
+#define PTHREAD_ATTR_GETSCOPE_SUCCESS /*------------*/ (0)
+#define PTHREAD_ATTR_SETSCOPE_SUCCESS /*------------*/ (0)
+#define PTHREAD_ATTR_GETSTACKADDR_SUCCESS /*--------*/ (0)
+#define PTHREAD_ATTR_SETSTACKADDR_SUCCESS /*--------*/ (0)
+#define PTHREAD_ATTR_GETSTACKSIZE_SUCCESS /*--------*/ (0)
+#define PTHREAD_ATTR_SETSTACKSIZE_SUCCESS /*--------*/ (0)
+#define PTHREAD_ATTR_DESTROY_SUCCESS /*-------------*/ (0)
+
+#define PTHREAD_GETCONCURRENCY_SUCCESS /*-----------*/ (0)
+#define PTHREAD_SETCONCURRENCY_SUCCESS /*-----------*/ (0)
+#define PTHREAD_GETSCHEDPARAM_SUCCESS /*------------*/ (0)
+#define PTHREAD_SETSCHEDPARAM_SUCCESS /*------------*/ (0)
+
+#define PTHREAD_KEY_CREATE_SUCCESS /*---------------*/ (0)
+#define PTHREAD_CREATE_SUCCESS /*-------------------*/ (0)
+#define PTHREAD_DETACH_SUCCESS /*-------------------*/ (0)
+#define PTHREAD_ONCE_SUCCESS /*---------------------*/ (0)
+#define PTHREAD_SETSPECIFIC_SUCCESS /*--------------*/ (0)
+#define PTHREAD_SETCANCELSTATE_SUCCESS /*-----------*/ (0)
+#define PTHREAD_SETCANCELTYPE_SUCCESS /*------------*/ (0)
+#define PTHREAD_CANCEL_SUCCESS /*-------------------*/ (0)
+#define PTHREAD_JOIN_SUCCESS /*---------------------*/ (0)
+#define PTHREAD_KEY_DELETE_SUCCESS /*---------------*/ (0)
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../cold/hot.hold"
+#endif
+
+#endif
+

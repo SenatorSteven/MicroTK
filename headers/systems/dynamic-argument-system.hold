@@ -1,0 +1,85 @@
+
+/*! dynamic-argument-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef DYNAMIC_ARGUMENT_SYSTEM_HOLD
+#define DYNAMIC_ARGUMENT_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define DynamicArgumentSystem /*----------------------*/ DynamicArgumentSystem
+
+#define NONE_DYNAMIC_ARGUMENT_TYPE /*-----------------*/ (0)
+#define INT_DYNAMIC_ARGUMENT_TYPE /*------------------*/ (1)
+#define UINT_DYNAMIC_ARGUMENT_TYPE /*-----------------*/ (2)
+#define STRING_DYNAMIC_ARGUMENT_TYPE /*---------------*/ (3)
+#define READ_FILE_DYNAMIC_ARGUMENT_TYPE /*------------*/ (4)
+#define WRITE_FILE_DYNAMIC_ARGUMENT_TYPE /*-----------*/ (5)
+#define STREAM_DYNAMIC_ARGUMENT_TYPE /*---------------*/ (6) /*! how to handle this? */
+
+#define NONE_DYNAMIC_ARGUMENT_PROPERTY /*-------------*/ (b(00000))
+#define CASE_INSENSITIVE_DYNAMIC_ARGUMENT_PROPERTY /*-*/ (b(00001))
+#define MANDATORY_DYNAMIC_ARGUMENT_PROPERTY /*--------*/ (b(00010))
+#define DUPLICATE_DYNAMIC_ARGUMENT_PROPERTY /*--------*/ (b(00100))
+#define POSITIONAL_DYNAMIC_ARGUMENT_PROPERTY /*-------*/ (b(01000))
+#define HIDDEN_DYNAMIC_ARGUMENT_PROPERTY /*-----------*/ (b(10000))
+
+#define INITDYNAMICARGUMENTSYSTEM() /*----------------*/ bool  initDynamicArgumentSystem(DynamicArgumentSystem *const dynamicArgumentSystem)
+#define SETDYNAMICARGUMENTMEMORYMANAGER() /*----------*/ bool  setDynamicArgumentMemoryManagementSystem(DynamicArgumentSystem *const dynamicArgumentSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETDYNAMICARGUMENTPRINT() /*------------------*/ bool  setDynamicArgumentPrint(DynamicArgumentSystem *const dynamicArgumentSystem, PrintSystem *const printSystem)
+#define PARSEDYNAMICARGUMENTS() /*--------------------*/ bool  parseDynamicArguments(DynamicArgumentSystem *const dynamicArgumentSystem, const char *const *const argumentStart, const uint argumentAmount, const uint itemSize, const char *const *const itemNameStart, const uint *const itemNameSizeStart, const uint8 *const itemTypeStart, const uint8 *const itemPropertyStart, const void *const *const itemReturnStart)
+#define IDENTIFYDYNAMICARGUMENT() /*------------------*/ uint  identifyDynamicArgument(DynamicArgumentSystem *const dynamicArgumentSystem, const char *const argument, const uint itemSize, const char *const *const itemNameStart, const uint *const itemNameSizeStart, const uint8 *const itemPropertyStart, const uint currentPositional)
+#define FINIDYNAMICARGUMENTSYSTEM() /*----------------*/ bool  finiDynamicArgumentSystem(DynamicArgumentSystem *const dynamicArgumentSystem)
+
+#define PRINTDYNAMICARGUMENTLOG() /*------------------*/ bool  printDynamicArgumentLog(DynamicArgumentSystem *const dynamicArgumentSystem)
+
+def struct{
+	MutexSystem /*--------------*/ mutexSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	const char * /*-------------*/ programName;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[5];
+} DynamicArgumentSystem;
+
+INITDYNAMICARGUMENTSYSTEM();
+SETDYNAMICARGUMENTMEMORYMANAGER();
+SETDYNAMICARGUMENTPRINT();
+PARSEDYNAMICARGUMENTS();
+IDENTIFYDYNAMICARGUMENT();
+FINIDYNAMICARGUMENTSYSTEM();
+PRINTDYNAMICARGUMENTLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

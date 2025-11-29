@@ -1,0 +1,403 @@
+
+/*! stack-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/stack-system.hold"
+#include "../../headers/functions/copy-memory-function.hold"
+
+INITSTACKSYSTEM(){
+	if(!stackSystem){
+		ret false;
+	}
+	initMutexSystem(&(*stackSystem).mutexSystem);
+	(*stackSystem).memoryManagementSystem = NULL;
+	(*stackSystem).printSystem = NULL;
+	(*stackSystem).elementStart = NULL;
+	(*stackSystem).elementToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*stackSystem).elementSize = 0;
+	(*stackSystem).elementAllocated = 0;
+	(*stackSystem).elementBlockSize = 0;
+	(*stackSystem).elementWidth = 0;
+	(*stackSystem).operation = NONE_STACK_OPERATION;
+	(*stackSystem).code = NONE_STACK_CODE;
+	(*stackSystem).multithreaded = false;
+	ret true;
+}
+SETSTACKMEMORYMANAGEMENTSYSTEM(){
+	uint8 code;
+	if(!stackSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*stackSystem).memoryManagementSystem){
+		code = NOTHING_DONE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	if(memoryManagementSystem){
+		(*stackSystem).elementToken = insertMemoryManagementPointer(memoryManagementSystem, (*stackSystem).elementStart, "StackSystem setStackMemoryManagementSystem() element pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*stackSystem).memoryManagementSystem, (*stackSystem).elementToken);
+	}
+	(*stackSystem).memoryManagementSystem = memoryManagementSystem;
+	code = SUCCESS_STACK_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*stackSystem).operation = SET_STACK_MEMORY_MANAGEMENT_SYSTEM_STACK_OPERATION;
+		(*stackSystem).code = code;
+		unlockMutex(&(*stackSystem).mutexSystem);
+		if(code != SUCCESS_STACK_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETSTACKPRINTSYSTEM(){
+	uint8 code;
+	if(!stackSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	if(printSystem == (*stackSystem).printSystem){
+		code = NOTHING_DONE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	(*stackSystem).printSystem = printSystem;
+	code = SUCCESS_STACK_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*stackSystem).operation = SET_STACK_PRINT_SYSTEM_STACK_OPERATION;
+		(*stackSystem).code = code;
+		unlockMutex(&(*stackSystem).mutexSystem);
+		if(code != SUCCESS_STACK_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETSTACKBLOCKSIZE(){
+	uint8 code;
+	if(!stackSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	if(blockSize == (*stackSystem).elementBlockSize){
+		code = NOTHING_DONE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	(*stackSystem).elementBlockSize = blockSize;
+	code = SUCCESS_STACK_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*stackSystem).operation = SET_STACK_BLOCK_SIZE_STACK_OPERATION;
+		(*stackSystem).code = code;
+		unlockMutex(&(*stackSystem).mutexSystem);
+		if(code != SUCCESS_STACK_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETSTACKELEMENTWIDTH(){
+	uint8 code;
+	if(!stackSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	if((*stackSystem).elementAllocated){
+		code = LOCKED_VARIABLE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	if(elementWidth == (*stackSystem).elementWidth){
+		code = NOTHING_DONE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	if((*stackSystem).elementStart){
+		free((*stackSystem).elementStart);
+		removeMemoryManagementPointer((*stackSystem).memoryManagementSystem, (*stackSystem).elementToken);
+		(*stackSystem).elementStart = NULL;
+		(*stackSystem).elementToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+		(*stackSystem).elementSize = 0;
+		(*stackSystem).elementAllocated = 0;
+	}
+	(*stackSystem).elementWidth = elementWidth;
+	code = SUCCESS_STACK_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*stackSystem).operation = SET_STACK_ELEMENT_WIDTH_STACK_OPERATION;
+		(*stackSystem).code = code;
+		unlockMutex(&(*stackSystem).mutexSystem);
+		if(code != SUCCESS_STACK_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETSTACKMULTITHREADING(){
+	uint8 code;
+	if(!stackSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*stackSystem).multithreaded){
+		code = NOTHING_DONE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*stackSystem).mutexSystem)){
+			code = FAILED_MUTEX_STACK_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyMutex(&(*stackSystem).mutexSystem)){
+			code = FAILED_MUTEX_STACK_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setMutexMultithreading(&(*stackSystem).mutexSystem, multithreaded);
+	(*stackSystem).multithreaded = multithreaded;
+	code = SUCCESS_STACK_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*stackSystem).operation = SET_STACK_MULTITHREADING_STACK_OPERATION;
+		(*stackSystem).code = code;
+		if(code != SUCCESS_STACK_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+PUSHSTACKELEMENT(){
+	uint elementWidth;
+	uint8 code;
+	if(!stackSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	if(!element){
+		code = BAD_INPUT_STACK_CODE;
+		jmp emergencyExit;
+	}
+	elementWidth = (*stackSystem).elementWidth;
+	if(!elementWidth){
+		code = UNSET_VALUE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	if((*stackSystem).elementAllocated == (*stackSystem).elementSize){
+		void *temp;
+		if(!(*stackSystem).elementBlockSize){
+			code = UNSET_VALUE_STACK_CODE;
+			jmp emergencyExit;
+		}
+		(*stackSystem).elementSize += (*stackSystem).elementBlockSize;
+		temp = realloc((*stackSystem).elementStart, (*stackSystem).elementSize * elementWidth);
+		if(!(*stackSystem).elementToken){
+			(*stackSystem).elementToken = insertMemoryManagementPointer((*stackSystem).memoryManagementSystem, temp, "StackSystem pushStackElement() element pointer", &memoryManagementFree);
+		}else{
+			updateMemoryManagementPointer((*stackSystem).memoryManagementSystem, (*stackSystem).elementToken, temp);
+		}
+		if(!temp){
+			(*stackSystem).elementSize -= (*stackSystem).elementBlockSize;
+			code = FAILED_ALLOCATION_STACK_CODE;
+			jmp emergencyExit;
+		}
+		(*stackSystem).elementStart = temp;
+	}
+	copyMemory(element, (uint8 *)(*stackSystem).elementStart + (*stackSystem).elementAllocated * elementWidth, elementWidth);
+	inc (*stackSystem).elementAllocated;
+	code = SUCCESS_STACK_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*stackSystem).operation = PUSH_STACK_ELEMENT_STACK_OPERATION;
+		(*stackSystem).code = code;
+		unlockMutex(&(*stackSystem).mutexSystem);
+		if(code != SUCCESS_STACK_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+POPSTACKELEMENT(){
+	uint8 code;
+	if(!stackSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	if(!element){
+		code = BAD_INPUT_STACK_CODE;
+		jmp emergencyExit;
+	}
+	if(!(*stackSystem).elementAllocated){
+		code = NOTHING_DONE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	dec (*stackSystem).elementAllocated;
+	copyMemory((uint8 *)(*stackSystem).elementStart + (*stackSystem).elementAllocated * (*stackSystem).elementWidth, element, (*stackSystem).elementWidth);
+	code = SUCCESS_STACK_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*stackSystem).operation = POP_STACK_ELEMENT_STACK_OPERATION;
+		(*stackSystem).code = code;
+		unlockMutex(&(*stackSystem).mutexSystem);
+		if(code != SUCCESS_STACK_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+REMOVEALLSTACKELEMENTS(){
+	uint8 code;
+	if(!stackSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	if(!(*stackSystem).elementStart){
+		code = NOTHING_DONE_STACK_CODE;
+		jmp emergencyExit;
+	}
+	free((*stackSystem).elementStart);
+	removeMemoryManagementPointer((*stackSystem).memoryManagementSystem, (*stackSystem).elementToken);
+	(*stackSystem).elementStart = NULL;
+	(*stackSystem).elementToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*stackSystem).elementSize = 0;
+	(*stackSystem).elementAllocated = 0;
+	code = SUCCESS_STACK_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*stackSystem).operation = REMOVE_ALL_STACK_ELEMENTS_STACK_OPERATION;
+		(*stackSystem).code = code;
+		unlockMutex(&(*stackSystem).mutexSystem);
+		if(code != SUCCESS_STACK_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+FINISTACKSYSTEM(){
+	if(!stackSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	(*stackSystem).multithreaded = false;
+	(*stackSystem).elementWidth = 0;
+	(*stackSystem).elementBlockSize = 0;
+	removeAllStackElements(stackSystem);
+	(*stackSystem).code = NONE_STACK_CODE;
+	(*stackSystem).operation = NONE_STACK_OPERATION;
+	(*stackSystem).printSystem = NULL;
+	(*stackSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+PRINTSTACKLOG(){
+	const char *operation;
+	const char *code;
+	PrintSystem *printSystem;
+	bool success;
+	if(!stackSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*stackSystem).mutexSystem)){
+		ret false;
+	}
+	printSystem = (*stackSystem).printSystem;
+	success = false;
+	if(!printSystem){
+		jmp emergencyExit;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		jmp emergencyExit;
+	}
+	switch((*stackSystem).operation){
+		to NONE_STACK_OPERATION: /*-------------------------------*/ operation = NULL; /*-----------------------------*/ brk;
+		to SET_STACK_MEMORY_MANAGEMENT_SYSTEM_STACK_OPERATION: /*-*/ operation = "setStackMemoryManagementSystem"; /*-*/ brk;
+		to SET_STACK_PRINT_SYSTEM_STACK_OPERATION: /*-------------*/ operation = "setStackPrintSystem"; /*------------*/ brk;
+		to SET_STACK_BLOCK_SIZE_STACK_OPERATION: /*---------------*/ operation = "setStackBlockSize"; /*--------------*/ brk;
+		to SET_STACK_ELEMENT_WIDTH_STACK_OPERATION: /*------------*/ operation = "setStackElementWidth"; /*-----------*/ brk;
+		to SET_STACK_MULTITHREADING_STACK_OPERATION: /*-----------*/ operation = "setStackMultithreading"; /*---------*/ brk;
+		to PUSH_STACK_ELEMENT_STACK_OPERATION: /*-----------------*/ operation = "pushStackElement"; /*---------------*/ brk;
+		to POP_STACK_ELEMENT_STACK_OPERATION: /*------------------*/ operation = "popStackElement"; /*----------------*/ brk;
+		to REMOVE_ALL_STACK_ELEMENTS_STACK_OPERATION: /*----------*/ operation = "removeAllStackElements"; /*---------*/ brk;
+		off: /*---------------------------------------------------*/ operation = "<operation>"; /*--------------------*/ brk;
+	}
+	switch((*stackSystem).code){
+		to NONE_STACK_CODE: /*------------------------------------*/ code = NULL; /*----------------------------------*/ brk;
+		to SUCCESS_STACK_CODE: /*---------------------------------*/ code = "success"; /*-----------------------------*/ brk;
+		to NOTHING_DONE_STACK_CODE: /*----------------------------*/ code = "nothing done"; /*------------------------*/ brk;
+		to BAD_INPUT_STACK_CODE: /*-------------------------------*/ code = "bad input"; /*---------------------------*/ brk;
+		to UNSET_VALUE_STACK_CODE: /*-----------------------------*/ code = "unset value"; /*-------------------------*/ brk;
+		to LOCKED_VARIABLE_STACK_CODE: /*-------------------------*/ code = "locked variable"; /*---------------------*/ brk;
+		to FAILED_ALLOCATION_STACK_CODE: /*-----------------------*/ code = "failed allocation"; /*-------------------*/ brk;
+		to FAILED_MUTEX_STACK_CODE: /*----------------------------*/ code = "failed mutex"; /*------------------------*/ brk;
+		off: /*---------------------------------------------------*/ code = "<code>"; /*------------------------------*/ brk;
+	}
+	if(operation and code){
+		if((*stackSystem).code == SUCCESS_STACK_CODE){
+			if(printUnlockedOutput(printSystem, "%s%s: [%ssuccess%s%s] stack system:%s %s() reported \"%s\"\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorEvent, (*printSystem).outputColorEnd, (*printSystem).outputColorStart, (*printSystem).outputColorEnd, operation, code)){
+				success = true;
+			}
+		}else{
+			if(printUnlockedError(printSystem, "%s%s: [%sfailure%s%s] stack system:%s %s() reported \"%s\"\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, (*printSystem).errorColorEnd, (*printSystem).errorColorStart, (*printSystem).errorColorEnd, operation, code)){
+				success = true;
+			}
+		}
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	jmp emergencyExit;
+	emergencyExit:{
+		unlockMutex(&(*stackSystem).mutexSystem);
+		if(!success){
+			ret false;
+		}
+		ret true;
+	}
+}
+

@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! find-substring-function.cold
 
 MIT License
 
@@ -21,11 +21,44 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stddef.h>
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/functions/compare-memory-function.hold"
+#include "../../headers/functions/find-substring-function.hold"
+
+FINDSUBSTRING(){
+	const char *stringCurrent;
+	const char *stringWall;
+	char firstByte;
+	uint64 currentFind;
+	if(!string or !stringSize or !substring or !substringSize or substringSize > stringSize or !which or which * substringSize > stringSize){
+		ret NULL;
+	}
+	stringCurrent = string;
+	stringWall = stringCurrent + stringSize - substringSize + 1;
+	firstByte = *substring;
+	currentFind = 1;
+	jmp findSubstringLoop;
+	findSubstringLoop:{
+		if(stringCurrent < stringWall){
+			if(*stringCurrent == firstByte){
+				if(compareMemory(stringCurrent, substring, substringSize)){
+					if(currentFind == which){
+						ret (void *)stringCurrent;
+					}
+					inc currentFind;
+					stringCurrent += substringSize;
+					jmp findSubstringLoop;
+				}
+			}
+			inc stringCurrent;
+			jmp findSubstringLoop;
+		}
+		ret NULL;
+	}
+}
 

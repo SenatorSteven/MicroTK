@@ -1,0 +1,1327 @@
+
+/*! connection-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <xcb/composite.h>
+#include <xcb/damage.h>
+#include <xcb/randr.h>
+#include <xcb/render.h>
+#include <xcb/shape.h>
+#include <xcb/xfixes.h>
+#include <xcb/xinput.h>
+#include <xcb/xkb.h>
+#include <xcb/xtest.h>
+#include <X11/Xlib.h>
+#include <X11/Xlib-xcb.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/connection-system.hold"
+
+#define DEFAULTX11ERRORHANDLER() /*------------*/ local int                defaultX11ErrorHandler(Display *const display, XErrorEvent *const errorEvent)
+#define DEFAULTX11INPUTOUTPUTERRORHANDLER() /*-*/ local int                defaultX11InputOutputErrorHandler(Display *const display)
+#define COMPOSITEQUERYVERSIONUNCHECKED() /*----*/ local xcb_void_cookie_t  compositeQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+#define DAMAGEQUERYVERSIONUNCHECKED() /*-------*/ local xcb_void_cookie_t  damageQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+#define INPUTQUERYVERSIONUNCHECKED() /*--------*/ local xcb_void_cookie_t  inputQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+#define RANDRQUERYVERSIONUNCHECKED() /*--------*/ local xcb_void_cookie_t  randrQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+#define RENDERQUERYVERSIONUNCHECKED() /*-------*/ local xcb_void_cookie_t  renderQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+#define SHAPEQUERYVERSIONUNCHECKED() /*--------*/ local xcb_void_cookie_t  shapeQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+#define TESTQUERYVERSIONUNCHECKED() /*---------*/ local xcb_void_cookie_t  testQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+#define XFIXESQUERYVERSIONUNCHECKED() /*-------*/ local xcb_void_cookie_t  xfixesQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+#define XKBQUERYVERSIONUNCHECKED() /*----------*/ local xcb_void_cookie_t  xkbQueryVersionUnchecked(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion)
+
+const char *const /*-*/ baseEventName[] = {"error", "unrecognized", "key press", "key release", "button press", "button release", "motion notify", "enter notify", "leave notify", "focus in", "focus out", "keymap notify", "expose", "graphics expose", "no expose", "visibility notify", "create notify", "destroy notify", "unmap notify", "map notify", "map request", "reparent notify", "configure notify", "configure request", "gravity notify", "resize request", "circulate notify", "circulate request", "property notify", "selection clear", "selection request", "selection notify", "colormap notify", "client message", "mapping notify", "generic", "unrecognized"};
+const char *const /*-*/ baseErrorName[] = {"unrecognized", "request", "value", "window", "pixmap", "atom", "cursor", "font", "match", "drawable", "access", "allocation", "colormap", "graphics context", "id choice", "name", "length", "implementation", "unrecognized"};
+const char *const /*-*/ baseOperationName[] = {"unrecognized", "create window", "change window attributes", "get window attributes", "destroy window", "destroy subwindows", "change save set", "reparent window", "map window", "map subwindows", "unmap window", "unmap subwindows", "configure window", "circulate window", "get geometry", "query tree", "intern atom", "get atom name", "change property", "delete property", "get property", "list properties", "set selection owner", "get selection owner", "convert selection", "send event", "grab pointer", "ungrab pointer", "grab button", "ungrab button", "change active pointer grab", "grab keyboard", "ungrab keyboard", "grab key", "ungrab key", "allow events", "grab server", "ungrab server", "query pointer", "get motion events", "translate coordinates", "warp pointer", "set input focus", "get input focus", "query keymap", "open font", "close font", "query font", "query text extents", "list fonts", "list fonts with info", "set font path", "get font path", "create pixmap", "free pixmap", "create graphics context", "change graphics context", "copy graphics context", "set dashes", "set clip rectangles", "free graphics context", "clear area", "copy area", "copy plane", "poly point", "poly line", "poly segment", "poly rectangle", "poly arc", "fill poly", "poly fill rectangle", "poly fill arc", "put image", "get image", "poly text (8)", "poly text (16)", "image text (8)", "image text (16)", "create colormap", "free colormap", "copy colormap and free", "install colormap", "uninstall colormap", "list installed colormaps", "allocate color", "allocate named color", "allocate color cells", "allocate color planes", "free colors", "store colors", "store named color", "query colors", "lookup color", "create cursor", "create glyph cursor", "free cursor", "recolor cursor", "query best size", "query extension", "list extensions", "change keyboard mapping", "get keyboard mapping", "change keyboard control", "get keyboard control", "bell", "change pointer control", "get pointer control", "set screen saver", "get screen saver", "change hosts", "list hosts", "set access control", "set close down mode", "kill client", "rotate properties", "force screen saver", "set pointer mapping", "get pointer mapping", "set modifier mapping", "get modifier mapping", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "no", "unrecognized"};
+const char *const /*-*/ compositeEventName[] = {"unrecognized"};
+const char *const /*-*/ compositeErrorName[] = {"unrecognized"};
+const char *const /*-*/ compositeOperationName[] = {"query version", "redirect window", "redirect subwindows", "unredirect window", "unredirect subwindows", "create region from border clip", "name window pixmap", "get overlay window", "release overlay window", "unrecognized"};
+const char *const /*-*/ damageEventName[] = {"notify", "unrecognized"};
+const char *const /*-*/ damageErrorName[] = {"bad damage", "unrecognized"};
+const char *const /*-*/ damageOperationName[] = {"query version", "create", "destroy", "subtract", "add", "unrecognized"};
+const char *const /*-*/ inputEventName[] = {"unrecognized", "device changed", "key press", "key release", "button press", "button release", "motion", "enter", "leave", "focus in", "focus out", "hierarchy", "property", "raw key press", "raw key release", "raw button press", "raw button release", "raw motion", "touch begin", "touch update", "touch end", "touch ownership", "raw touch begin", "raw touch update", "raw touch end", "barrier hit", "barrier leave", "gesture pinch begin", "gesture pinch update", "gesture pinch end", "gesture swipe begin", "gesture swipe update", "gesture swipe end", "unrecognized"};
+const char *const /*-*/ inputErrorName[] = {"device", "event", "mode", "device_busy", "class", "unrecognized"};
+const char *const /*-*/ inputOperationName[] = {"unrecognized", "get extension version", "list input devices", "open device", "close device", "set device mode", "select extension event", "get selected extension events", "change device dont propagate list", "get device dont propagate list", "get device motion events", "change keyboard device", "change pointer device", "grab device", "ungrab device", "grab device key", "ungrab device key", "grab device button", "ungrab device button", "allow device events", "get device focus", "set device focus", "get feedback control", "change feedback control", "get device key mapping", "change device key mapping", "get device modifier mapping", "set device modifier mapping", "get device button mapping", "set device button mapping", "query device state", "send extension event", "device bell", "set device valuators", "get device control", "change device control", "list device properties", "change device property", "delete device property", "get device property", "xi query pointer", "xi warp pointer", "xi change cursor", "xi change hierarchy", "xi set client pointer", "xi get client pointer", "xi select events", "xi query version", "xi query device", "xi set focus", "xi get focus", "xi grab device", "xi ungrab device", "xi allow events", "xi passive grab device", "xi passive ungrab device", "xi list properties", "xi change property", "xi delete property", "xi get property", "xi get selected events", "xi barrier release pointer", "unrecognized"};
+const char *const /*-*/ randrEventName[] = {"screen change notify", "notify", "unrecognized"};
+const char *const /*-*/ randrErrorName[] = {"bad output", "bad crtc", "bad mode", "bad provider", "unrecognized"};
+const char *const /*-*/ randrOperationName[] = {"query version", "unrecognized", "set screen config", "unrecognized", "select input", "get screen info", "get screen size range", "set screen size", "get screen resources", "get output info", "list output properties", "query output property", "configure output property", "change output property", "delete output property", "get output property", "create mode", "destroy mode", "add output mode", "delete output mode", "get crtc info", "set crtc config", "get crtc gamma size", "get crtc gamma", "set crtc gamma", "get screen resources current", "set crtc transform", "get crtc transform", "get panning", "set panning", "set output primary", "get output primary", "get providers", "get provider info", "set provider offload sink", "set provider output source", "list provider properties", "query provider property", "configure provider property", "change provider property", "delete provider property", "get provider property", "get monitors", "set monitor", "delete monitor", "create lease", "free lease", "unrecognized"};
+const char *const /*-*/ renderEventName[] = {"unrecognized"};
+const char *const /*-*/ renderErrorName[] = {"bad pict format", "bad picture", "bad pict op", "bad glyph set", "bad glyph", "unrecognized"};
+const char *const /*-*/ renderOperationName[] = {"query version", "query pict formats", "query pict index values", "unrecognized", "create picture", "change picture", "set picture clip rectangles", "free picture", "composite", "unrecognized", "trapezoids", "triangles", "tri strip", "tri fan", "unrecognized", "unrecognized", "unrecognized", "create glyph set", "reference glyph set", "free glyph set", "add glyphs", "unrecognized", "free glyphs", "composite glyphs 8", "composite glyphs 16", "composite glyphs 32", "fill rectangles", "create cursor", "set picture transform", "query filters", "set picture filter", "create anim cursor", "add traps", "create solid fill", "create linear gradient", "create radial gradient", "create conical gradient", "unrecognized"};
+const char *const /*-*/ shapeEventName[] = {"notify", "unrecognized"};
+const char *const /*-*/ shapeErrorName[] = {"unrecognized"};
+const char *const /*-*/ shapeOperationName[] = {"query version", "rectangles", "mask", "combine", "offset", "query extents", "select input", "input selected", "get rectangles", "unrecognized"};
+const char *const /*-*/ testEventName[] = {"unrecognized"};
+const char *const /*-*/ testErrorName[] = {"unrecognized"};
+const char *const /*-*/ testOperationName[] = {"get version", "compare cursor", "fake input", "grab control", "unrecognized"};
+const char *const /*-*/ xfixesEventName[] = {"selection notify", "cursor notify", "unrecognized"};
+const char *const /*-*/ xfixesErrorName[] = {"bad region", "unrecognized"};
+const char *const /*-*/ xfixesOperationName[] = {"query version", "change save set", "select selection input", "select cursor input", "get cursor image", "create region", "create region from bitmap", "create region from window", "create region from graphics context", "create region from picture", "destroy region", "set region", "copy region", "union region", "intersect region", "subtract region", "invert region", "translate region", "region extents", "fetch region", "set graphics context clip region", "set window shape region", "set picture clip region", "set cursor name", "get cursor name", "get cursor image and name", "change cursor", "change cursor by name", "expand region", "hide cursor", "show cursor", "create pointer barrier", "delete pointer barrier", "set client disconnect mode", "get client disconnect mode", "unrecognized"};
+const char *const /*-*/ xkbEventName[] = {"new keyboard notify", "map notify", "state notify", "controls notify", "indicator state notify", "indicator map notify", "names notify", "compat map notify", "bell notify", "action message", "access x notify", "extension device notify", "unrecognized"};
+const char *const /*-*/ xkbErrorName[] = {"keyboard", "unrecognized"};
+const char *const /*-*/ xkbOperationName[] = {"use extension", "select events", "unrecognized", "bell", "get state", "latch lock state", "get controls", "set controls", "get map", "set map", "get compat map", "set compat map", "get indicator state", "get indicator map", "set indicator map", "get named indicator", "set named indicator", "get names", "set names", "unrecognized", "unrecognized", "per client flags", "list components", "get kbd by name", "get device info", "set device info", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "unrecognized", "set debugging flags", "unrecognized"};
+
+DEFAULTX11ERRORHANDLER();
+DEFAULTX11INPUTOUTPUTERRORHANDLER();
+COMPOSITEQUERYVERSIONUNCHECKED();
+DAMAGEQUERYVERSIONUNCHECKED();
+INPUTQUERYVERSIONUNCHECKED();
+RANDRQUERYVERSIONUNCHECKED();
+RENDERQUERYVERSIONUNCHECKED();
+SHAPEQUERYVERSIONUNCHECKED();
+TESTQUERYVERSIONUNCHECKED();
+XFIXESQUERYVERSIONUNCHECKED();
+XKBQUERYVERSIONUNCHECKED();
+
+INITCONNECTIONSYSTEM(){
+	if(!connectionSystem){
+		ret false;
+	}
+	initLockSystem(&(*connectionSystem).lockSystem);
+	(*connectionSystem).memoryManagementSystem = NULL;
+	(*connectionSystem).printSystem = NULL;
+	(*connectionSystem).connectionName = "";
+	(*connectionSystem).display = NULL;
+	(*connectionSystem).connection = NULL;
+	(*connectionSystem).displayToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*connectionSystem).rootWindow = XCB_NONE;
+	(*connectionSystem).widthInPixels = 0;
+	(*connectionSystem).heightInPixels = 0;
+	(*connectionSystem).widthInMillimeters = 0;
+	(*connectionSystem).heightInMillimeters = 0;
+	(*connectionSystem).rootDepth = 0;
+	(*connectionSystem).rootVisual = XCB_NONE;
+	(*connectionSystem).rootColormap = XCB_NONE;
+	(*connectionSystem).compositeMajorOpcode = 0;
+	(*connectionSystem).compositeBaseEvent = 0;
+	(*connectionSystem).compositeBaseError = 0;
+	(*connectionSystem).damageMajorOpcode = 0;
+	(*connectionSystem).damageBaseEvent = 0;
+	(*connectionSystem).damageBaseError = 0;
+	(*connectionSystem).inputMajorOpcode = 0;
+	(*connectionSystem).inputBaseEvent = 0;
+	(*connectionSystem).inputBaseError = 0;
+	(*connectionSystem).randrMajorOpcode = 0;
+	(*connectionSystem).randrBaseEvent = 0;
+	(*connectionSystem).randrBaseError = 0;
+	(*connectionSystem).renderMajorOpcode = 0;
+	(*connectionSystem).renderBaseEvent = 0;
+	(*connectionSystem).renderBaseError = 0;
+	(*connectionSystem).shapeMajorOpcode = 0;
+	(*connectionSystem).shapeBaseEvent = 0;
+	(*connectionSystem).shapeBaseError = 0;
+	(*connectionSystem).testMajorOpcode = 0;
+	(*connectionSystem).testBaseEvent = 0;
+	(*connectionSystem).testBaseError = 0;
+	(*connectionSystem).xfixesMajorOpcode = 0;
+	(*connectionSystem).xfixesBaseEvent = 0;
+	(*connectionSystem).xfixesBaseError = 0;
+	(*connectionSystem).xkbMajorOpcode = 0;
+	(*connectionSystem).xkbBaseEvent = 0;
+	(*connectionSystem).xkbBaseError = 0;
+	(*connectionSystem).loadedExtension = NONE_EXTENSION;
+	(*connectionSystem).operation = NONE_CONNECTION_OPERATION;
+	(*connectionSystem).code = NONE_CONNECTION_CODE;
+	(*connectionSystem).multithreaded = false;
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SETCONNECTIONMEMORYMANAGEMENTSYSTEM(){
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*connectionSystem).memoryManagementSystem){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	if(memoryManagementSystem){
+		(*connectionSystem).displayToken = insertMemoryManagementPointer(memoryManagementSystem, (*connectionSystem).display, "X connection", &memoryManagementXCloseDisplay);
+	}else{
+		removeMemoryManagementPointer((*connectionSystem).memoryManagementSystem, (*connectionSystem).displayToken);
+	}
+	(*connectionSystem).memoryManagementSystem = memoryManagementSystem;
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+SETCONNECTIONPRINTSYSTEM(){
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(printSystem == (*connectionSystem).printSystem){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	(*connectionSystem).printSystem = printSystem;
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+SETCONNECTIONMULTITHREADING(){
+	if(!connectionSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*connectionSystem).multithreaded){
+		ret false;
+	}
+	if(multithreaded){
+		if(!createLock(&(*connectionSystem).lockSystem)){
+			ret false;
+		}
+	}else{
+		if(!destroyLock(&(*connectionSystem).lockSystem)){
+			ret false;
+		}
+	}
+	setLockMultithreading(&(*connectionSystem).lockSystem, multithreaded);
+	(*connectionSystem).multithreaded = multithreaded;
+	ret true;
+}
+OPENCONNECTION(){
+	xcb_screen_t *screen;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	if(!connectionName){
+		connectionName = "";
+	}
+	(*connectionSystem).display = XOpenDisplay(connectionName);
+	(*connectionSystem).displayToken = insertMemoryManagementPointer((*connectionSystem).memoryManagementSystem, (*connectionSystem).display, "X connection", &memoryManagementXCloseDisplay);
+	if(!(*connectionSystem).display){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	(*connectionSystem).connectionName = connectionName;
+	(*connectionSystem).connection = XGetXCBConnection((*connectionSystem).display);
+	screen = xcb_setup_roots_iterator(xcb_get_setup((*connectionSystem).connection)).data + XDefaultScreen((*connectionSystem).display);
+	if(screen){
+		(*connectionSystem).rootWindow = (*screen).root;
+		(*connectionSystem).widthInPixels = (*screen).width_in_pixels;
+		(*connectionSystem).heightInPixels = (*screen).height_in_pixels;
+		(*connectionSystem).widthInMillimeters = (*screen).width_in_millimeters;
+		(*connectionSystem).heightInMillimeters = (*screen).height_in_millimeters;
+		(*connectionSystem).rootDepth = (*screen).root_depth;
+		(*connectionSystem).rootVisual = (*screen).root_visual;
+		(*connectionSystem).rootColormap = (*screen).default_colormap;
+	}else{
+		(*connectionSystem).rootWindow = XCB_NONE;
+		(*connectionSystem).widthInPixels = 0;
+		(*connectionSystem).heightInPixels = 0;
+		(*connectionSystem).widthInMillimeters = 0;
+		(*connectionSystem).heightInMillimeters = 0;
+		(*connectionSystem).rootDepth = 24;
+		(*connectionSystem).rootVisual = XCB_NONE;
+		(*connectionSystem).rootColormap = XCB_NONE;
+	}
+    XSetErrorHandler(&defaultX11ErrorHandler);
+    XSetIOErrorHandler(&defaultX11InputOutputErrorHandler);
+	XSetEventQueueOwner((*connectionSystem).display, XCBOwnsEventQueue);
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+DEFAULTX11ERRORHANDLER(){
+	(void)display;
+	(void)errorEvent;
+    ret 0;
+}
+DEFAULTX11INPUTOUTPUTERRORHANDLER(){
+	(void)display;
+    ret 0;
+}
+LOADCONNECTIONEXTENSIONS(){
+	#define setExtension(connection, uppercaseName, extensionName, lowercaseName, function, extensionData) /*-*/ { \
+		(*extensionData).majorVersion = XCB_##uppercaseName##_MAJOR_VERSION; \
+		(*extensionData).minorVersion = XCB_##uppercaseName##_MINOR_VERSION; \
+		(*extensionData).extensionCookie = xcb_query_extension(connection, lengthof(extensionName), extensionName); \
+		(*extensionData).versionFunction = function; \
+		(*extensionData).majorOpcode = lowercaseName##MajorOpcode; \
+		(*extensionData).baseEvent = lowercaseName##BaseEvent; \
+		(*extensionData).baseError = lowercaseName##BaseError; \
+		(*extensionData).extension = uppercaseName##_EXTENSION; \
+	}
+	def struct{
+		uint32 /*-----------------------*/ majorVersion;
+		uint32 /*-----------------------*/ minorVersion;
+		xcb_query_extension_cookie_t /*-*/ extensionCookie;
+		xcb_void_cookie_t /*------------*/ versionCookie;
+		xcb_void_cookie_t /*------------*/ (*versionFunction)(xcb_connection_t *const connection, const uint32 majorVersion, const uint32 minorVersion);
+		uint8 * /*----------------------*/ majorOpcode;
+		uint8 * /*----------------------*/ baseEvent;
+		uint8 * /*----------------------*/ baseError;
+		uint16 /*-----------------------*/ extension;
+		uint8 /*------------------------*/ pad0[6];
+	} ExtensionData;
+	MemoryManagementSystem *memoryManagementSystem;
+	xcb_connection_t *connection;
+	ExtensionData extensionDataStart[X_EXTENSION_AMOUNT];
+	ExtensionData *extensionDataCurrent;
+	ExtensionData *extensionDataWall;
+	uint16 loadedExtension;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !extension){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret NONE_EXTENSION;
+	}
+	memoryManagementSystem = (*connectionSystem).memoryManagementSystem;
+	connection = (*connectionSystem).connection;
+	extensionDataCurrent = extensionDataStart;
+	loadedExtension = NONE_EXTENSION;
+	jmp storeExtensions;
+	storeExtensions:{
+		if(extension & COMPOSITE_EXTENSION){
+			setExtension(connection, COMPOSITE, "Composite", &(*connectionSystem).composite, &compositeQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		if(extension & DAMAGE_EXTENSION){
+			setExtension(connection, DAMAGE, "DAMAGE", &(*connectionSystem).damage, &damageQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		if(extension & INPUT_EXTENSION){
+			setExtension(connection, INPUT, "XInputExtension", &(*connectionSystem).input, &inputQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		if(extension & RANDR_EXTENSION){
+			setExtension(connection, RANDR, "RANDR", &(*connectionSystem).randr, &randrQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		if(extension & RENDER_EXTENSION){
+			setExtension(connection, RENDER, "RENDER", &(*connectionSystem).render, &renderQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		if(extension & SHAPE_EXTENSION){
+			setExtension(connection, SHAPE, "SHAPE", &(*connectionSystem).shape, &shapeQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		if(extension & TEST_EXTENSION){
+			setExtension(connection, TEST, "XTEST", &(*connectionSystem).test, &testQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		if(extension & XFIXES_EXTENSION){
+			setExtension(connection, XFIXES, "XFIXES", &(*connectionSystem).xfixes, &xfixesQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		if(extension & XKB_EXTENSION){
+			setExtension(connection, XKB, "XKEYBOARD", &(*connectionSystem).xkb, &xkbQueryVersionUnchecked, extensionDataCurrent);
+			inc extensionDataCurrent;
+		}
+		extensionDataWall = extensionDataCurrent;
+		extensionDataCurrent = extensionDataStart;
+		jmp queryExtensionReplyLoop;
+	}
+	queryExtensionReplyLoop:{
+		if(extensionDataCurrent < extensionDataWall){
+			xcb_query_extension_reply_t *const reply = xcb_wait_for_reply(connection, (*extensionDataCurrent).extensionCookie, NULL);
+			uint32 token = insertMemoryManagementPointer(memoryManagementSystem, reply, "query extension reply", &memoryManagementFree);
+			if(!reply or !(*reply).present){
+				(*extensionDataCurrent).versionCookie.sequence = XCB_NONE;
+				*(*extensionDataCurrent).majorOpcode = 0;
+				*(*extensionDataCurrent).baseEvent = 0;
+				*(*extensionDataCurrent).baseError = 0;
+			}else{
+				(*extensionDataCurrent).versionCookie = (*(*extensionDataCurrent).versionFunction)(connection, (*extensionDataCurrent).majorVersion, (*extensionDataCurrent).minorVersion);
+				*(*extensionDataCurrent).majorOpcode = (*reply).major_opcode;
+				*(*extensionDataCurrent).baseEvent = (*reply).first_event;
+				*(*extensionDataCurrent).baseError = (*reply).first_error;
+			}
+			free(reply);
+			removeMemoryManagementPointer(memoryManagementSystem, token);
+			inc extensionDataCurrent;
+			jmp queryExtensionReplyLoop;
+		}
+		extensionDataCurrent = extensionDataStart;
+		jmp queryExtensionVersionReplyLoop;
+	}
+	queryExtensionVersionReplyLoop:{
+		if(extensionDataCurrent < extensionDataWall){
+			if((*extensionDataCurrent).versionCookie.sequence){
+				void *const reply = xcb_wait_for_reply(connection, (*extensionDataCurrent).versionCookie, NULL);
+				uint32 token = insertMemoryManagementPointer(memoryManagementSystem, reply, "query extension version reply", &memoryManagementFree);
+				if(reply){
+					if((*extensionDataCurrent).extension != XKB_EXTENSION or (*(xcb_xkb_use_extension_reply_t *)reply).supported){
+						loadedExtension |= (*extensionDataCurrent).extension;
+					}
+					free(reply);
+					removeMemoryManagementPointer(memoryManagementSystem, token);
+				}
+			}
+			inc extensionDataCurrent;
+			jmp queryExtensionVersionReplyLoop;
+		}
+		xcb_flush(connection);
+		(*connectionSystem).loadedExtension = loadedExtension;
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret loadedExtension;
+	}
+	#undef  setExtension
+}
+COMPOSITEQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	cookie.sequence = xcb_composite_query_version_unchecked(connection, majorVersion, minorVersion).sequence;
+	ret cookie;
+}
+DAMAGEQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	cookie.sequence = xcb_damage_query_version_unchecked(connection, majorVersion, minorVersion).sequence;
+	ret cookie;
+}
+INPUTQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	cookie.sequence = xcb_input_xi_query_version_unchecked(connection, majorVersion, minorVersion).sequence;
+	ret cookie;
+}
+RANDRQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	cookie.sequence = xcb_randr_query_version_unchecked(connection, majorVersion, minorVersion).sequence;
+	ret cookie;
+}
+RENDERQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	cookie.sequence = xcb_render_query_version_unchecked(connection, majorVersion, minorVersion).sequence;
+	ret cookie;
+}
+SHAPEQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	(void)majorVersion;
+	(void)minorVersion;
+	cookie.sequence = xcb_shape_query_version_unchecked(connection).sequence;
+	ret cookie;
+}
+TESTQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	cookie.sequence = xcb_test_get_version_unchecked(connection, majorVersion, minorVersion).sequence;
+	ret cookie;
+}
+XFIXESQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	cookie.sequence = xcb_xfixes_query_version_unchecked(connection, majorVersion, minorVersion).sequence;
+	ret cookie;
+}
+XKBQUERYVERSIONUNCHECKED(){
+	xcb_void_cookie_t cookie;
+	cookie.sequence = xcb_xkb_use_extension(connection, majorVersion, minorVersion).sequence;
+	ret cookie;
+}
+RESIZECONNECTION(){
+	int screenNumber;
+	xcb_connection_t *connection;
+	uint32 token;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	connection = xcb_connect_to_display_with_auth_info((*connectionSystem).connectionName, NULL, &screenNumber);
+	token = insertMemoryManagementPointer((*connectionSystem).memoryManagementSystem, connection, "X connection", &memoryManagementXCBDisconnect);
+	if(connection){
+		if(!xcb_connection_has_error(connection)){
+			xcb_screen_t *const screen = xcb_setup_roots_iterator(xcb_get_setup(connection)).data + screenNumber;
+			if(screen){
+				(*connectionSystem).rootWindow = (*screen).root;
+				(*connectionSystem).widthInPixels = (*screen).width_in_pixels;
+				(*connectionSystem).heightInPixels = (*screen).height_in_pixels;
+				(*connectionSystem).widthInMillimeters = (*screen).width_in_millimeters;
+				(*connectionSystem).heightInMillimeters = (*screen).height_in_millimeters;
+				(*connectionSystem).rootDepth = (*screen).root_depth;
+				(*connectionSystem).rootVisual = (*screen).root_visual;
+				(*connectionSystem).rootColormap = (*screen).default_colormap;
+			}else{
+				(*connectionSystem).rootWindow = XCB_NONE;
+				(*connectionSystem).widthInPixels = 0;
+				(*connectionSystem).heightInPixels = 0;
+				(*connectionSystem).widthInMillimeters = 0;
+				(*connectionSystem).heightInMillimeters = 0;
+				(*connectionSystem).rootDepth = 24;
+				(*connectionSystem).rootVisual = XCB_NONE;
+				(*connectionSystem).rootColormap = XCB_NONE;
+			}
+		}
+		xcb_disconnect(connection);
+		removeMemoryManagementPointer((*connectionSystem).memoryManagementSystem, token);
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+CLOSECONNECTION(){
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	xcb_flush((*connectionSystem).connection);
+	XFlush((*connectionSystem).display);
+	XCloseDisplay((*connectionSystem).display);
+	removeMemoryManagementPointer((*connectionSystem).memoryManagementSystem, (*connectionSystem).displayToken);
+	(*connectionSystem).connectionName = "";
+	(*connectionSystem).display = NULL;
+	(*connectionSystem).connection = NULL;
+	(*connectionSystem).displayToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*connectionSystem).rootWindow = XCB_NONE;
+	(*connectionSystem).widthInPixels = 0;
+	(*connectionSystem).heightInPixels = 0;
+	(*connectionSystem).widthInMillimeters = 0;
+	(*connectionSystem).heightInMillimeters = 0;
+	(*connectionSystem).rootDepth = 0;
+	(*connectionSystem).rootVisual = XCB_NONE;
+	(*connectionSystem).rootColormap = XCB_NONE;
+	(*connectionSystem).compositeMajorOpcode = 0;
+	(*connectionSystem).compositeBaseEvent = 0;
+	(*connectionSystem).compositeBaseError = 0;
+	(*connectionSystem).damageMajorOpcode = 0;
+	(*connectionSystem).damageBaseEvent = 0;
+	(*connectionSystem).damageBaseError = 0;
+	(*connectionSystem).inputMajorOpcode = 0;
+	(*connectionSystem).inputBaseEvent = 0;
+	(*connectionSystem).inputBaseError = 0;
+	(*connectionSystem).randrMajorOpcode = 0;
+	(*connectionSystem).randrBaseEvent = 0;
+	(*connectionSystem).randrBaseError = 0;
+	(*connectionSystem).renderMajorOpcode = 0;
+	(*connectionSystem).renderBaseEvent = 0;
+	(*connectionSystem).renderBaseError = 0;
+	(*connectionSystem).shapeMajorOpcode = 0;
+	(*connectionSystem).shapeBaseEvent = 0;
+	(*connectionSystem).shapeBaseError = 0;
+	(*connectionSystem).testMajorOpcode = 0;
+	(*connectionSystem).testBaseEvent = 0;
+	(*connectionSystem).testBaseError = 0;
+	(*connectionSystem).xfixesMajorOpcode = 0;
+	(*connectionSystem).xfixesBaseEvent = 0;
+	(*connectionSystem).xfixesBaseError = 0;
+	(*connectionSystem).xkbMajorOpcode = 0;
+	(*connectionSystem).xkbBaseEvent = 0;
+	(*connectionSystem).xkbBaseError = 0;
+	(*connectionSystem).loadedExtension = NONE_EXTENSION;
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+CONNECTIONISOPEN(){
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!(*connectionSystem).display or !(*connectionSystem).connection or xcb_connection_has_error((*connectionSystem).connection)){
+		ret false;
+	}
+	ret true;
+}
+ISCONNECTIONEVENTCOMPOSITE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & COMPOSITE_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).compositeBaseEvent or responseType >= (*connectionSystem).compositeBaseEvent + countof(compositeEventName) - 1){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+ISCONNECTIONEVENTDAMAGE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & DAMAGE_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).damageBaseEvent or responseType >= (*connectionSystem).damageBaseEvent + countof(damageEventName) - 1){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+ISCONNECTIONEVENTINPUT(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & INPUT_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType != XCB_GE_GENERIC or (*(xcb_ge_generic_event_t *)event).extension != (*connectionSystem).inputMajorOpcode){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = *(uint16 *)((uint8 *)event + 8);
+	if(responseType >= countof(inputEventName) - 1){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+ISCONNECTIONEVENTRANDR(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & RANDR_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).randrBaseEvent or responseType >= (*connectionSystem).randrBaseEvent + countof(randrEventName) - 1){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+ISCONNECTIONEVENTRENDER(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & RENDER_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).renderBaseEvent or responseType >= (*connectionSystem).renderBaseEvent + countof(renderEventName) - 1){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+ISCONNECTIONEVENTSHAPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & SHAPE_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).shapeBaseEvent or responseType >= (*connectionSystem).shapeBaseEvent + countof(shapeEventName) - 1){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+ISCONNECTIONEVENTTEST(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & TEST_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).testBaseEvent or responseType >= (*connectionSystem).testBaseEvent + countof(testEventName) - 1){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+ISCONNECTIONEVENTXFIXES(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & XFIXES_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType != (*connectionSystem).xfixesBaseEvent){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+ISCONNECTIONEVENTXKB(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & XKB_EXTENSION) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType != (*connectionSystem).xkbBaseEvent){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+GETCONNECTIONCOMPOSITERESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(compositeEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(compositeEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & COMPOSITE_EXTENSION) or !event){
+		responseType = countof(compositeEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).compositeBaseEvent or responseType >= (*connectionSystem).compositeBaseEvent + countof(compositeEventName) - 1){
+		responseType = countof(compositeEventName) - 1;
+		jmp unlock;
+	}
+	responseType = responseType - (*connectionSystem).compositeBaseEvent;
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+GETCONNECTIONDAMAGERESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(damageEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(damageEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & DAMAGE_EXTENSION) or !event){
+		responseType = countof(damageEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).damageBaseEvent or responseType >= (*connectionSystem).damageBaseEvent + countof(damageEventName) - 1){
+		responseType = countof(damageEventName) - 1;
+		jmp unlock;
+	}
+	responseType = responseType - (*connectionSystem).damageBaseEvent;
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+GETCONNECTIONINPUTRESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(inputEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(inputEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & INPUT_EXTENSION) or !event){
+		responseType = countof(inputEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType != XCB_GE_GENERIC or (*(xcb_ge_generic_event_t *)event).extension != (*connectionSystem).inputMajorOpcode){
+		responseType = countof(inputEventName) - 1;
+		jmp unlock;
+	}
+	responseType = *(uint16 *)((uint8 *)event + 8);
+	if(responseType >= countof(inputEventName) - 1){
+		responseType = countof(inputEventName) - 1;
+		jmp unlock;
+	}
+	responseType = responseType - 0;
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+GETCONNECTIONRANDRRESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(randrEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(randrEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & RANDR_EXTENSION) or !event){
+		responseType = countof(randrEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).randrBaseEvent or responseType >= (*connectionSystem).randrBaseEvent + countof(randrEventName) - 1){
+		responseType = countof(randrEventName) - 1;
+		jmp unlock;
+	}
+	responseType = responseType - (*connectionSystem).randrBaseEvent;
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+GETCONNECTIONRENDERRESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(renderEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(renderEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & RENDER_EXTENSION) or !event){
+		responseType = countof(renderEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).renderBaseEvent or responseType >= (*connectionSystem).renderBaseEvent + countof(renderEventName) - 1){
+		responseType = countof(renderEventName) - 1;
+		jmp unlock;
+	}
+	responseType = responseType - (*connectionSystem).renderBaseEvent;
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+GETCONNECTIONSHAPERESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(shapeEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(shapeEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & SHAPE_EXTENSION) or !event){
+		responseType = countof(shapeEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).shapeBaseEvent or responseType >= (*connectionSystem).shapeBaseEvent + countof(shapeEventName) - 1){
+		responseType = countof(shapeEventName) - 1;
+		jmp unlock;
+	}
+	responseType = responseType - (*connectionSystem).shapeBaseEvent;
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+GETCONNECTIONTESTRESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(testEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(testEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & TEST_EXTENSION) or !event){
+		responseType = countof(testEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType < (*connectionSystem).testBaseEvent or responseType >= (*connectionSystem).testBaseEvent + countof(testEventName) - 1){
+		responseType = countof(testEventName) - 1;
+		jmp unlock;
+	}
+	responseType = responseType - (*connectionSystem).testBaseEvent;
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+GETCONNECTIONXFIXESRESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(xfixesEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(xfixesEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & XFIXES_EXTENSION) or !event){
+		responseType = countof(xfixesEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType != (*connectionSystem).xfixesBaseEvent){
+		responseType = countof(xfixesEventName) - 1;
+		jmp unlock;
+	}
+	responseType = *(uint8 *)((uint8 *)event + 1);
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+GETCONNECTIONXKBRESPONSETYPE(){
+	uint8 responseType;
+	if(!connectionSystem){
+		ret countof(xkbEventName) - 1;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret countof(xkbEventName) - 1;
+	}
+	if(!connectionIsOpen(connectionSystem) or !((*connectionSystem).loadedExtension & XKB_EXTENSION) or !event){
+		responseType = countof(xkbEventName) - 1;
+		jmp unlock;
+	}
+	responseType = (*event).response_type & b(01111111);
+	if(responseType != (*connectionSystem).xkbBaseEvent){
+		responseType = countof(xkbEventName) - 1;
+		jmp unlock;
+	}
+	responseType = *(uint8 *)((uint8 *)event + 1);
+	jmp unlock;
+	unlock:{
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret responseType;
+	}
+}
+FINDXEVENTNAME(){
+	const char *name;
+	uint8 responseType;
+	uint16 loadedExtension;
+	if(!connectionSystem){
+		ret "";
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret "";
+	}
+	if(!connectionIsOpen(connectionSystem) or !event){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret "";
+	}
+	responseType = (*event).response_type & b(01111111);
+	loadedExtension = (*connectionSystem).loadedExtension;
+	if(loadedExtension & INPUT_EXTENSION and responseType == XCB_GE_GENERIC and (*connectionSystem).inputMajorOpcode and (*(xcb_ge_generic_event_t *)event).extension == (*connectionSystem).inputMajorOpcode){
+		name = *(inputEventName + *(uint16 *)((uint8 *)event + 8) - 0);
+	}elif(responseType < 0 + countof(baseEventName) - 1){
+		name = *(baseEventName + responseType - 0);
+	}elif(loadedExtension & COMPOSITE_EXTENSION and (*connectionSystem).compositeBaseEvent and responseType >= (*connectionSystem).compositeBaseEvent and responseType < (*connectionSystem).compositeBaseEvent + countof(compositeEventName) - 1){
+		name = *(compositeEventName + responseType - (*connectionSystem).compositeBaseEvent);
+	}elif(loadedExtension & DAMAGE_EXTENSION and (*connectionSystem).damageBaseEvent and responseType >= (*connectionSystem).damageBaseEvent and responseType < (*connectionSystem).damageBaseEvent + countof(damageEventName) - 1){
+		name = *(damageEventName + responseType - (*connectionSystem).damageBaseEvent);
+	}elif(loadedExtension & RANDR_EXTENSION and (*connectionSystem).randrBaseEvent and responseType >= (*connectionSystem).randrBaseEvent and responseType < (*connectionSystem).randrBaseEvent + countof(randrEventName) - 1){
+		name = *(randrEventName + responseType - (*connectionSystem).randrBaseEvent);
+	}elif(loadedExtension & RENDER_EXTENSION and (*connectionSystem).renderBaseEvent and responseType >= (*connectionSystem).renderBaseEvent and responseType < (*connectionSystem).renderBaseEvent + countof(renderEventName) - 1){
+		name = *(renderEventName + responseType - (*connectionSystem).renderBaseEvent);
+	}elif(loadedExtension & SHAPE_EXTENSION and (*connectionSystem).shapeBaseEvent and responseType >= (*connectionSystem).shapeBaseEvent and responseType < (*connectionSystem).shapeBaseEvent + countof(shapeEventName) - 1){
+		name = *(shapeEventName + responseType - (*connectionSystem).shapeBaseEvent);
+	}elif(loadedExtension & TEST_EXTENSION and (*connectionSystem).testBaseEvent and responseType >= (*connectionSystem).testBaseEvent and responseType < (*connectionSystem).testBaseEvent + countof(testEventName) - 1){
+		name = *(testEventName + responseType - (*connectionSystem).testBaseEvent);
+	}elif(loadedExtension & XFIXES_EXTENSION and (*connectionSystem).xfixesBaseEvent and responseType == (*connectionSystem).xfixesBaseEvent){
+		name = *(xfixesEventName + *(uint8 *)((uint8 *)event + 1) - 0);
+	}elif(loadedExtension & XKB_EXTENSION and (*connectionSystem).xkbBaseEvent and responseType == (*connectionSystem).xkbBaseEvent){
+		name = *(xkbEventName + *(uint8 *)((uint8 *)event + 1) - 0);
+	}else{
+		name = "unrecognized";
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret name;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FINICONNECTIONSYSTEM(){
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!finiLockSystem(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	closeConnection(connectionSystem);
+	(*connectionSystem).code = NONE_CONNECTION_CODE;
+	(*connectionSystem).operation = NONE_CONNECTION_OPERATION;
+	(*connectionSystem).printSystem = NULL;
+	(*connectionSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PRINTCONNECTIONERROR(){
+	const char *message;
+	PrintSystem *printSystem;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	printSystem = (*connectionSystem).printSystem;
+	if(!printSystem){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	if(!(*connectionSystem).connection){
+		unlockMutex(&(*printSystem).mutexSystem);
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	switch(xcb_connection_has_error((*connectionSystem).connection)){
+		to XCB_CONN_ERROR: /*-------------------*/ message = "socket/pipe/stream error"; /*------*/ brk;
+		to XCB_CONN_CLOSED_EXT_NOTSUPPORTED: /*-*/ message = "extension not supported"; /*-------*/ brk;
+		to XCB_CONN_CLOSED_MEM_INSUFFICIENT: /*-*/ message = "insufficient memory"; /*-----------*/ brk;
+		to XCB_CONN_CLOSED_REQ_LEN_EXCEED: /*---*/ message = "exceeded request length"; /*-------*/ brk;
+		to XCB_CONN_CLOSED_PARSE_ERR: /*--------*/ message = "error parsing display string"; /*--*/ brk;
+		to XCB_CONN_CLOSED_INVALID_SCREEN: /*---*/ message = "screen-display mismatch"; /*-------*/ brk;
+		off: /*---------------------------------*/ message = "unrecognized connection error"; /*-*/ brk;
+	}
+	if(!printUnlockedError(printSystem, "%s%s: %s%s:%s %s\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorFatal, "fatal X server error", (*printSystem).errorColorEnd, message)){
+		unlockMutex(&(*printSystem).mutexSystem);
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+PRINTCONNECTIONXEVENT(){
+	const char *eventOrigin;
+	const char *eventName;
+	PrintSystem *printSystem;
+	uint8 responseType;
+	uint16 loadedExtension;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	printSystem = (*connectionSystem).printSystem;
+	if(!printSystem){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	if(!event){
+		unlockMutex(&(*printSystem).mutexSystem);
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	responseType = (*event).response_type & b(01111111);
+	loadedExtension = (*connectionSystem).loadedExtension;
+	if(loadedExtension & INPUT_EXTENSION and responseType == XCB_GE_GENERIC and (*connectionSystem).inputMajorOpcode and (*(xcb_ge_generic_event_t *)event).extension == (*connectionSystem).inputMajorOpcode){
+		eventOrigin = "X input";
+		eventName = *(inputEventName + *(uint16 *)((uint8 *)event + 8) - 0);
+	}elif(responseType < 0 + countof(baseEventName) - 1){
+		eventOrigin = "X";
+		eventName = *(baseEventName + responseType - 0);
+	}elif(loadedExtension & COMPOSITE_EXTENSION and (*connectionSystem).compositeBaseEvent and responseType >= (*connectionSystem).compositeBaseEvent and responseType < (*connectionSystem).compositeBaseEvent + countof(compositeEventName) - 1){
+		eventOrigin = "X composite";
+		eventName = *(compositeEventName + responseType - (*connectionSystem).compositeBaseEvent);
+	}elif(loadedExtension & DAMAGE_EXTENSION and (*connectionSystem).damageBaseEvent and responseType >= (*connectionSystem).damageBaseEvent and responseType < (*connectionSystem).damageBaseEvent + countof(damageEventName) - 1){
+		eventOrigin = "X damage";
+		eventName = *(damageEventName + responseType - (*connectionSystem).damageBaseEvent);
+	}elif(loadedExtension & RANDR_EXTENSION and (*connectionSystem).randrBaseEvent and responseType >= (*connectionSystem).randrBaseEvent and responseType < (*connectionSystem).randrBaseEvent + countof(randrEventName) - 1){
+		eventOrigin = "X randr";
+		eventName = *(randrEventName + responseType - (*connectionSystem).randrBaseEvent);
+	}elif(loadedExtension & RENDER_EXTENSION and (*connectionSystem).renderBaseEvent and responseType >= (*connectionSystem).renderBaseEvent and responseType < (*connectionSystem).renderBaseEvent + countof(renderEventName) - 1){
+		eventOrigin = "X render";
+		eventName = *(renderEventName + responseType - (*connectionSystem).renderBaseEvent);
+	}elif(loadedExtension & SHAPE_EXTENSION and (*connectionSystem).shapeBaseEvent and responseType >= (*connectionSystem).shapeBaseEvent and responseType < (*connectionSystem).shapeBaseEvent + countof(shapeEventName) - 1){
+		eventOrigin = "X shape";
+		eventName = *(shapeEventName + responseType - (*connectionSystem).shapeBaseEvent);
+	}elif(loadedExtension & TEST_EXTENSION and (*connectionSystem).testBaseEvent and responseType >= (*connectionSystem).testBaseEvent and responseType < (*connectionSystem).testBaseEvent + countof(testEventName) - 1){
+		eventOrigin = "X test";
+		eventName = *(testEventName + responseType - (*connectionSystem).testBaseEvent);
+	}elif(loadedExtension & XFIXES_EXTENSION and (*connectionSystem).xfixesBaseEvent and responseType == (*connectionSystem).xfixesBaseEvent){
+		eventOrigin = "X xfixes";
+		eventName = *(xfixesEventName + *(uint8 *)((uint8 *)event + 1) - 0);
+	}elif(loadedExtension & XKB_EXTENSION and (*connectionSystem).xkbBaseEvent and responseType == (*connectionSystem).xkbBaseEvent){
+		eventOrigin = "X xkb";
+		eventName = *(xkbEventName + *(uint8 *)((uint8 *)event + 1) - 0);
+	}else{
+		eventOrigin = "unrecognized X extension";
+		eventName = "unrecognized";
+	}
+	if(!printUnlockedOutput(printSystem, "%s%s: [%s event %s%s] connection system:%s %s %s\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorEvent, (*printSystem).outputColorEnd, (*printSystem).outputColorStart, (*printSystem).outputColorEnd, eventOrigin, eventName)){
+		unlockMutex(&(*printSystem).mutexSystem);
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+PRINTCONNECTIONXERROR(){
+	const char *errorOrigin;
+	const char *errorName;
+	const char *operationName;
+	PrintSystem *printSystem;
+	xcb_generic_error_t *error;
+	uint16 loadedExtension;
+	if(!connectionSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	printSystem = (*connectionSystem).printSystem;
+	if(!printSystem){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	if(!event){
+		unlockMutex(&(*printSystem).mutexSystem);
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	error = (void *)event;
+	loadedExtension = (*connectionSystem).loadedExtension;
+	if((*error).major_code < 0 + countof(baseOperationName) - 1){
+		errorOrigin = "X";
+		operationName = *(baseOperationName + (*error).major_code);
+	}elif(loadedExtension & COMPOSITE_EXTENSION and (*connectionSystem).compositeMajorOpcode and (*error).major_code == (*connectionSystem).compositeMajorOpcode){
+		errorOrigin = "X composite";
+		operationName = *(compositeOperationName + (*error).minor_code);
+	}elif(loadedExtension & DAMAGE_EXTENSION and (*connectionSystem).damageMajorOpcode and (*error).major_code == (*connectionSystem).damageMajorOpcode){
+		errorOrigin = "X damage";
+		operationName = *(damageOperationName + (*error).minor_code);
+	}elif(loadedExtension & INPUT_EXTENSION and (*connectionSystem).inputMajorOpcode and (*error).major_code == (*connectionSystem).inputMajorOpcode){
+		errorOrigin = "X input";
+		operationName = *(inputOperationName + (*error).minor_code);
+	}elif(loadedExtension & RANDR_EXTENSION and (*connectionSystem).randrMajorOpcode and (*error).major_code == (*connectionSystem).randrMajorOpcode){
+		errorOrigin = "X randr";
+		operationName = *(randrOperationName + (*error).minor_code);
+	}elif(loadedExtension & RENDER_EXTENSION and (*connectionSystem).renderMajorOpcode and (*error).major_code == (*connectionSystem).renderMajorOpcode){
+		errorOrigin = "X render";
+		operationName = *(renderOperationName + (*error).minor_code);
+	}elif(loadedExtension & SHAPE_EXTENSION and (*connectionSystem).shapeMajorOpcode and (*error).major_code == (*connectionSystem).shapeMajorOpcode){
+		errorOrigin = "X shape";
+		operationName = *(shapeOperationName + (*error).minor_code);
+	}elif(loadedExtension & TEST_EXTENSION and (*connectionSystem).testMajorOpcode and (*error).major_code == (*connectionSystem).testMajorOpcode){
+		errorOrigin = "X test";
+		operationName = *(testOperationName + (*error).minor_code);
+	}elif(loadedExtension & XFIXES_EXTENSION and (*connectionSystem).xfixesMajorOpcode and (*error).major_code == (*connectionSystem).xfixesMajorOpcode){
+		errorOrigin = "X xfixes";
+		operationName = *(xfixesOperationName + (*error).minor_code);
+	}elif(loadedExtension & XKB_EXTENSION and (*connectionSystem).xkbMajorOpcode and (*error).major_code == (*connectionSystem).xkbMajorOpcode){
+		errorOrigin = "X xkb";
+		operationName = *(xkbOperationName + (*error).minor_code);
+	}else{
+		errorOrigin = "unrecognized X extension";
+		operationName = "unrecognized";
+	}
+	if((*error).error_code < 0 + countof(baseErrorName) - 1){
+		errorName = *(baseErrorName + (*error).error_code - 0);
+	}elif(loadedExtension & COMPOSITE_EXTENSION and (*connectionSystem).compositeBaseError and (*error).error_code >= (*connectionSystem).compositeBaseError and (*error).error_code < (*connectionSystem).compositeBaseError + countof(compositeErrorName) - 1){
+		errorName = *(compositeErrorName + (*error).error_code - (*connectionSystem).compositeBaseError);
+	}elif(loadedExtension & DAMAGE_EXTENSION and (*connectionSystem).damageBaseError and (*error).error_code >= (*connectionSystem).damageBaseError and (*error).error_code < (*connectionSystem).damageBaseError + countof(damageErrorName) - 1){
+		errorName = *(damageErrorName + (*error).error_code - (*connectionSystem).damageBaseError);
+	}elif(loadedExtension & INPUT_EXTENSION and (*connectionSystem).inputBaseError and (*error).error_code >= (*connectionSystem).inputBaseError and (*error).error_code < (*connectionSystem).inputBaseError + countof(inputErrorName) - 1){
+		errorName = *(inputErrorName + (*error).error_code - (*connectionSystem).inputBaseError);
+	}elif(loadedExtension & RANDR_EXTENSION and (*connectionSystem).randrBaseError and (*error).error_code >= (*connectionSystem).randrBaseError and (*error).error_code < (*connectionSystem).randrBaseError + countof(randrErrorName) - 1){
+		errorName = *(randrErrorName + (*error).error_code - (*connectionSystem).randrBaseError);
+	}elif(loadedExtension & RENDER_EXTENSION and (*connectionSystem).renderBaseError and (*error).error_code >= (*connectionSystem).renderBaseError and (*error).error_code < (*connectionSystem).renderBaseError + countof(renderErrorName) - 1){
+		errorName = *(renderErrorName + (*error).error_code - (*connectionSystem).renderBaseError);
+	}elif(loadedExtension & SHAPE_EXTENSION and (*connectionSystem).shapeBaseError and (*error).error_code >= (*connectionSystem).shapeBaseError and (*error).error_code < (*connectionSystem).shapeBaseError + countof(shapeErrorName) - 1){
+		errorName = *(shapeErrorName + (*error).error_code - (*connectionSystem).shapeBaseError);
+	}elif(loadedExtension & TEST_EXTENSION and (*connectionSystem).testBaseError and (*error).error_code >= (*connectionSystem).testBaseError and (*error).error_code < (*connectionSystem).testBaseError + countof(testErrorName) - 1){
+		errorName = *(testErrorName + (*error).error_code - (*connectionSystem).testBaseError);
+	}elif(loadedExtension & XFIXES_EXTENSION and (*connectionSystem).xfixesBaseError and (*error).error_code >= (*connectionSystem).xfixesBaseError and (*error).error_code < (*connectionSystem).xfixesBaseError + countof(xfixesErrorName) - 1){
+		errorName = *(xfixesErrorName + (*error).error_code - (*connectionSystem).xfixesBaseError);
+	}elif(loadedExtension & XKB_EXTENSION and (*connectionSystem).xkbBaseError and (*error).error_code >= (*connectionSystem).xkbBaseError and (*error).error_code < (*connectionSystem).xkbBaseError + countof(xkbErrorName) - 1){
+		errorName = *(xkbErrorName + (*error).error_code - (*connectionSystem).xkbBaseError);
+	}else{
+		errorName = "unrecognized";
+	}
+	if(!printUnlockedError(printSystem, "%s%s: %s%s error:%s %s error in %s operation using the 0x%x resource\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, errorOrigin, (*printSystem).errorColorEnd, errorName, operationName, (*error).resource_id)){
+		unlockMutex(&(*printSystem).mutexSystem);
+		unlockLock(&(*connectionSystem).lockSystem);
+		ret false;
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	unlockLock(&(*connectionSystem).lockSystem);
+	ret true;
+}
+

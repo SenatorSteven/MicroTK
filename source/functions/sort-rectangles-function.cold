@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! sort-rectangles-function.cold
 
 MIT License
 
@@ -21,11 +21,41 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
+#include <xcb/xcb.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/x.hold"
+#include "../../headers/functions/sort-rectangles-function.hold"
+
+SORTRECTANGLES(){
+	xcb_rectangle_t *current;
+	xcb_rectangle_t *wall;
+	if(!rectangleStart or rectangleAllocated < 2){
+		ret false;
+	}
+	current = rectangleStart + 1;
+	wall = rectangleStart + rectangleAllocated;
+	jmp sortRectangleLoop;
+	sortRectangleLoop:{
+		if(current < wall){
+			const xcb_rectangle_t rectangle = *current;
+			xcb_rectangle_t *c = current - 1;
+			jmp swapLoop;
+			swapLoop:{
+				if(c >= rectangleStart and ((*c).x > rectangle.x or ((*c).x == rectangle.x and (*c).y > rectangle.y))){
+					*(c + 1) = *c;
+					dec c;
+					jmp swapLoop;
+				}
+				*(c + 1) = rectangle;
+			}
+			inc current;
+			jmp sortRectangleLoop;
+		}
+		ret true;
+	}
+}
 

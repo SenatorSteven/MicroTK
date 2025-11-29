@@ -1,0 +1,195 @@
+
+/*! permission-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Complete the Permission system.
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <pwd.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/permissions.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/unistd.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/permission-system.hold"
+#include "../../headers/functions/load-file-function.hold"
+
+INITPERMISSIONSYSTEM(){
+	if(!permissionSystem){
+		ret false;
+	}
+	(*permissionSystem).normalUID = getuid();
+	(*permissionSystem).normalGID = getgid();
+	ret true;
+}
+SETPERMISSIONSMEMORYMANAGEMENTSYSTEM(){
+	if(!permissionSystem or memoryManagementSystem == (*permissionSystem).memoryManagementSystem){
+		ret false;
+	}
+	(*permissionSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETPERMISSIONS(){
+	const char *dataCurrent;
+	const char *dataWall;
+	File file;
+	char uidStringStart[10];
+	char *uidStringCurrent;
+	uid_t uid;
+	if(!permissionSystem or ((*permissionSystem).normalUID != ROOT_UID and (*permissionSystem).normalGID != ROOT_GID)){
+		ret false;
+	}
+	jmp loadFile;
+	loadFile:{
+		if(!loadFile((*permissionSystem).memoryManagementSystem, "/proc/self/loginuid", &file)){
+			ret false;
+		}
+		dataCurrent = file.dataStart;
+		dataWall = dataCurrent + file.dataSize;
+		uidStringCurrent = uidStringStart;
+		uid = 0;
+		jmp calculateUIDLoop;
+	}
+	calculateUIDLoop:{
+		if(dataCurrent < dataWall){
+			uid = uid * 10 + *dataCurrent - 48;
+			*uidStringCurrent = *dataCurrent;
+			inc uidStringCurrent;
+			inc dataCurrent;
+			jmp calculateUIDLoop;
+		}
+		free(file.dataStart);
+		removeMemoryManagementPointer((*permissionSystem).memoryManagementSystem, file.dataToken);
+		jmp getIDs;
+	}
+	getIDs:{
+		struct passwd *passwd = getpwuid(uid);
+		if(!passwd){
+			ret false;
+		}
+		(*permissionSystem).normalUID = (*passwd).pw_uid;
+		(*permissionSystem).normalGID = (*passwd).pw_gid;
+		ret true;
+	}
+}
+LOWERPERMISSIONS(){
+	if(!permissionSystem or (geteuid() == (*permissionSystem).normalUID and getegid() == (*permissionSystem).normalGID)){
+		ret false;
+	}
+	if(setegid((*permissionSystem).normalGID) == SETEGID_FAILURE or seteuid((*permissionSystem).normalUID) == SETEUID_FAILURE){
+		setegid(getgid());
+		seteuid(getuid());
+		ret false;
+	}
+	ret true;
+}
+RAISEPERMISSIONS(){
+	if(!permissionSystem or (geteuid() == getuid() and getegid() == getgid())){
+		ret false;
+	}
+	if(setegid(getgid()) == SETEGID_FAILURE or seteuid(getuid()) == SETEUID_FAILURE){
+		setegid((*permissionSystem).normalGID);
+		seteuid((*permissionSystem).normalUID);
+	}
+	ret true;
+}
+DROPPERMISSIONS(){
+	struct passwd *pw;
+	if(!permissionSystem){
+		ret false;
+	}
+	pw = getpwuid((*permissionSystem).normalUID);
+	if(!pw){
+		ret false;
+	}
+	raisePermissions(permissionSystem);
+
+
+
+
+
+
+
+
+
+	/*!*/
+
+#ifdef a
+	char buffer[sizeof("/var/mail/") + 256];
+	snprintf(buffer, sizeof(buffer), "/var/mail/%s", (*pw).pw_name);
+	initgroups((*pw).pw_name, (*pw).pw_gid);
+	setgid((*pw).pw_gid);
+	setuid((*pw).pw_uid);
+	unsetenv("SUDO_ASKPASS");
+	unsetenv("SUDO_COMMAND");
+	unsetenv("SUDO_EDITOR");
+	unsetenv("SUDO_GID");
+	unsetenv("SUDO_HOME");
+	unsetenv("SUDO_PROMPT");
+	unsetenv("SUDO_PS1");
+	unsetenv("SUDO_UID");
+	unsetenv("SUDO_USER");
+	setenv("MAIL", buffer, true);
+	setenv("HOME", (*pw).pw_dir, true);
+	setenv("PWD", (*pw).pw_dir, true);
+	setenv("USER", (*pw).pw_name, true);
+	setenv("LOGNAME", (*pw).pw_name, true);
+	setenv("SHELL", (*pw).pw_shell, true);
+	setenv("LANG", setlocale(LC_ALL, ""), true);
+#endif
+
+	/*!*/
+
+
+
+
+
+
+
+
+
+	ret true;
+}
+FINIPERMISSIONSYSTEM(){
+	if(!permissionSystem){
+		ret false;
+	}
+	(*permissionSystem).normalUID = getuid();
+	(*permissionSystem).normalGID = getgid();
+	ret true;
+}
+

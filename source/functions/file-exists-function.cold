@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! file-exists-function.cold
 
 MIT License
 
@@ -21,11 +21,21 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
+#include <sys/stat.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/sys-stat.hold"
+#include "../../headers/functions/file-exists-function.hold"
+
+FILEEXISTS(){
+	struct stat buffer;
+	if(stat(path, &buffer) == STAT_FAILURE or !S_ISREG(buffer.st_mode)){
+		ret false;
+	}
+	ret true;
+}
 

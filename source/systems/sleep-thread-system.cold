@@ -1,0 +1,269 @@
+
+/*! sleep-thread-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Apply the volatile keyword or change up the waitUntilRunning: section using mutexes.
+
+#define _POSIX_C_SOURCE /*-*/ (199309L)
+
+#include <errno.h>
+#include <pthread.h>
+#include <stdint.h>
+#include <time.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/errno.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/time.hold"
+#include "../../headers/systems/sleep-thread-system.hold"
+#include "../../headers/functions/millisecond-to-timespec-function.hold"
+
+INITSLEEPTHREADSYSTEM(){
+	if(!sleepThreadSystem){
+		ret false;
+	}
+	(*sleepThreadSystem).risingOperation = NULL;
+	(*sleepThreadSystem).risingOperationArgument = NULL;
+	(*sleepThreadSystem).fallingOperation = NULL;
+	(*sleepThreadSystem).fallingOperationArgument = NULL;
+	(*sleepThreadSystem).operationSetting = NONE_OPERATION_SETTING;
+	(*sleepThreadSystem).seconds = 0;
+	(*sleepThreadSystem).nanoseconds = 0;
+	(*sleepThreadSystem).mutexCreated = false;
+	(*sleepThreadSystem).condCreated = false;
+	(*sleepThreadSystem).threadCreated = false;
+	(*sleepThreadSystem).running = false;
+	(*sleepThreadSystem).quitting = false;
+	ret true;
+}
+SETSLEEPTHREADOPERATION(){
+	if(!sleepThreadSystem){
+		ret false;
+	}
+	if((*sleepThreadSystem).mutexCreated and pthread_mutex_lock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_LOCK_SUCCESS){
+		ret false;
+	}
+	(*sleepThreadSystem).risingOperation = risingOperation;
+	(*sleepThreadSystem).risingOperationArgument = risingOperationArgument;
+	(*sleepThreadSystem).fallingOperation = fallingOperation;
+	(*sleepThreadSystem).fallingOperationArgument = fallingOperationArgument;
+	(*sleepThreadSystem).operationSetting = operationSetting & (LOOP_OPERATION_SETTING | RESTART_TIMER_OPERATION_SETTING);
+	if((*sleepThreadSystem).mutexCreated and pthread_mutex_unlock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_UNLOCK_SUCCESS){
+		ret false;
+	}
+	ret true;
+}
+SETSLEEPTHREADSLEEPTIME(){
+	struct timespec ts;
+	if(!sleepThreadSystem){
+		ret false;
+	}
+	if((*sleepThreadSystem).mutexCreated and pthread_mutex_lock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_LOCK_SUCCESS){
+		ret false;
+	}
+	millisecondToTimespec(milliseconds, &ts);
+	(*sleepThreadSystem).seconds = ts.tv_sec;
+	(*sleepThreadSystem).nanoseconds = ts.tv_nsec;
+	if((*sleepThreadSystem).mutexCreated and pthread_mutex_unlock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_UNLOCK_SUCCESS){
+		ret false;
+	}
+	ret true;
+}
+BOOTSLEEPTHREAD(){
+	if(!sleepThreadSystem or (*sleepThreadSystem).threadCreated){
+		ret false;
+	}
+	if(!(*sleepThreadSystem).mutexCreated){
+		(*sleepThreadSystem).mutexCreated = pthread_mutex_init(&(*sleepThreadSystem).mutex, NULL) == PTHREAD_MUTEX_INIT_SUCCESS;
+		if(!(*sleepThreadSystem).mutexCreated){
+			ret false;
+		}
+	}
+	if(!(*sleepThreadSystem).condCreated){
+		(*sleepThreadSystem).condCreated = pthread_cond_init(&(*sleepThreadSystem).cond, NULL) == PTHREAD_COND_INIT_SUCCESS;
+		if(!(*sleepThreadSystem).condCreated){
+			ret false;
+		}
+	}
+	(*sleepThreadSystem).threadCreated = pthread_create(&(*sleepThreadSystem).thread, NULL, &sleepThreadMain, sleepThreadSystem) == PTHREAD_CREATE_SUCCESS;
+	if(!(*sleepThreadSystem).threadCreated){
+		ret false;
+	}
+	jmp waitUntilRunning;
+	waitUntilRunning:{
+		if(!(*sleepThreadSystem).running and !(*sleepThreadSystem).quitting){
+			jmp waitUntilRunning;
+		}
+		if((*sleepThreadSystem).quitting){
+			(*sleepThreadSystem).quitting = false;
+			ret false;
+		}
+		ret true;
+	}
+}
+SIGNALSLEEPTHREAD(){
+	if(!sleepThreadSystem or !(*sleepThreadSystem).mutexCreated or !(*sleepThreadSystem).condCreated or !(*sleepThreadSystem).threadCreated or !(*sleepThreadSystem).running){
+		ret false;
+	}
+	if(pthread_mutex_lock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_LOCK_SUCCESS){
+		ret false;
+	}
+	if(pthread_cond_signal(&(*sleepThreadSystem).cond) != PTHREAD_COND_SIGNAL_SUCCESS){
+		ret false;
+	}
+	if(pthread_mutex_unlock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_UNLOCK_SUCCESS){
+		ret false;
+	}
+	ret true;
+}
+SLEEPTHREADMAIN(){
+	SleepThreadSystem *const sleepThreadSystem = argument;
+	struct timespec ts;
+	if(!sleepThreadSystem){
+		ret NULL;
+	}
+	if(pthread_mutex_lock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_LOCK_SUCCESS){
+		(*sleepThreadSystem).quitting = true;
+		ret NULL;
+	}
+	(*sleepThreadSystem).running = true;
+	jmp waitIndefinitely;
+	waitIndefinitely:{
+		const bool waitSucceeded = pthread_cond_wait(&(*sleepThreadSystem).cond, &(*sleepThreadSystem).mutex) == PTHREAD_COND_WAIT_SUCCESS;
+		if((*sleepThreadSystem).quitting){
+			jmp emergencyExit;
+		}
+		if(!waitSucceeded){
+			jmp waitIndefinitely;
+		}
+		jmp startTimer;
+	}
+	startTimer:{
+		clock_gettime(CLOCK_REALTIME, &ts);
+		ts.tv_sec += (*sleepThreadSystem).seconds;
+		ts.tv_nsec += (*sleepThreadSystem).nanoseconds;
+		jmp conductRisingOperation;
+	}
+	conductRisingOperation:{
+		if((*sleepThreadSystem).risingOperation and !(*(*sleepThreadSystem).risingOperation)(sleepThreadSystem, (*sleepThreadSystem).risingOperationArgument)){
+			jmp waitIndefinitely;
+		}
+		if((*sleepThreadSystem).quitting){
+			jmp emergencyExit;
+		}
+		jmp waitUntilTimedOut;
+	}
+	waitUntilTimedOut:{
+		const int waitReturn = pthread_cond_timedwait(&(*sleepThreadSystem).cond, &(*sleepThreadSystem).mutex, &ts);
+		if((*sleepThreadSystem).quitting){
+			jmp emergencyExit;
+		}
+		if(waitReturn != ETIMEDOUT){
+			if((*sleepThreadSystem).operationSetting & RESTART_TIMER_OPERATION_SETTING){
+				clock_gettime(CLOCK_REALTIME, &ts);
+				ts.tv_sec += (*sleepThreadSystem).seconds;
+				ts.tv_nsec += (*sleepThreadSystem).nanoseconds;
+			}
+			jmp waitUntilTimedOut;
+		}
+		jmp conductFallingOperation;
+	}
+	conductFallingOperation:{
+		if((*sleepThreadSystem).fallingOperation and !(*(*sleepThreadSystem).fallingOperation)(sleepThreadSystem, (*sleepThreadSystem).fallingOperationArgument)){
+			jmp waitIndefinitely;
+		}
+		if((*sleepThreadSystem).quitting){
+			jmp emergencyExit;
+		}
+		jmp checkLooping;
+	}
+	checkLooping:{
+		if((*sleepThreadSystem).operationSetting & LOOP_OPERATION_SETTING){
+			jmp startTimer;
+		}
+		jmp waitIndefinitely;
+	}
+	emergencyExit:{
+		(*sleepThreadSystem).running = false;
+		if(pthread_mutex_unlock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_UNLOCK_SUCCESS){
+			ret NULL;
+		}
+		ret sleepThreadSystem;
+	}
+}
+QUITSLEEPTHREAD(){
+	if(!sleepThreadSystem or (!(*sleepThreadSystem).mutexCreated and !(*sleepThreadSystem).condCreated and !(*sleepThreadSystem).threadCreated)){
+		ret false;
+	}
+	(*sleepThreadSystem).quitting = true;
+	if((*sleepThreadSystem).threadCreated){
+		if(pthread_mutex_lock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_LOCK_SUCCESS){
+			jmp failure;
+		}
+		if(pthread_cond_signal(&(*sleepThreadSystem).cond) != PTHREAD_COND_SIGNAL_SUCCESS){
+			jmp failure;
+		}
+		if(pthread_mutex_unlock(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_UNLOCK_SUCCESS){
+			jmp failure;
+		}
+		if(pthread_join((*sleepThreadSystem).thread, NULL) != PTHREAD_JOIN_SUCCESS){
+			jmp failure;
+		}
+		(*sleepThreadSystem).threadCreated = false;
+	}
+	if((*sleepThreadSystem).condCreated){
+		if(pthread_cond_destroy(&(*sleepThreadSystem).cond) != PTHREAD_COND_DESTROY_SUCCESS){
+			jmp failure;
+		}
+		(*sleepThreadSystem).condCreated = false;
+	}
+	if((*sleepThreadSystem).mutexCreated){
+		if(pthread_mutex_destroy(&(*sleepThreadSystem).mutex) != PTHREAD_MUTEX_DESTROY_SUCCESS){
+			jmp failure;
+		}
+		(*sleepThreadSystem).mutexCreated = false;
+	}
+	(*sleepThreadSystem).quitting = false;
+	ret true;
+	failure:{
+		(*sleepThreadSystem).quitting = false;
+		ret false;
+	}
+}
+FINISLEEPTHREADSYSTEM(){
+	if(!sleepThreadSystem){
+		ret false;
+	}
+	quitSleepThread(sleepThreadSystem);
+	(*sleepThreadSystem).risingOperation = NULL;
+	(*sleepThreadSystem).risingOperationArgument = NULL;
+	(*sleepThreadSystem).fallingOperation = NULL;
+	(*sleepThreadSystem).fallingOperationArgument = NULL;
+	(*sleepThreadSystem).operationSetting = NONE_OPERATION_SETTING;
+	(*sleepThreadSystem).seconds = 0;
+	(*sleepThreadSystem).nanoseconds = 0;
+	ret true;
+}
+

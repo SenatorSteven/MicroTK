@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! generic-system.hold
 
 MIT License
 
@@ -21,11 +21,32 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef GENERIC_SYSTEM_HOLD
+#define GENERIC_SYSTEM_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define GenericSystem /*-------*/ GenericSystem
+
+#define INITGENERICSYSTEM() /*-*/ bool  initGenericSystem(GenericSystem *const genericSystem)
+#define FINIGENERICSYSTEM() /*-*/ bool  finiGenericSystem(GenericSystem *const genericSystem)
+
+def struct{
+	uint8 /*-*/ pad0[8];
+} GenericSystem;
+
+INITGENERICSYSTEM();
+FINIGENERICSYSTEM();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
 

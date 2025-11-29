@@ -1,0 +1,469 @@
+
+/*! monitor-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xcbext.h>
+#include <xcb/randr.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/systems/monitor-system.hold"
+#include "../../headers/functions/get-geometry-intersection-function.hold"
+#include "../../headers/functions/compare-memory-function.hold"
+
+INITMONITORSYSTEM(){
+	if(!monitorSystem){
+		ret false;
+	}
+	initLockSystem(&(*monitorSystem).lockSystem);
+	(*monitorSystem).memoryManagementSystem = NULL;
+	(*monitorSystem).connectionSystem = NULL;
+	(*monitorSystem).monitorStart = NULL;
+	(*monitorSystem).monitorToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*monitorSystem).monitorSize = 0;
+	(*monitorSystem).multithreaded = false;
+	ret true;
+}
+SETMONITORMEMORYMANAGEMENTSYSTEM(){
+	if(!monitorSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*monitorSystem).lockSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*monitorSystem).memoryManagementSystem){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if(memoryManagementSystem){
+		(*monitorSystem).monitorToken = insertMemoryManagementPointer(memoryManagementSystem, (*monitorSystem).monitorStart, "MonitorSystem setMonitorMemoryManagementSystem() monitor pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, (*monitorSystem).monitorToken);
+	}
+	(*monitorSystem).memoryManagementSystem = memoryManagementSystem;
+	unlockLock(&(*monitorSystem).lockSystem);
+	ret true;
+}
+SETMONITORCONNECTIONSYSTEM(){
+	if(!monitorSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*monitorSystem).lockSystem)){
+		ret false;
+	}
+	if(connectionSystem == (*monitorSystem).connectionSystem){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	(*monitorSystem).connectionSystem = connectionSystem;
+	unlockLock(&(*monitorSystem).lockSystem);
+	ret true;
+}
+SETMONITORMULTITHREADING(){
+	if(!monitorSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*monitorSystem).multithreaded){
+		ret false;
+	}
+	if(multithreaded){
+		if(!createLock(&(*monitorSystem).lockSystem)){
+			ret false;
+		}
+	}else{
+		if(!destroyLock(&(*monitorSystem).lockSystem)){
+			ret false;
+		}
+	}
+	setLockMultithreading(&(*monitorSystem).lockSystem, multithreaded);
+	(*monitorSystem).multithreaded = multithreaded;
+	ret true;
+}
+REQUESTMONITORS(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	xcb_randr_get_monitors_reply_t *reply;
+	uint32 replyToken;
+	uint size;
+	Monitor *start;
+	Monitor *current;
+	Monitor *wall;
+	uint32 token;
+	xcb_randr_monitor_info_iterator_t iterator;
+	if(!monitorSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*monitorSystem).lockSystem)){
+		ret false;
+	}
+	connectionSystem = (*monitorSystem).connectionSystem;
+	if(!connectionSystem){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem)){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	connection = (*connectionSystem).connection;
+	reply = xcb_wait_for_reply(connection, xcb_randr_get_monitors(connection, (*connectionSystem).rootWindow, true), NULL);
+	replyToken = insertMemoryManagementPointer((*monitorSystem).memoryManagementSystem, reply, "MonitorSystem requestMonitors() xcb_randr_get_monitors() reply", &memoryManagementFree);
+	if(!reply){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	size = (*reply).nMonitors;
+	start = malloc(size * sizeof(Monitor));
+	token = insertMemoryManagementPointer((*monitorSystem).memoryManagementSystem, start, "MonitorSystem requestMonitors() monitor pointer", &memoryManagementFree);
+	if(!start){
+		free(reply);
+		removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, replyToken);
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	current = start;
+	wall = current + size;
+	iterator = xcb_randr_get_monitors_monitors_iterator(reply);
+	jmp requestMonitorLoop;
+	requestMonitorLoop:{
+		if(current < wall){
+			const Monitor *monitorCurrent = start;
+			const Monitor *const monitorWall = current;
+			const xcb_randr_monitor_info_t *const data = iterator.data;
+			jmp removeSameMonitorLoop;
+			removeSameMonitorLoop:{
+				if(monitorCurrent < monitorWall){
+					if((*monitorCurrent).leftX == (*data).x and (*monitorCurrent).topY == (*data).y){
+						xcb_randr_monitor_info_next(&iterator);
+						dec size;
+						jmp requestMonitorLoop;
+					}
+					inc monitorCurrent;
+					jmp removeSameMonitorLoop;
+				}
+				(*current).name = (*data).name;
+				(*current).leftX = (*data).x;
+				(*current).topY = (*data).y;
+				(*current).rightX = (*data).x + (*data).width;
+				(*current).bottomY = (*data).y + (*data).height;
+				(*current).width = (*data).width;
+				(*current).height = (*data).height;
+				(*current).millimeterWidth = (*data).width_in_millimeters;
+				(*current).millimeterHeight = (*data).height_in_millimeters;
+				xcb_randr_monitor_info_next(&iterator);
+				inc current;
+				jmp requestMonitorLoop;
+			}
+		}
+		free(reply);
+		removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, replyToken);
+		jmp compareWithExistingMonitors;
+	}
+	compareWithExistingMonitors:{
+		if(size == (*monitorSystem).monitorSize and compareMemory(start, (*monitorSystem).monitorStart, size * sizeof(Monitor))){
+			free(start);
+			removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, (*monitorSystem).monitorToken);
+			unlockLock(&(*connectionSystem).lockSystem);
+			unlockLock(&(*monitorSystem).lockSystem);
+			ret false;
+		}
+		jmp replaceMonitors;
+	}
+	replaceMonitors:{
+		free((*monitorSystem).monitorStart);
+		removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, (*monitorSystem).monitorToken);
+		(*monitorSystem).monitorSize = size;
+		(*monitorSystem).monitorStart = start;
+		(*monitorSystem).monitorToken = token;
+		jmp trimMemory;
+	}
+	trimMemory:{
+		if((*monitorSystem).monitorSize){
+			void *const temp = realloc((*monitorSystem).monitorStart, (*monitorSystem).monitorSize * sizeof(Monitor));
+			updateMemoryManagementPointer((*monitorSystem).memoryManagementSystem, (*monitorSystem).monitorToken, temp);
+			if(temp){
+				(*monitorSystem).monitorStart = temp;
+			}
+		}
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret true;
+	}
+}
+DESTROYMONITORS(){
+	if(!monitorSystem){
+		ret false;
+	}
+	if(!lockWriteLock(&(*monitorSystem).lockSystem)){
+		ret false;
+	}
+	free((*monitorSystem).monitorStart);
+	removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, (*monitorSystem).monitorToken);
+	(*monitorSystem).monitorStart = NULL;
+	(*monitorSystem).monitorToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*monitorSystem).monitorSize = 0;
+	unlockLock(&(*monitorSystem).lockSystem);
+	ret true;
+}
+FINDPOINTERMONITOR(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	xcb_query_pointer_reply_t *reply;
+	uint32 token;
+	if(!monitorSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*monitorSystem).lockSystem)){
+		ret false;
+	}
+	if(!(*monitorSystem).monitorSize){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	connectionSystem = (*monitorSystem).connectionSystem;
+	if(!connectionSystem){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !monitorReturn){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if((*monitorSystem).monitorSize == 1){
+		*monitorReturn = *(*monitorSystem).monitorStart;
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret true;
+	}
+	connection = (*connectionSystem).connection;
+	reply = xcb_wait_for_reply(connection, xcb_query_pointer(connection, (*connectionSystem).rootWindow), NULL);
+	token = insertMemoryManagementPointer((*monitorSystem).memoryManagementSystem, reply, "MonitorSystem findPointerMonitor() xcb_query_pointer() reply", &memoryManagementFree);
+	if(reply){
+		const int x = (*reply).root_x;
+		const int y = (*reply).root_y;
+		Monitor *current = (*monitorSystem).monitorStart;
+		Monitor *const wall = current + (*monitorSystem).monitorSize;
+		free(reply);
+		removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, token);
+		jmp findPointerMonitorLoop;
+		findPointerMonitorLoop:{
+			if(current < wall){
+				if(x >= (*current).leftX and x < (*current).rightX and y >= (*current).topY and y < (*current).bottomY){
+					*monitorReturn = *current;
+					unlockLock(&(*connectionSystem).lockSystem);
+					unlockLock(&(*monitorSystem).lockSystem);
+					ret true;
+				}
+				inc current;
+				jmp findPointerMonitorLoop;
+			}
+		}
+	}
+	unlockLock(&(*connectionSystem).lockSystem);
+	unlockLock(&(*monitorSystem).lockSystem);
+	ret false;
+}
+FINDGEOMETRYMONITOR(){
+	Monitor *current;
+	Monitor *wall;
+	uint mostPixelAmount;
+	Monitor *monitor;
+	if(!monitorSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*monitorSystem).lockSystem)){
+		ret false;
+	}
+	if(!(*monitorSystem).monitorSize or width < 1 or height < 1 or !monitorReturn){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if((*monitorSystem).monitorSize == 1){
+		*monitorReturn = *(*monitorSystem).monitorStart;
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret true;
+	}
+	current = (*monitorSystem).monitorStart;
+	wall = current + (*monitorSystem).monitorSize;
+	mostPixelAmount = 0;
+	monitor = NULL;
+	jmp findGeometryMonitorLoop;
+	findGeometryMonitorLoop:{
+		if(current < wall){
+			int intersectionWidth;
+			int intersectionHeight;
+			uint pixelAmount;
+			getGeometryIntersection((*current).leftX, (*current).topY, (*current).width, (*current).height, x, y, width, height, NULL, NULL, &intersectionWidth, &intersectionHeight);
+			pixelAmount = intersectionWidth * intersectionHeight;
+			if(pixelAmount > mostPixelAmount){
+				monitor = current;
+				mostPixelAmount = pixelAmount;
+			}
+			inc current;
+			jmp findGeometryMonitorLoop;
+		}
+		if(!monitor){
+			unlockLock(&(*monitorSystem).lockSystem);
+			ret false;
+		}
+		*monitorReturn = *monitor;
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret true;
+	}
+}
+FINDWINDOWMONITOR(){
+	ConnectionSystem *connectionSystem;
+	xcb_connection_t *connection;
+	xcb_get_geometry_cookie_t geometryCookie;
+	xcb_translate_coordinates_cookie_t translateCoordinatesCookie;
+	xcb_get_geometry_reply_t *getGeometryReply;
+	uint32 getGeometryToken;
+	xcb_translate_coordinates_reply_t *translateCoordinatesReply;
+	uint32 translateCoordinatesToken;
+	Monitor *monitor;
+	if(!monitorSystem){
+		ret false;
+	}
+	if(!lockReadLock(&(*monitorSystem).lockSystem)){
+		ret false;
+	}
+	if(!(*monitorSystem).monitorSize){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	connectionSystem = (*monitorSystem).connectionSystem;
+	if(!connectionSystem){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if(!lockReadLock(&(*connectionSystem).lockSystem)){
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if(!connectionIsOpen(connectionSystem) or !window or !monitorReturn){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	if((*monitorSystem).monitorSize == 1){
+		*monitorReturn = *(*monitorSystem).monitorStart;
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret true;
+	}
+	connection = (*connectionSystem).connection;
+	geometryCookie = xcb_get_geometry(connection, window);
+	translateCoordinatesCookie = xcb_translate_coordinates(connection, window, (*connectionSystem).rootWindow, 0, 0);
+	getGeometryReply = xcb_wait_for_reply(connection, geometryCookie, NULL);
+	getGeometryToken = insertMemoryManagementPointer((*monitorSystem).memoryManagementSystem, getGeometryReply, "MonitorSystem findWindowMonitor() xcb_get_geometry() reply", &memoryManagementFree);
+	translateCoordinatesReply = xcb_wait_for_reply(connection, translateCoordinatesCookie, NULL);
+	translateCoordinatesToken = insertMemoryManagementPointer((*monitorSystem).memoryManagementSystem, translateCoordinatesReply, "MonitorSystem findWindowMonitor() xcb_translate_coordinates() reply", &memoryManagementFree);
+	monitor = NULL;
+	if(getGeometryReply){
+		if(translateCoordinatesReply){
+			const int width = (*getGeometryReply).width + 2 * (*getGeometryReply).border_width;
+			const int height = (*getGeometryReply).height + 2 * (*getGeometryReply).border_width;
+			const int leftX = (*translateCoordinatesReply).dst_x;
+			const int topY = (*translateCoordinatesReply).dst_y;
+			const int rightX = leftX + width;
+			const int bottomY = topY + height;
+			Monitor *current = (*monitorSystem).monitorStart;
+			Monitor *const wall = current + (*monitorSystem).monitorSize;
+			int mostPixels = 0;
+			jmp findWindowMonitorLoop;
+			findWindowMonitorLoop:{
+				if(current < wall){
+					if((*current).leftX < rightX and (*current).rightX > leftX and (*current).topY < bottomY and (*current).bottomY > topY){
+						const int width = ((*current).rightX < rightX? (*current).rightX : rightX) - ((*current).leftX > leftX? (*current).leftX : leftX);
+						const int height = ((*current).bottomY < bottomY? (*current).bottomY : bottomY) - ((*current). topY > topY? (*current).topY : topY);
+						const int pixels = width * height;
+						if(pixels > mostPixels){
+							mostPixels = pixels;
+							monitor = current;
+						}
+					}
+					inc current;
+					jmp findWindowMonitorLoop;
+				}
+				free(translateCoordinatesReply);
+				removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, translateCoordinatesToken);
+			}
+		}
+		free(getGeometryReply);
+		removeMemoryManagementPointer((*monitorSystem).memoryManagementSystem, getGeometryToken);
+	}
+	if(!monitor){
+		unlockLock(&(*connectionSystem).lockSystem);
+		unlockLock(&(*monitorSystem).lockSystem);
+		ret false;
+	}
+	*monitorReturn = *monitor;
+	unlockLock(&(*connectionSystem).lockSystem);
+	unlockLock(&(*monitorSystem).lockSystem);
+	ret true;
+}
+FINIMONITORSYSTEM(){
+	if(!monitorSystem){
+		ret false;
+	}
+	if(!finiLockSystem(&(*monitorSystem).lockSystem)){
+		ret false;
+	}
+	(*monitorSystem).multithreaded = false;
+	destroyMonitors(monitorSystem);
+	(*monitorSystem).connectionSystem = NULL;
+	(*monitorSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+

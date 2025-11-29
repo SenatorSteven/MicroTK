@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! permissions.hold
 
 MIT License
 
@@ -21,11 +21,32 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef PERMISSIONS_HOLD
+#define PERMISSIONS_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../cold/cold.hold"
+#endif
+
+#define ROOT_UID /*----------*/ (0)
+#define ROOT_GID /*----------*/ (0)
+
+#define GETGROUPS_FAILURE /*-*/ (-1)
+
+#define SETUID_FAILURE /*----*/ (-1)
+#define SETGID_FAILURE /*----*/ (-1)
+#define SETEUID_FAILURE /*---*/ (-1)
+#define SETEGID_FAILURE /*---*/ (-1)
+#define SETREUID_FAILURE /*--*/ (-1)
+#define SETREGID_FAILURE /*--*/ (-1)
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../cold/hot.hold"
+#endif
+
+#endif
 

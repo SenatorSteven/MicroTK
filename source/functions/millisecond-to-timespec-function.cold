@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! millisecond-to-timespec-function.cold
 
 MIT License
 
@@ -21,11 +21,24 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#define _POSIX_C_SOURCE /*-*/ (199309L)
 
-## -
--
+#include <stdint.h>
+#include <time.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/time.hold"
+#include "../../headers/functions/millisecond-to-timespec-function.hold"
+
+MILLISECONDTOTIMESPEC(){
+	if(!timespecReturn){
+		ret false;
+	}
+	(*timespecReturn).tv_sec = milliseconds / 1000;
+	(*timespecReturn).tv_nsec = (milliseconds % 1000) * 1000000;
+	ret true;
+}
 

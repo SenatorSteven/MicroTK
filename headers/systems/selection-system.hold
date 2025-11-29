@@ -1,0 +1,98 @@
+
+/*! selection-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef SELECTION_SYSTEM_HOLD
+#define SELECTION_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define SelectionSystem /*-------------*/ SelectionSystem
+
+#define NONE_SELECTION_AXIS /*---------*/ (0)
+#define HORIZONTAL_SELECTION_AXIS /*---*/ (1)
+#define VERTICAL_SELECTION_AXIS /*-----*/ (2)
+
+#define NONE_STARTING_SELECTION /*-----*/ (0)
+#define FIRST_STARTING_SELECTION /*----*/ (1)
+#define LAST_STARTING_SELECTION /*-----*/ (2)
+#define NUMBERED_STARTING_SELECTION /*-*/ (3)
+
+#define NONE_WHICH_SELECTION /*--------*/ (0)
+#define PREVIOUS_WHICH_SELECTION /*----*/ (1)
+#define NEXT_WHICH_SELECTION /*--------*/ (2)
+#define LEFT_WHICH_SELECTION /*--------*/ (3)
+#define RIGHT_WHICH_SELECTION /*-------*/ (4)
+#define ABOVE_WHICH_SELECTION /*-------*/ (5)
+#define BELOW_WHICH_SELECTION /*-------*/ (6)
+
+#define INITSELECTIONSYSTEM() /*-------*/ bool  initSelectionSystem(SelectionSystem *const selectionSystem)
+#define SETSELECTIONAXIS() /*----------*/ bool  setSelectionAxis(SelectionSystem *const selectionSystem, const uint8 selectionAxis)
+#define SETSELECTIONAXISAMOUNT() /*----*/ bool  setSelectionAxisAmount(SelectionSystem *const selectionSystem, const uint selectionAxisAmount)
+#define SETSELECTIONAMOUNT() /*--------*/ bool  setSelectionAmount(SelectionSystem *const selectionSystem, const uint selectionAmount)
+#define SETSTARTINGSELECTION() /*------*/ bool  setStartingSelection(SelectionSystem *const selectionSystem, const uint8 startingSelectionType, const uint8 startingSelectionNumber)
+#define SETSELECTIONNAVIGATION() /*----*/ bool  setSelectionNavigation(SelectionSystem *const selectionSystem, const bool allowCircularNavigation)
+#define SETCURRENTSELECTION() /*-------*/ bool  setCurrentSelection(SelectionSystem *const selectionSystem)
+#define MOVECURRENTSELECTION() /*------*/ bool  moveCurrentSelection(SelectionSystem *const selectionSystem, const uint8 whichSelection)
+#define FINISELECTIONSYSTEM() /*-------*/ bool  finiSelectionSystem(SelectionSystem *const selectionSystem)
+
+#define PRINTSELECTIONLOG() /*---------*/ bool  printSelectionLog(SelectionSystem *const selectionSystem)
+
+def struct{
+	MutexSystem /*---*/ mutexSystem;
+	PrintSystem * /*-*/ printSystem;
+	uint32 /*--------*/ selectionAmount;
+	uint32 /*--------*/ selectionAxisAmount;
+	uint32 /*--------*/ currentSelection;
+	uint32 /*--------*/ startingSelectionNumber;
+	uint8 /*---------*/ startingSelectionType;
+	uint8 /*---------*/ selectionAxis;
+	bool /*----------*/ allowCircularNavigation;
+	uint8 /*---------*/ operation;
+	uint8 /*---------*/ code;
+	bool /*----------*/ multithreaded;
+	uint8 /*---------*/ pad0[2];
+} SelectionSystem;
+
+INITSELECTIONSYSTEM();
+SETSELECTIONAXIS();
+SETSELECTIONAXISAMOUNT();
+SETSELECTIONAMOUNT();
+SETSTARTINGSELECTION();
+SETSELECTIONNAVIGATION();
+SETCURRENTSELECTION();
+MOVECURRENTSELECTION();
+FINISELECTIONSYSTEM();
+PRINTSELECTIONLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

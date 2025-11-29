@@ -1,0 +1,249 @@
+
+/*! touchpad-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef TOUCHPAD_SYSTEM_HOLD
+#define TOUCHPAD_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define TouchpadSystem /*----------------------*/ TouchpadSystem
+
+#define NONE_GESTURE_AXIS /*-------------------*/ (b(00))
+#define X_GESTURE_AXIS /*----------------------*/ (b(01))
+#define Y_GESTURE_AXIS /*----------------------*/ (b(10))
+
+#define NONE_GESTURE_POSITION_STYLE /*---------*/ (0)
+#define FIRST_FINGER_GESTURE_POSITION_STYLE /*-*/ (1)
+#define LAST_FINGER_GESTURE_POSITION_STYLE /*--*/ (2)
+#define CENTROID_GESTURE_POSITION_STYLE /*-----*/ (3)
+
+#define NONE_GESTURE_SWIPE_DIRECTION /*--------*/ (b(00))
+#define HORIZONTAL_GESTURE_SWIPE_DIRECTION /*--*/ (b(01))
+#define VERTICAL_GESTURE_SWIPE_DIRECTION /*----*/ (b(10))
+#define DIAGONAL_GESTURE_SWIPE_DIRECTION /*----*/ (b(11))
+
+#define INITTOUCHPADSYSTEM() /*----------------*/ bool       initTouchpadSystem(TouchpadSystem *const touchpadSystem)
+#define SETTOUCHPADMEMORYMANAGEMENTSYSTEM() /*-*/ bool       setTouchpadMemoryManagementSystem(TouchpadSystem *const touchpadSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETTOUCHPADCONNECTIONSYSTEM() /*-------*/ bool       setTouchpadConnectionSystem(TouchpadSystem *const touchpadSystem, ConnectionSystem *const connectionSystem)
+#define REQUESTTOUCHPADS() /*------------------*/ bool       requestTouchpads(TouchpadSystem *const touchpadSystem)
+
+
+
+
+
+
+
+
+
+#define GETTOUCHPADFINGERDATA() /*-------------*/ bool       getTouchpadFingerData(TouchpadSystem *const touchpadSystem, const xcb_input_raw_touch_begin_event_t *const event, FingerData *const fingerDataReturn)
+#define INSERTTOUCHPADFINGER() /*--------------*/ bool       insertTouchpadFinger(TouchpadSystem *const touchpadSystem, const FingerData *const fingerData)
+#define UPDATETOUCHPADFINGER() /*--------------*/ bool       updateTouchpadFinger(TouchpadSystem *const touchpadSystem, const FingerData *const fingerData)
+#define REMOVETOUCHPADFINGER() /*--------------*/ bool       removeTouchpadFinger(TouchpadSystem *const touchpadSystem, const FingerData *const fingerData)
+
+#define FINDTOUCHPADFINGER() /*----------------*/ Finger *   findTouchpadFinger(TouchpadSystem *const touchpadSystem, Touchpad *const touchpad, const uint32 fingerID)
+#define FINDTOUCHPADFINGERSLOT() /*------------*/ Finger *   findTouchpadFingerSlot(TouchpadSystem *const touchpadSystem, Touchpad *const touchpad)
+#define FINDTOUCHPADFINGERGESTURE() /*---------*/ Gesture *  findTouchpadFingerGesture(TouchpadSystem *const touchpadSystem, const Touchpad *const touchpad, const Finger *const finger)
+
+#define ISVALIDTOUCHPAD() /*-------------------*/ bool       isValidTouchpad(TouchpadSystem *const touchpadSystem, const Touchpad *const touchpad)
+#define ISVALIDTOUCHPADGESTURE() /*------------*/ bool       isValidTouchpadGesture(TouchpadSystem *const touchpadSystem, const Touchpad *const touchpad, const Gesture *const gesture)
+
+#define INSERTTOUCHPADGESTURE() /*-------------*/ bool       insertTouchpadGesture(TouchpadSystem *const touchpadSystem, Touchpad *const touchpad)
+#define UPDATETOUCHPADGESTURE() /*-------------*/ bool       updateTouchpadGesture(TouchpadSystem *const touchpadSystem, Touchpad *const touchpad, Gesture *const gesture, Finger *const finger)
+#define REMOVETOUCHPADGESTURE() /*-------------*/ bool       removeTouchpadGesture(TouchpadSystem *const touchpadSystem, Touchpad *const touchpad, Gesture *const gesture)
+#define INSERTTOUCHPADGESTUREFINGER() /*-------*/ bool       insertTouchpadGestureFinger(TouchpadSystem *const touchpadSystem, Touchpad *const touchpad, Gesture *const gesture, Finger *const finger)
+#define FINDTOUCHPADGESTURE() /*---------------*/ Gesture *  findTouchpadGesture(TouchpadSystem *const touchpadSystem, Touchpad *const touchpad, Finger *const finger)
+#define FINDNEWTOUCHPADGESTURE() /*------------*/ Gesture *  findNewTouchpadGesture(TouchpadSystem *const touchpadSystem, Touchpad *const touchpad)
+
+
+
+
+
+
+
+
+
+#define DESTROYTOUCHPADS() /*------------------*/ bool       destroyTouchpads(TouchpadSystem *const touchpadSystem)
+#define FINDTOUCHPAD() /*----------------------*/ Touchpad * findTouchpad(TouchpadSystem *const touchpadSystem, const xcb_input_device_id_t deviceID)
+#define FINITOUCHPADSYSTEM() /*----------------*/ bool       finiTouchpadSystem(TouchpadSystem *const touchpadSystem)
+
+#define PRINTTOUCHPADLOG() /*------------------*/ bool       printTouchpadLog(TouchpadSystem *const touchpadSystem)
+
+def struct{
+	xcb_input_device_id_t /*----*/ deviceID;
+	uint8 /*--------------------*/ axis;
+	uint8 /*--------------------*/ pad0[1];
+	uint32 /*-------------------*/ fingerID;
+	double /*-------------------*/ x;
+	double /*-------------------*/ y;
+} FingerData;
+
+
+
+
+
+
+
+
+
+def struct{
+	xcb_input_device_id_t /*----*/ deviceID;
+	bool /*---------------------*/ inUse;
+	bool /*---------------------*/ hasUpdated;
+	uint32 /*-------------------*/ fingerID;
+	double /*-------------------*/ initialX;
+	double /*-------------------*/ initialY;
+	double /*-------------------*/ x;
+	double /*-------------------*/ y;
+} Finger;
+
+#define NONE_GESTURE_STATE /*-------------*/ (0)
+#define NEW_GESTURE_STATE /*--------------*/ (1)
+#define TAP_GESTURE_STATE /*--------------*/ (2)
+#define HORIZONTAL_SWIPE_GESTURE_STATE /*-*/ (3)
+#define VERTICAL_SWIPE_GESTURE_STATE /*---*/ (4)
+#define DIAGONAL_SWIPE_GESTURE_STATE /*---*/ (5)
+#define FREE_SWIPE_GESTURE_STATE /*-------*/ (6)
+
+def struct{
+	xcb_input_device_id_t /*----*/ deviceID;
+	bool /*---------------------*/ inUse;
+	bool /*---------------------*/ hasUpdated;
+	uint8 /*--------------------*/ fingerAmount;
+	uint8 /*--------------------*/ swipeDirection;
+	bool /*---------------------*/ gesturePositionStyle;
+	uint8 /*--------------------*/ pad0[5];
+	uint32 /*-------------------*/ n;
+	double /*-------------------*/ initialX;
+	double /*-------------------*/ initialY;
+	double /*-------------------*/ absoluteX;
+	double /*-------------------*/ absoluteY;
+	double /*-------------------*/ relativeX;
+	double /*-------------------*/ relativeY;
+	double /*-------------------*/ deltaX;
+	double /*-------------------*/ deltaY;
+	Finger * /*-----------------*/ touchpadFinger0;
+	Finger * /*-----------------*/ touchpadFinger1;
+	Finger * /*-----------------*/ touchpadFinger2;
+	Finger * /*-----------------*/ touchpadFinger3;
+	Finger * /*-----------------*/ touchpadFinger4;
+} Gesture;
+
+
+
+
+
+
+
+
+
+def struct{
+	xcb_input_device_id_t /*----*/ deviceID;
+	uint8 /*--------------------*/ inUse;
+	uint8 /*--------------------*/ fingerAmount;
+	uint8 /*--------------------*/ gestureAmount;
+	double /*-------------------*/ x;
+	double /*-------------------*/ y;
+	double /*-------------------*/ width;
+	double /*-------------------*/ height;
+	double /*-------------------*/ millimeterWidth;
+	double /*-------------------*/ millimeterHeight;
+	Finger /*-------------------*/ finger0;
+	Finger /*-------------------*/ finger1;
+	Finger /*-------------------*/ finger2;
+	Finger /*-------------------*/ finger3;
+	Finger /*-------------------*/ finger4;
+	Gesture * /*----------------*/ gestureStart;
+	uint32 /*-------------------*/ gestureToken;
+	uint32 /*-------------------*/ gestureSize;
+	uint32 /*-------------------*/ gestureAllocated;
+	uint8 /*--------------------*/ pad0[4];
+} Touchpad;
+
+def struct{
+	MutexSystem /*--------------*/ mutexSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	ConnectionSystem * /*-------*/ connectionSystem;
+	Touchpad * /*---------------*/ touchpadStart;
+	uint32 /*-------------------*/ touchpadToken;
+	uint32 /*-------------------*/ touchpadSize;
+	uint8 /*--------------------*/ gesturePositionStyle;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[4];
+} TouchpadSystem;
+
+INITTOUCHPADSYSTEM();
+SETTOUCHPADMEMORYMANAGEMENTSYSTEM();
+SETTOUCHPADCONNECTIONSYSTEM();
+
+
+
+
+
+
+
+
+
+REQUESTTOUCHPADS();
+GETTOUCHPADFINGERDATA();
+INSERTTOUCHPADFINGER();
+UPDATETOUCHPADFINGER();
+REMOVETOUCHPADFINGER();
+DESTROYTOUCHPADS();
+FINDTOUCHPAD();
+FINDTOUCHPADFINGER();
+FINDTOUCHPADFINGERSLOT();
+ISVALIDTOUCHPAD();
+ISVALIDTOUCHPADGESTURE();
+INSERTTOUCHPADGESTURE();
+UPDATETOUCHPADGESTURE();
+REMOVETOUCHPADGESTURE();
+INSERTTOUCHPADGESTUREFINGER();
+FINDNEWTOUCHPADGESTURE();
+
+
+
+
+
+
+
+
+
+FINDTOUCHPADGESTURE();
+FINITOUCHPADSYSTEM();
+PRINTTOUCHPADLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

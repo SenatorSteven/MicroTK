@@ -1,0 +1,439 @@
+
+/*! dynamic-argument-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Complete the Dynamic Argument system.
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/dynamic-argument-system.hold"
+#include "../../headers/functions/sensitive-string-compare-function.hold"
+#include "../../headers/functions/insensitive-string-compare-function.hold"
+
+INITDYNAMICARGUMENTSYSTEM(){
+	if(!dynamicArgumentSystem){
+		ret false;
+	}
+	(*dynamicArgumentSystem).memoryManagementSystem = NULL;
+	(*dynamicArgumentSystem).printSystem = NULL;
+	ret true;
+}
+SETDYNAMICARGUMENTMEMORYMANAGER(){
+	if(!dynamicArgumentSystem or memoryManagementSystem == (*dynamicArgumentSystem).memoryManagementSystem){
+		ret false;
+	}
+	(*dynamicArgumentSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETDYNAMICARGUMENTPRINT(){
+	if(!dynamicArgumentSystem or printSystem == (*dynamicArgumentSystem).printSystem){
+		ret false;
+	}
+	(*dynamicArgumentSystem).printSystem = printSystem;
+	ret true;
+}
+PARSEDYNAMICARGUMENTS(){
+	const char *const *argumentCurrent;
+	const char *const *argumentWall;
+	const char *programName;
+	MemoryManagementSystem *memoryManagementSystem;
+	PrintSystem *printSystem;
+	uint currentPositional;
+	if(!dynamicArgumentSystem or !argumentStart or !argumentAmount or !itemSize or !itemNameStart or !itemNameSizeStart or !itemTypeStart or !itemPropertyStart){
+		ret false;
+	}
+	memoryManagementSystem = (*dynamicArgumentSystem).memoryManagementSystem;
+	printSystem = (*dynamicArgumentSystem).printSystem;
+	argumentCurrent = argumentStart;
+	argumentWall = argumentCurrent + argumentAmount;
+	currentPositional = 0;
+	programName = *argumentCurrent;
+	inc argumentCurrent;
+
+
+
+	(void)itemReturnStart;
+
+
+
+	jmp parseArgumentLoop;
+	parseArgumentLoop:{
+		if(argumentCurrent < argumentWall){
+			uint offset = identifyDynamicArgument(dynamicArgumentSystem, *argumentCurrent, itemSize, itemNameStart, itemNameSizeStart, itemPropertyStart, currentPositional);
+			fprintf(stdout, "\nargument: \"%s\"\n", *argumentCurrent);
+			if(!offset){
+				fprintf(stdout, "failed to parse\n");
+				ret false;
+			}
+			dec offset;
+			fprintf(stdout, "offset: %u\n", offset);
+			inc argumentCurrent;
+			{
+				const char *const name = *(itemNameStart + offset);
+				const uint8 type = *(itemTypeStart + offset);
+				const uint8 property = *(itemPropertyStart + offset);
+
+
+
+				/*! what do about returns? */
+
+				void *_itemReturnCurrent = (void *)1;
+				void **itemReturnCurrent = &_itemReturnCurrent;
+
+
+
+				if((!(property & POSITIONAL_DYNAMIC_ARGUMENT_PROPERTY) and !name) or (type and !*itemReturnCurrent)){
+					fprintf(stdout, "bad param\n");
+					ret false;
+				}
+				if(property & POSITIONAL_DYNAMIC_ARGUMENT_PROPERTY){
+					inc currentPositional;
+				}
+				switch(type){
+					to NONE_DYNAMIC_ARGUMENT_TYPE:{
+						brk;
+					}
+					to INT_DYNAMIC_ARGUMENT_TYPE:{
+
+
+
+						/*!*/
+
+
+
+						brk;
+					}
+					to UINT_DYNAMIC_ARGUMENT_TYPE:{
+
+
+
+						/*!*/
+
+
+
+						brk;
+					}
+					to STRING_DYNAMIC_ARGUMENT_TYPE:{
+
+
+
+						if(argumentCurrent == argumentWall){
+							ret false;
+						}
+						fprintf(stdout, "name is %s with value %s\n", name, *argumentCurrent);
+						inc argumentCurrent;
+
+
+
+						/*!*/
+
+#ifdef a
+						uint8 argument;
+						if(!(which & (NAME_WHICH_ARGUMENT | MANDATORY_NAME_WHICH_ARGUMENT))){
+							jmp printInvalidArgument;
+						}
+						if(!(mask & (NAME_WHICH_ARGUMENT | MANDATORY_NAME_WHICH_ARGUMENT))){
+							jmp printNameSpecified;
+						}
+						if(argumentCurrent + 1 == argumentWall){
+							jmp printNoNameValue;
+						}
+						inc argumentCurrent;
+						argument = identifyArgument(argumentSystem, *argumentCurrent);
+						switch(argument){
+							to NONE_ARGUMENT: /*---------*/ jmp printNoArgument;
+							to UNRECOGNIZED_ARGUMENT: /*-*/ brk;
+							to HELP_ARGUMENT: /*---------*/ jmp printNameUsage;
+							to NAME_ARGUMENT: /*---------*/ jmp printNoNameValue;
+							to OUTPUT_ARGUMENT: /*-------*/ jmp printNoNameValue;
+							to ERROR_ARGUMENT: /*--------*/ jmp printNoNameValue;
+							to SERVER_ARGUMENT: /*-------*/ jmp printNoNameValue;
+							to CONFIG_ARGUMENT: /*-------*/ jmp printNoNameValue;
+							to STDOUT_ARGUMENT: /*-------*/ jmp printNoNameValue;
+							to STDERR_ARGUMENT: /*-------*/ jmp printNoNameValue;
+							off: /*----------------------*/ jmp printNoNameValue;
+						}
+						name = *argumentCurrent;
+						mask &= ~(NAME_WHICH_ARGUMENT | MANDATORY_NAME_WHICH_ARGUMENT);
+#endif
+
+
+
+						brk;
+					}
+					to READ_FILE_DYNAMIC_ARGUMENT_TYPE:{
+
+
+
+						/*!*/
+
+#ifdef a
+						uint8 argument;
+						FILE *file;
+						uint32 token;
+						if(!(which & (CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT))){
+							jmp printInvalidArgument;
+						}
+						if(!(mask & (CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT))){
+							jmp printConfigSpecified;
+						}
+						if(argumentCurrent + 1 == argumentWall){
+							jmp printNoConfigValue;
+						}
+						inc argumentCurrent;
+						argument = identifyArgument(argumentSystem, *argumentCurrent);
+						switch(argument){
+							to NONE_ARGUMENT: /*---------*/ jmp printNoArgument;
+							to UNRECOGNIZED_ARGUMENT: /*-*/ brk;
+							to HELP_ARGUMENT: /*---------*/ jmp printConfigUsage;
+							to NAME_ARGUMENT: /*---------*/ jmp printNoConfigValue;
+							to OUTPUT_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+							to ERROR_ARGUMENT: /*--------*/ jmp printNoConfigValue;
+							to SERVER_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+							to CONFIG_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+							to STDOUT_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+							to STDERR_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+							off: /*----------------------*/ jmp printNoConfigValue;
+						}
+						configPath = *argumentCurrent;
+						if(directoryExists(configPath)){
+							jmp printConfigValueDirectory;
+						}
+						file = fopen(configPath, "r");
+						token = insertMemoryManagementPointer(memoryManagementSystem, file, "ArgumentSystem parseArguments() config file argument", &memoryManagementFclose);
+						if(file){
+							fclose(file);
+							removeMemoryManagementPointer(memoryManagementSystem, token);
+							mask &= ~(CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT);
+							brk;
+						}
+						file = fopen(configPath, "w");
+						token = insertMemoryManagementPointer(memoryManagementSystem, file, "ArgumentSystem parseArguments() config file argument", &memoryManagementFclose);
+						if(file){
+							fclose(file);
+							removeMemoryManagementPointer(memoryManagementSystem, token);
+							remove(configPath);
+							mask &= ~(CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT);
+							brk;
+						}
+#endif
+
+
+
+						brk;
+					}
+					to WRITE_FILE_DYNAMIC_ARGUMENT_TYPE:{
+
+
+
+						/*!*/
+
+#ifdef a
+						uint8 argument;
+						FILE *file;
+						uint32 token;
+						if(!(which & (OUTPUT_WHICH_ARGUMENT | MANDATORY_OUTPUT_WHICH_ARGUMENT))){
+							jmp printInvalidArgument;
+						}
+						if(!(mask & (OUTPUT_WHICH_ARGUMENT | MANDATORY_OUTPUT_WHICH_ARGUMENT))){
+							jmp printOutputSpecified;
+						}
+						if(argumentCurrent + 1 == argumentWall){
+							jmp printNoOutputValue;
+						}
+						inc argumentCurrent;
+						argument = identifyArgument(argumentSystem, *argumentCurrent);
+						switch(argument){
+							to NONE_ARGUMENT: /*---------*/ /*------------------*/ jmp printNoArgument;
+							to UNRECOGNIZED_ARGUMENT: /*-*/ /*------------------*/ brk;
+							to HELP_ARGUMENT: /*---------*/ /*------------------*/ jmp printOutputUsage;
+							to NAME_ARGUMENT: /*---------*/ /*------------------*/ jmp printNoOutputValue;
+							to OUTPUT_ARGUMENT: /*-------*/ /*------------------*/ jmp printNoOutputValue;
+							to ERROR_ARGUMENT: /*--------*/ /*------------------*/ jmp printNoOutputValue;
+							to SERVER_ARGUMENT: /*-------*/ /*------------------*/ jmp printNoOutputValue;
+							to CONFIG_ARGUMENT: /*-------*/ /*------------------*/ jmp printNoOutputValue;
+							to STDOUT_ARGUMENT: /*-------*/ outputStream = stdout; brk;
+							to STDERR_ARGUMENT: /*-------*/ outputStream = stderr; brk;
+							off: /*----------------------*/ /*------------------*/ jmp printNoOutputValue;
+						}
+						outputPath = *argumentCurrent;
+						if(directoryExists(outputPath)){
+							jmp printOutputValueDirectory;
+						}
+						file = fopen(outputPath, "w");
+						token = insertMemoryManagementPointer(memoryManagementSystem, file, "ArgumentSystem parseArguments() output file argument", &memoryManagementFclose);
+						if(file){
+							fclose(file);
+							removeMemoryManagementPointer(memoryManagementSystem, token);
+							remove(outputPath);
+							mask &= ~(OUTPUT_WHICH_ARGUMENT | MANDATORY_OUTPUT_WHICH_ARGUMENT);
+							brk;
+						}
+#endif
+
+
+
+						brk;
+					}
+					to STREAM_DYNAMIC_ARGUMENT_TYPE:{
+
+
+
+						/*!*/
+
+
+
+						brk;
+					}
+					off:{
+
+
+
+						/*! what do here? */
+
+
+
+						brk;
+					}
+				}
+			}
+
+
+
+
+
+
+
+
+
+			/*!*/
+
+
+
+
+
+
+
+
+
+			inc argumentCurrent;
+			jmp parseArgumentLoop;
+		}
+		jmp emergencyExit;
+	}
+	emergencyExit:{
+		fprintf(stdout, "\n");
+
+
+
+
+
+
+
+
+
+		/*!*/
+
+
+
+
+
+
+
+
+
+		(*dynamicArgumentSystem).programName = programName;
+		ret true;
+	}
+}
+IDENTIFYDYNAMICARGUMENT(){
+
+
+
+	/*! check if lengths are the same before string compare for speed. have to specify lengths when the system begins. */
+
+	/*! utf8 upper and lower case might have different lengths, therefore the trick works only when sensitive checking. */
+
+
+
+	const char *const *itemNameCurrent;
+	const char *const *itemNameWall;
+	const uint8 *itemPropertyCurrent;
+	uint currentSeenPositional;
+	uint positional;
+	if(!dynamicArgumentSystem or !argument or !itemSize or !itemNameStart or !itemNameSizeStart or !itemPropertyStart){
+		ret 0;
+	}
+	itemNameCurrent = itemNameStart;
+	itemNameWall = itemNameCurrent + itemSize;
+	itemPropertyCurrent = itemPropertyStart;
+	currentSeenPositional = 0;
+	positional = 0;
+	jmp identifyDynamicArgumentLoop;
+	identifyDynamicArgumentLoop:{
+		if(itemNameCurrent < itemNameWall){
+			if(*itemPropertyCurrent & POSITIONAL_DYNAMIC_ARGUMENT_PROPERTY){
+				if(currentSeenPositional == currentPositional){
+					positional = itemNameCurrent - itemNameStart + 1;
+				}
+				inc currentSeenPositional;
+			}else{
+				if(*itemPropertyCurrent & CASE_INSENSITIVE_DYNAMIC_ARGUMENT_PROPERTY){
+					if(insensitiveStringCompare(*itemNameCurrent, argument)){
+						ret itemNameCurrent - itemNameStart + 1;
+					}
+				}else{
+					if(sensitiveStringCompare(*itemNameCurrent, argument)){
+						ret itemNameCurrent - itemNameStart + 1;
+					}
+				}
+			}
+			inc itemPropertyCurrent;
+			inc itemNameCurrent;
+			jmp identifyDynamicArgumentLoop;
+		}
+		if(!positional){
+			ret 0;
+		}
+		ret positional;
+	}
+}
+FINIDYNAMICARGUMENTSYSTEM(){
+	if(!dynamicArgumentSystem){
+		ret false;
+	}
+	(*dynamicArgumentSystem).printSystem = NULL;
+	(*dynamicArgumentSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+

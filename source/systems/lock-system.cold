@@ -1,0 +1,146 @@
+
+/*! lock-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+#include <pthread.h>
+#include <signal.h>
+#include <stdint.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/signal.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/systems/lock-system.hold"
+
+INITLOCKSYSTEM(){
+	if(!lockSystem){
+		ret false;
+	}
+	(*lockSystem).lockCreated = false;
+	(*lockSystem).multithreaded = false;
+	ret true;
+}
+SETLOCKMULTITHREADING(){
+	if(!lockSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*lockSystem).multithreaded){
+		ret false;
+	}
+	(*lockSystem).multithreaded = multithreaded;
+	ret true;
+}
+CREATELOCK(){
+	pthread_rwlockattr_t attributes;
+	if(!lockSystem or (*lockSystem).lockCreated){
+		ret false;
+	}
+	if(pthread_rwlockattr_init(&attributes) != PTHREAD_RWLOCKATTR_INIT_SUCCESS){
+		ret false;
+	}
+	if(pthread_rwlockattr_setpshared(&attributes, PTHREAD_PROCESS_PRIVATE) != PTHREAD_RWLOCKATTR_SETPSHARED_SUCCESS){
+		pthread_rwlockattr_destroy(&attributes);
+		ret false;
+	}
+	if(pthread_rwlockattr_setkind_np(&attributes, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP) != PTHREAD_RWLOCKATTR_SETKIND_NP_SUCCESS){
+		pthread_rwlockattr_destroy(&attributes);
+		ret false;
+	}
+	if(pthread_rwlock_init(&(*lockSystem).lock, &attributes) != PTHREAD_RWLOCK_INIT_SUCCESS){
+		pthread_rwlockattr_destroy(&attributes);
+		ret false;
+	}
+	pthread_rwlockattr_destroy(&attributes);
+	(*lockSystem).lockCreated = true;
+	ret true;
+}
+TRYLOCKREADLOCK(){
+	if(!lockSystem){
+		ret false;
+	}
+	if((*lockSystem).multithreaded and (!(*lockSystem).lockCreated or pthread_rwlock_tryrdlock(&(*lockSystem).lock) != PTHREAD_RWLOCK_TRYRDLOCK_SUCCESS)){
+		ret false;
+	}
+	ret true;
+}
+TRYLOCKWRITELOCK(){
+	if(!lockSystem){
+		ret false;
+	}
+	if((*lockSystem).multithreaded and (!(*lockSystem).lockCreated or pthread_rwlock_trywrlock(&(*lockSystem).lock) != PTHREAD_RWLOCK_TRYWRLOCK_SUCCESS)){
+		ret false;
+	}
+	ret true;
+}
+LOCKREADLOCK(){
+	if(!lockSystem){
+		ret false;
+	}
+	if((*lockSystem).multithreaded and (!(*lockSystem).lockCreated or pthread_rwlock_rdlock(&(*lockSystem).lock) != PTHREAD_RWLOCK_RDLOCK_SUCCESS)){
+		ret false;
+	}
+	ret true;
+}
+LOCKWRITELOCK(){
+	if(!lockSystem){
+		ret false;
+	}
+	if((*lockSystem).multithreaded and (!(*lockSystem).lockCreated or pthread_rwlock_wrlock(&(*lockSystem).lock) != PTHREAD_RWLOCK_WRLOCK_SUCCESS)){
+		ret false;
+	}
+	ret true;
+}
+UNLOCKLOCK(){
+	if(!lockSystem){
+		ret false;
+	}
+	if((*lockSystem).multithreaded and (!(*lockSystem).lockCreated or pthread_rwlock_unlock(&(*lockSystem).lock) != PTHREAD_RWLOCK_UNLOCK_SUCCESS)){
+		ret false;
+	}
+	ret true;
+}
+DESTROYLOCK(){
+	if(!lockSystem or !(*lockSystem).lockCreated){
+		ret false;
+	}
+	if(pthread_rwlock_destroy(&(*lockSystem).lock) != PTHREAD_RWLOCK_DESTROY_SUCCESS){
+		ret false;
+	}
+	(*lockSystem).lockCreated = false;
+	ret true;
+}
+FINILOCKSYSTEM(){
+	if(!lockSystem){
+		ret false;
+	}
+	if(!destroyLock(lockSystem)){
+		ret false;
+	}
+	setLockMultithreading(lockSystem, false);
+	ret true;
+}
+

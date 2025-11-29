@@ -1,0 +1,2035 @@
+
+#ifdef a
+#include <stdio.h>
+#include <stdlib.h>
+#include <xcb/xcb.h>
+#include <xcb/xfixes.h>
+
+int main(){
+	xcb_connection_t *connection = xcb_connect(NULL, NULL);
+	xcb_window_t root = xcb_setup_roots_iterator(xcb_get_setup(connection)).data->root;
+	xcb_xfixes_barrier_t barrier0;
+	xcb_xfixes_barrier_t barrier1;
+	xcb_xfixes_barrier_t barrier2;
+	xcb_xfixes_barrier_t barrier3;
+	{
+		const uint32_t major = 5, minor = 0;
+		xcb_xfixes_query_version_cookie_t v_cookie = xcb_xfixes_query_version(connection, major, minor);
+		xcb_xfixes_query_version_reply_t *v_reply = xcb_xfixes_query_version_reply(connection, v_cookie, NULL);
+		if (!v_reply || v_reply->major_version < 5) {
+			fprintf(stderr, "XFixes >= 5.0 required (server has %u.%u)\n", v_reply ? v_reply->major_version : 0, v_reply ? v_reply->minor_version : 0);
+			free(v_reply);
+			return 1;
+		}
+		free(v_reply);
+	}
+	{
+		xcb_window_t window = root;
+		const int x = 1920;
+		const int y = 0;
+		const unsigned int width = 1920;
+		const unsigned int height = 1080;
+		{
+			const int leftX = x;
+			const int rightX = x + width;
+			const int topY = y;
+			const int bottomY = y + height;
+			const int threshold = 100;
+			barrier0 = xcb_generate_id(connection);
+			barrier1 = xcb_generate_id(connection);
+			barrier2 = xcb_generate_id(connection);
+			barrier3 = xcb_generate_id(connection);
+			xcb_xfixes_create_pointer_barrier(connection, barrier0, window,  leftX - threshold,    topY            , rightX + threshold,    topY            , XCB_XFIXES_BARRIER_DIRECTIONS_POSITIVE_Y, 0, NULL);
+			xcb_xfixes_create_pointer_barrier(connection, barrier1, window,  leftX - threshold, bottomY            , rightX + threshold, bottomY            , XCB_XFIXES_BARRIER_DIRECTIONS_NEGATIVE_Y, 0, NULL);
+			xcb_xfixes_create_pointer_barrier(connection, barrier2, window,  leftX            ,    topY - threshold,  leftX            , bottomY + threshold, XCB_XFIXES_BARRIER_DIRECTIONS_POSITIVE_X, 0, NULL);
+			xcb_xfixes_create_pointer_barrier(connection, barrier3, window, rightX            ,    topY - threshold, rightX            , bottomY + threshold, XCB_XFIXES_BARRIER_DIRECTIONS_NEGATIVE_X, 0, NULL);
+		}
+		printf("pointer confined to rectangle (%d,%d) %dx%d\npress enter to release...\n", x, y, width, height);
+	}
+	xcb_flush(connection);
+	goto eventLoop;
+	eventLoop:{
+		xcb_generic_event_t *event = xcb_wait_for_event(connection);
+		fprintf(stdout, "event: %p, type: %u\n", (void *)event, event? (*event).response_type & ~128 : 0);
+		goto eventLoop;
+	}
+	xcb_xfixes_delete_pointer_barrier(connection, barrier3);
+	xcb_xfixes_delete_pointer_barrier(connection, barrier2);
+	xcb_xfixes_delete_pointer_barrier(connection, barrier1);
+	xcb_xfixes_delete_pointer_barrier(connection, barrier0);
+	xcb_flush(connection);
+	xcb_disconnect(connection);
+	return 0;
+}
+#endif
+
+
+
+
+
+
+
+
+
+/*!
+	static argument parser execute: modular-de --name "" --output stdout --error stderr --config /tmp/modular-de.conf
+*/
+
+#warning ║
+#warning ╠═══ Complete main.
+#warning ║
+#warning ║
+#warning ╠═══ Mod4 + Tap doesnt work due to keyboard locking.
+#warning ╠═══ Lifting from keyboard is annoying both because of timing and because of the touch begin/update events. Accept first update as begin after lifting palm suppression?
+#warning ║
+#warning ║
+#warning ╠═══ Ungrabbing happens only on the main keys and buttons grabbed with their modifiers. All additionals remain grabbed to not obstruct potential overlaps with other modifiers and additionals grabbed. Create a database of counters to know when to ungrab something.
+#warning ║
+#warning ║
+#warning ╠═══ Drawing window frames and updating them is ass. How to deal with resizing windows and updating their contents?
+#warning ╠═══ Likely all we can do is pray the compositor is a cool guy.
+#warning ║
+#warning ║
+#warning ╠═══ Introduce dynamic argument parser.
+#warning ║
+
+#ifdef a
+#define DRAWWINDOW() /*-*/ bool  drawWindow(const WindowInfo *const window, const ElementPreferences *const windowElementPreferences, Monitor *const monitor, ElementRectangle *windowRectangle)
+
+DRAWWINDOW(){
+	ElementRectangle _windowRectangle;
+	if(!window or !windowElementPreferences or (!monitor and !windowRectangle)){
+		ret false;
+	}
+	jmp getRectangles;
+	getRectangles:{
+		if(!windowRectangle){
+			windowRectangle = &_windowRectangle;
+			if(!getWindowRectangle(monitor, NULL, windowElementPreferences, windowRectangle) or !(*windowRectangle).width or !(*windowRectangle).height){
+				ret false;
+			}
+		}
+		jmp drawWindow;
+	}
+	drawWindow:{
+		jmp drawWindowElements;
+	}
+	drawWindowElements:{
+		ret true;
+	}
+}
+#endif
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+/*! main.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+/*!includes:{*/
+	#define _POSIX_C_SOURCE /*-*/ (200112L)
+
+	#include <pthread.h>
+	#include <stdint.h>
+	#include <stdio.h>
+	#include <stdlib.h>
+	#include <time.h>
+	#include <xcb/xcb.h>
+	#include <xcb/xcbext.h>
+	#include <xcb/randr.h>
+	#include <xcb/xinput.h>
+	#include <xcb/xkb.h>
+	#include <xcb/xtest.h>
+	#include <X11/Xlib.h>
+
+	#include "../../cold/cold.hold"
+	#include "../headers/pthread.hold"
+	#include "../headers/stdint.hold"
+	#include "../headers/stdio.hold"
+	#include "../headers/stdlib.hold"
+	#include "../headers/time.hold"
+	#include "../headers/x.hold"
+	#include "../headers/icccm.hold"
+	#include "../headers/ewmh.hold"
+	#include "../headers/main.hold"
+	#include "../headers/systems/lock-system.hold"
+	#include "../headers/systems/mutex-system.hold"
+	#include "../headers/systems/memory-management-system.hold"
+	#include "../headers/systems/print-system.hold"
+	#include "../headers/systems/permission-system.hold"
+	#include "../headers/systems/argument-system.hold"
+	#include "../headers/systems/connection-system.hold"
+	#include "../headers/systems/visual-format-system.hold"
+	#include "../headers/systems/avl-tree-system.hold"
+	#include "../headers/systems/atom-system.hold"
+	#include "../headers/systems/monitor-system.hold"
+	#include "../headers/systems/string-tree-system.hold"
+	#include "../headers/systems/stdin-system.hold"
+	#include "../headers/systems/shared-memory-system.hold"
+	#include "../headers/systems/stack-system.hold"
+	#include "../headers/systems/shortcut-system.hold"
+	#include "../headers/systems/window-system.hold"
+	#include "../headers/systems/sleep-thread-system.hold"
+	#include "../headers/systems/configuration-parser-system.hold"
+
+
+
+	#include "../headers/systems/input-device-system.hold"
+	#include "../headers/systems/touchpad-system.hold"
+	#include "../headers/systems/worker-thread-system.hold"
+	#include "../headers/systems/picture-format-system.hold"
+
+
+
+	#include "../headers/systems/queue-system.hold"
+
+
+
+	/*! xkb layout */
+
+	#include "../headers/systems/dynamic-argument-system.hold"
+	#include "../headers/systems/keyboard-layout-system.hold"
+	#include "../headers/functions/select-xkb-events-function.hold"
+	#include "../headers/functions/consume-same-events-function.hold"
+
+
+
+	#include "../headers/functions/select-input-events-function.hold"
+	#include "../headers/functions/select-randr-events-function.hold"
+	#include "../headers/functions/fill-drawable-geometry-function.hold"
+	#include "../headers/functions/millisecond-to-timespec-function.hold"
+	#include "../headers/functions/find-timestamp-function.hold"
+/*!}*/
+
+/*!defines:{*/
+	#define DEBUG /*--------------------------*/ (true)
+
+	#define PROGRAM_NAME /*-------------------*/ "microgeneric"
+
+	#define NONE_PALM_SUPPRESSION /*----------*/ (0)
+	#define READY_PALM_SUPPRESSION /*---------*/ (1)
+	#define FULL_PALM_SUPPRESSION /*----------*/ (2)
+
+	#define RESTORETOUCHPADFUNCTIONALITY() /*-*/ local bool  restoreTouchpadFunctionality(SleepThreadSystem *const sleepThreadSystem, void *const argument)
+	#define TIMERTHREADFUNCTION() /*----------*/ local bool  timerThreadFunction(void *const argument)
+	#define DRAWWINDOW() /*-------------------*/ local bool  drawWindow(WindowSystem *const windowSystem, WindowInfo *const window, const xcb_pixmap_t buffer, void *const argument)
+
+	#if DEBUG
+		#define printConnectionXEvent(b, c) /*-*/ (printConnectionXEvent(b, c))
+	#else
+		#define printConnectionXEvent(b, c) /*-*/ EMPTY_MACRO
+	#endif
+/*!}*/
+
+/*!globals:{*/
+	local MemoryManagementSystem /*----*/ memoryManagementSystem;
+	local PermissionSystem /*----------*/ permissionSystem;
+	local PrintSystem /*---------------*/ printSystem;
+	local ArgumentSystem /*------------*/ argumentSystem;
+	local DynamicArgumentSystem /*-----*/ dynamicArgumentSystem;
+	local ConnectionSystem /*----------*/ connectionSystem;
+	local VisualFormatSystem /*--------*/ visualFormatSystem;
+	local AtomSystem /*----------------*/ atomSystem;
+	local MonitorSystem /*-------------*/ monitorSystem;
+	local StringTreeSystem /*----------*/ stringTreeSystem;
+	local StdinSystem /*---------------*/ stdinSystem;
+	local SharedMemorySystem /*--------*/ sharedMemorySystem;
+	local ShortcutSystem /*------------*/ keyboardShortcutSystem;
+	local ShortcutSystem /*------------*/ mouseShortcutSystem;
+	local WindowSystem /*--------------*/ windowSystem;
+	local SleepThreadSystem /*---------*/ sleepThreadSystem;
+	local ConfigurationParserSystem /*-*/ configurationParserSystem;
+
+
+
+	local InputDeviceSystem /*---------*/ inputDeviceSystem;
+	local TouchpadSystem /*------------*/ touchpadSystem;
+	local WorkerThreadSystem /*--------*/ workerThreadSystem;
+	local SleepThreadSystem /*---------*/ delaySleepThreadSystem;
+	local LockSystem /*----------------*/ lockSystem;
+	local PictureFormatSystem /*-------*/ pictureFormatSystem;
+	local KeyboardLayoutSystem /*------*/ keyboardLayoutSystem;
+
+
+
+	local xcb_generic_event_t * /*-----*/ event;
+	local uint32 /*--------------------*/ eventToken;
+
+
+
+	local uint /*----------------------*/ scrollPer;
+	local uint8 /*---------------------*/ palmSuppression;
+	local double /*--------------------*/ tapThresholdX;
+	local double /*--------------------*/ tapThresholdY;
+	local double /*--------------------*/ edgeThresholdX;
+	local double /*--------------------*/ edgeThresholdY;
+	local double /*--------------------*/ longTapWidth;
+	local double /*--------------------*/ longTapHeight;
+	local struct timespec /*-----------*/ longTapDuration;
+	local bool /*----------------------*/ allowMultipleGestures;      /*!*/
+	local bool /*----------------------*/ allowBothAxisSwipeGestures; /*!*/
+/*!}*/
+
+/*!functions:{*/
+	RESTORETOUCHPADFUNCTIONALITY();
+	TIMERTHREADFUNCTION();
+	DRAWWINDOW();
+/*!}*/
+
+int main(const int argumentSize, const char *const *const argumentStart){
+	jmp initSystems;
+	initSystems:{
+		initMemoryManagementSystem(&memoryManagementSystem);
+		initPermissionSystem(&permissionSystem);
+		initPrintSystem(&printSystem);
+		initArgumentSystem(&argumentSystem);
+		initConnectionSystem(&connectionSystem);
+		initVisualFormatSystem(&visualFormatSystem);
+		initAtomSystem(&atomSystem);
+		initMonitorSystem(&monitorSystem);
+		initStringTreeSystem(&stringTreeSystem);
+		initStdinSystem(&stdinSystem);
+		initSharedMemorySystem(&sharedMemorySystem);
+		initShortcutSystem(&keyboardShortcutSystem);
+		initShortcutSystem(&mouseShortcutSystem);
+		initWindowSystem(&windowSystem);
+		initSleepThreadSystem(&sleepThreadSystem);
+		initConfigurationParserSystem(&configurationParserSystem);
+		jmp setSystems;
+	}
+	setSystems:{
+		setMemoryManagementBlockSize(&memoryManagementSystem, 16);
+		setMemoryManagementMultithreading(&memoryManagementSystem, true);
+
+		setPermissionsMemoryManagementSystem(&permissionSystem, &memoryManagementSystem);
+
+		setPrintMemoryManagementSystem(&printSystem, &memoryManagementSystem);
+		setPrintProgramName(&printSystem, PROGRAM_NAME);
+		setPrintOutputStream(&printSystem, stdout);
+		setPrintErrorStream(&printSystem, stderr);
+		setPrintOutputColors(&printSystem, "\x1b[1m", "\x1b[32m", "\x1b[1m", "\x1b[33m", "\x1b[91m", "\x1b[m");
+		setPrintErrorColors(&printSystem, "\x1b[1m", "\x1b[32m", "\x1b[1m", "\x1b[33m", "\x1b[91m", "\x1b[m");
+		setPrintMultithreading(&printSystem, true);
+
+		setArgumentMemoryManagementSystem(&argumentSystem, &memoryManagementSystem);
+		setArgumentPrintSystem(&argumentSystem, &printSystem);
+
+		setConnectionMemoryManagementSystem(&connectionSystem, &memoryManagementSystem);
+		setConnectionPrintSystem(&connectionSystem, &printSystem);
+
+		setVisualFormatMemoryManagementSystem(&visualFormatSystem, &memoryManagementSystem);
+		setVisualFormatConnectionSystem(&visualFormatSystem, &connectionSystem);
+
+		setAtomMemoryManagementSystem(&atomSystem, &memoryManagementSystem);
+		setAtomConnectionSystem(&atomSystem, &connectionSystem);
+
+		setMonitorMemoryManagementSystem(&monitorSystem, &memoryManagementSystem);
+		setMonitorConnectionSystem(&monitorSystem, &connectionSystem);
+
+		/*! stringTreeSystem */
+
+		/*! stdinSystem */
+
+		/*! sharedMemorySystem */
+
+		/*! keyboardShortcutSystem */
+
+		/*! mouseShortcutSystem */
+
+		setWindowMemoryManagementSystem(&windowSystem, &memoryManagementSystem);
+		setWindowConnectionSystem(&windowSystem, &connectionSystem);
+		setWindowAtomSystem(&windowSystem, &atomSystem);
+		setWindowBlockSize(&windowSystem, 2);
+
+		/*! sleepThreadSystem */
+
+		setConfigurationParserMemoryManagementSystem(&configurationParserSystem, &memoryManagementSystem);
+		setConfigurationParserPrintSystem(&configurationParserSystem, &printSystem);
+
+		jmp useSystems;
+	}
+	useSystems:{
+		setPermissions(&permissionSystem);
+		lowerPermissions(&permissionSystem);
+
+
+
+
+
+
+
+
+
+		if(!parseArguments(&argumentSystem, NAME_WHICH_ARGUMENT | OUTPUT_WHICH_ARGUMENT | ERROR_WHICH_ARGUMENT | SERVER_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT, argumentStart, argumentSize)){
+			ret 0;
+		}
+
+		if(*argumentSystem.name){
+			setPrintProgramName(&printSystem, argumentSystem.name);
+		}
+
+		if(argumentSystem.outputStream){
+			setPrintOutputStream(&printSystem, argumentSystem.outputStream);
+		}else{
+			if(setPrintOutputPath(&printSystem, argumentSystem.outputPath)){
+				setPrintOutputColors(&printSystem, "", "", "", "", "", "");
+			}
+		}
+		if(argumentSystem.errorStream){
+			setPrintErrorStream(&printSystem, argumentSystem.errorStream);
+		}else{
+			if(setPrintErrorPath(&printSystem, argumentSystem.errorPath)){
+				setPrintErrorColors(&printSystem, "", "", "", "", "", "");
+			}
+		}
+
+		openConnection(&connectionSystem, argumentSystem.serverName);
+
+
+
+
+
+
+
+
+
+#ifdef a
+		{
+			char *name = (void *)0x123456;
+			char *output = (void *)0x123456;
+			char *error = (void *)0x123456;
+			char *server = (void *)0x123456;
+			char *configuration = (void *)0x123456;
+			int x = 0x123456;
+			int y = 0x123456;
+			uint width = 0x123456;
+			uint height = 0x123456;
+			{
+				const char *itemNameStart[] = {
+					  "-h"
+					, "--help"
+
+					, "-n"
+					, "--name"
+
+					, "-o"
+					, "--output"
+
+					, "-e"
+					, "--error"
+
+					, "-s"
+					, "--server"
+
+					, "-c"
+					, "--configuration"
+
+#ifdef a
+					, "--x"
+					, "--y"
+					, "--width"
+					, "--height"
+
+					, ""
+					, ""
+					, ""
+					, ""
+#endif
+				};
+				const uint itemNameSizeStart[countof(itemNameStart)] = {
+					  lengthof("-h")
+					, lengthof("--help")
+
+					, lengthof("-n")
+					, lengthof("--name")
+
+					, lengthof("-o")
+					, lengthof("--output")
+
+					, lengthof("-e")
+					, lengthof("--error")
+
+					, lengthof("-s")
+					, lengthof("--server")
+
+					, lengthof("-c")
+					, lengthof("--configuration")
+
+#ifdef a
+					, lengthof("--x")
+					, lengthof("--y")
+					, lengthof("--width")
+					, lengthof("--height")
+
+					, lengthof("")
+					, lengthof("")
+					, lengthof("")
+					, lengthof("")
+#endif
+				};
+				const uint8 itemTypeStart[countof(itemNameStart)] = {
+					  NONE_DYNAMIC_ARGUMENT_TYPE
+					, NONE_DYNAMIC_ARGUMENT_TYPE
+
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+					, STRING_DYNAMIC_ARGUMENT_TYPE
+
+#ifdef a
+					, INT_DYNAMIC_ARGUMENT_TYPE
+					, INT_DYNAMIC_ARGUMENT_TYPE
+					, UINT_DYNAMIC_ARGUMENT_TYPE
+					, UINT_DYNAMIC_ARGUMENT_TYPE
+
+					, INT_DYNAMIC_ARGUMENT_TYPE
+					, INT_DYNAMIC_ARGUMENT_TYPE
+					, UINT_DYNAMIC_ARGUMENT_TYPE
+					, UINT_DYNAMIC_ARGUMENT_TYPE
+#endif
+				};
+				const uint8 itemPropertyStart[countof(itemNameStart)] = {
+					  NONE_DYNAMIC_ARGUMENT_PROPERTY
+					, DUPLICATE_DYNAMIC_ARGUMENT_PROPERTY
+
+					, NONE_DYNAMIC_ARGUMENT_PROPERTY
+					, DUPLICATE_DYNAMIC_ARGUMENT_PROPERTY
+
+					, NONE_DYNAMIC_ARGUMENT_PROPERTY
+					, DUPLICATE_DYNAMIC_ARGUMENT_PROPERTY
+
+					, NONE_DYNAMIC_ARGUMENT_PROPERTY
+					, DUPLICATE_DYNAMIC_ARGUMENT_PROPERTY
+
+					, NONE_DYNAMIC_ARGUMENT_PROPERTY
+					, DUPLICATE_DYNAMIC_ARGUMENT_PROPERTY
+
+					, NONE_DYNAMIC_ARGUMENT_PROPERTY
+					, DUPLICATE_DYNAMIC_ARGUMENT_PROPERTY
+
+#ifdef a
+					, MANDATORY_DYNAMIC_ARGUMENT_PROPERTY
+					, MANDATORY_DYNAMIC_ARGUMENT_PROPERTY
+					, MANDATORY_DYNAMIC_ARGUMENT_PROPERTY
+					, MANDATORY_DYNAMIC_ARGUMENT_PROPERTY
+
+					, MANDATORY_DYNAMIC_ARGUMENT_PROPERTY | POSITIONAL_DYNAMIC_ARGUMENT_PROPERTY
+					, MANDATORY_DYNAMIC_ARGUMENT_PROPERTY | POSITIONAL_DYNAMIC_ARGUMENT_PROPERTY
+					, MANDATORY_DYNAMIC_ARGUMENT_PROPERTY | POSITIONAL_DYNAMIC_ARGUMENT_PROPERTY
+					, MANDATORY_DYNAMIC_ARGUMENT_PROPERTY | POSITIONAL_DYNAMIC_ARGUMENT_PROPERTY
+#endif
+				};
+				const void *itemReturnStart[countof(itemNameStart)];
+				{
+					const void **itemReturnCurrent = itemReturnStart - 1;
+					*(inc itemReturnCurrent) = NULL;
+					*(inc itemReturnCurrent) = NULL;
+
+					*(inc itemReturnCurrent) = name;
+					*(inc itemReturnCurrent) = name;
+
+					*(inc itemReturnCurrent) = output;
+					*(inc itemReturnCurrent) = output;
+
+					*(inc itemReturnCurrent) = error;
+					*(inc itemReturnCurrent) = error;
+
+					*(inc itemReturnCurrent) = server;
+					*(inc itemReturnCurrent) = server;
+
+					*(inc itemReturnCurrent) = configuration;
+					*(inc itemReturnCurrent) = configuration;
+
+#ifdef a
+					*(inc itemReturnCurrent) = &x;
+					*(inc itemReturnCurrent) = &y;
+					*(inc itemReturnCurrent) = &width;
+					*(inc itemReturnCurrent) = &height;
+
+					*(inc itemReturnCurrent) = &x;
+					*(inc itemReturnCurrent) = &y;
+					*(inc itemReturnCurrent) = &width;
+					*(inc itemReturnCurrent) = &height;
+#endif
+				}
+				initDynamicArgumentSystem(&dynamicArgumentSystem);
+				setDynamicArgumentMemoryManagementSystem(&dynamicArgumentSystem, &memoryManagementSystem);
+				setDynamicArgumentPrintSystem(&dynamicArgumentSystem, &printSystem);
+				if(!parseDynamicArguments(&dynamicArgumentSystem, argumentStart, argumentSize, countof(itemNameStart), itemNameStart, itemNameSizeStart, itemTypeStart, itemPropertyStart, itemReturnStart)){
+					ret 0;
+				}
+				finiDynamicArgumentSystem(&dynamicArgumentSystem);
+			}
+
+			server = "";
+			openConnection(&connectionSystem, server);
+		}
+#endif
+
+		loadConnectionExtensions(&connectionSystem, /*! INPUT_EXTENSION | */ RANDR_EXTENSION | RENDER_EXTENSION | TEST_EXTENSION | XKB_EXTENSION);
+
+		requestVisualFormat(&visualFormatSystem, 32, XCB_VISUAL_CLASS_TRUE_COLOR);
+
+		selectRandrEvents(&connectionSystem, connectionSystem.rootWindow, XCB_RANDR_NOTIFY_MASK_SCREEN_CHANGE);
+
+
+
+
+
+
+
+
+
+/*! keyboard layout segment */
+
+		selectXkbEvents(&connectionSystem, XCB_XKB_ID_USE_CORE_KBD, XCB_XKB_EVENT_TYPE_NEW_KEYBOARD_NOTIFY | XCB_XKB_EVENT_TYPE_STATE_NOTIFY);
+
+		initKeyboardLayoutSystem(&keyboardLayoutSystem);
+		setKeyboardLayoutMemoryManagementSystem(&keyboardLayoutSystem, &memoryManagementSystem);
+		setKeyboardLayoutConnectionSystem(&keyboardLayoutSystem, &connectionSystem);
+		requestKeyboardLayouts(&keyboardLayoutSystem);
+		requestCurrentKeyboardLayout(&keyboardLayoutSystem);
+
+		{
+			uint i = 0;
+			while(i < keyboardLayoutSystem.keyboardLayoutAmount){
+				const char *const s = keyboardLayoutSystem.keyboardLayoutDataStart;
+				const uint32 *const layoutData = (uint32 *)s + i * 5;
+				if(*(layoutData + 0)){
+					const char *string = s + *(layoutData + 0);
+					const uint size0 = *(layoutData + 1);
+					const uint size1 = *(layoutData + 2);
+					const uint size2 = *(layoutData + 3);
+					const uint size3 = *(layoutData + 4);
+					fprintf(stdout, "\tname       : \"%.*s\"\n", size0, string); string += size0 + !!size0;
+					fprintf(stdout, "\tsimple name: \"%.*s\"\n", size1, string); string += size1 + !!size1;
+					fprintf(stdout, "\tlayout     : \"%.*s\"\n", size2, string); string += size2 + !!size2;
+					fprintf(stdout, "\tvariant    : \"%.*s\"\n", size3, string);
+					fprintf(stdout, "\n");
+				}
+				inc i;
+			}
+		}
+
+
+
+
+
+
+
+
+
+/*! touchpad segment */
+
+		initLockSystem(&lockSystem);
+		createLock(&lockSystem);
+		setLockMultithreading(&lockSystem, true);
+		/*! finiLockSystem(&lockSystem); */
+
+		/*! get touchpad devices */
+
+		initInputDeviceSystem(&inputDeviceSystem);
+		setInputDeviceMemoryManagementSystem(&inputDeviceSystem, &memoryManagementSystem);
+		setInputDeviceConnectionSystem(&inputDeviceSystem, &connectionSystem);
+		requestInputDevices(&inputDeviceSystem, XCB_INPUT_DEVICE_TYPE_SLAVE_POINTER, XCB_INPUT_DEVICE_CLASS_TYPE_TOUCH);
+		/*! finiInputDeviceSystem(&inputDeviceSystem); */
+
+
+
+		/*! get touchpad device information */
+
+		initTouchpadSystem(&touchpadSystem);
+		setTouchpadMemoryManagementSystem(&touchpadSystem, &memoryManagementSystem);
+		setTouchpadConnectionSystem(&touchpadSystem, &connectionSystem);
+		requestTouchpads(&touchpadSystem);
+		/*! finiTouchpadSystem(&touchpadSystem) */
+
+
+
+		/*! exclusively grab and select input on touchpads. */
+
+		{
+			const xcb_timestamp_t timestamp = findTimestamp(&connectionSystem, event);
+			xcb_input_device_id_t *current = inputDeviceSystem.inputDeviceStart;
+			xcb_input_device_id_t *const wall = current + inputDeviceSystem.inputDeviceSize;
+			jmp selectTouchpadInputLoop;
+			selectTouchpadInputLoop:{
+				if(current < wall){
+					xcb_input_xi_grab_device_reply_t *const reply = xcb_wait_for_reply(connectionSystem.connection, xcb_input_xi_grab_device(connectionSystem.connection, connectionSystem.rootWindow, timestamp, XCB_NONE, *current, XCB_INPUT_GRAB_MODE_22_ASYNC, XCB_INPUT_GRAB_MODE_22_ASYNC, true, 0, NULL), NULL);
+					uint32 token = insertMemoryManagementPointer(&memoryManagementSystem, reply, "main() xcb_input_xi_grab_device() reply", &memoryManagementFree);
+					if(!reply or (*reply).status != XCB_GRAB_STATUS_SUCCESS){
+						fprintf(stdout, "grab device fail\n");
+					}else{
+						free(reply);
+						removeMemoryManagementPointer(&memoryManagementSystem, token);
+					}
+					selectInputEvents(&connectionSystem, connectionSystem.rootWindow, *current, XCB_INPUT_XI_EVENT_MASK_RAW_TOUCH_BEGIN | XCB_INPUT_XI_EVENT_MASK_RAW_TOUCH_UPDATE | XCB_INPUT_XI_EVENT_MASK_RAW_TOUCH_END);
+					inc current;
+					jmp selectTouchpadInputLoop;
+				}
+			}
+		}
+
+		/*! select input on keyboard */
+
+		selectInputEvents(&connectionSystem, connectionSystem.rootWindow, XCB_INPUT_DEVICE_ALL_MASTER, XCB_INPUT_XI_EVENT_MASK_RAW_KEY_PRESS | XCB_INPUT_XI_EVENT_MASK_RAW_KEY_RELEASE);
+
+
+
+
+
+
+
+
+
+		scrollPer = 2;
+		palmSuppression = NONE_PALM_SUPPRESSION;
+		tapThresholdX = 40.0;
+		tapThresholdY = 40.0;
+		edgeThresholdX = 50.0;
+		edgeThresholdY = 50.0;
+		longTapWidth = 10.0;
+		longTapHeight = 10.0;
+		millisecondToTimespec(500, &longTapDuration);
+
+		/*! add these with setters */
+
+		touchpadSystem.gesturePositionStyle = /*! CENTROID_GESTURE_POSITION_STYLE */ FIRST_FINGER_GESTURE_POSITION_STYLE;
+		allowMultipleGestures = true;
+		allowBothAxisSwipeGestures = true;
+
+
+
+
+
+
+
+
+
+		initWorkerThreadSystem(&workerThreadSystem);
+		setWorkerThreadMemoryManagementSystem(&workerThreadSystem, &memoryManagementSystem);
+		setWorkerThreadArgument(&workerThreadSystem, &timerThreadFunction, &longTapDuration, sizeof(longTapDuration));
+		/*! finiWorkerThreadSystem(&workerThreadSystem); */
+
+
+
+		initSleepThreadSystem(&delaySleepThreadSystem);
+		setSleepThreadOperation(&delaySleepThreadSystem, NULL, NULL, restoreTouchpadFunctionality, NULL, RESTART_TIMER_OPERATION_SETTING);
+		setSleepThreadSleepTime(&delaySleepThreadSystem, 300);
+		bootSleepThread(&delaySleepThreadSystem);
+		/*! finiSleepThreadSystem(&delaySleepThreadSystem); */
+
+
+
+
+
+
+
+
+
+		requestAtoms(&atomSystem);
+
+		requestMonitors(&monitorSystem);
+
+		/*! stringTreeSystem */
+
+		/*! stdinSystem */
+
+		/*! sharedMemorySystem */
+
+		/*! keyboardShortcutSystem */
+
+		/*! mouseShortcutSystem */
+
+
+
+
+
+
+
+
+
+/*! stack printing testing area */
+
+	{
+		StackSystem stackSystem;
+		uint element = 1;
+		initStackSystem(&stackSystem);
+
+		setStackPrintSystem(&stackSystem, &printSystem);
+		printStackLog(&stackSystem);
+
+		setStackMemoryManagementSystem(&stackSystem, &memoryManagementSystem);
+		printStackLog(&stackSystem);
+
+		setStackBlockSize(&stackSystem, 8);
+		printStackLog(&stackSystem);
+
+		setStackBlockSize(&stackSystem, 8);
+		printStackLog(&stackSystem);
+
+		setStackElementWidth(&stackSystem, sizeof(uint32));
+		printStackLog(&stackSystem);
+
+		setStackMultithreading(&stackSystem, true);
+		printStackLog(&stackSystem);
+
+		pushStackElement(&stackSystem, &element);
+		printStackLog(&stackSystem);
+
+		popStackElement(&stackSystem, &element);
+		printStackLog(&stackSystem);
+
+		removeAllStackElements(&stackSystem);
+		printStackLog(&stackSystem);
+
+		finiStackSystem(&stackSystem);
+		fprintf(stdout, "\n");
+	}
+
+
+
+
+
+
+
+
+
+/*! queue printing testing area */
+
+	{
+		QueueSystem queueSystem;
+		initQueueSystem(&queueSystem);
+
+		finiQueueSystem(&queueSystem);
+		fprintf(stdout, "\n");
+	}
+
+
+
+
+
+
+
+
+
+/*! window segment */
+		createWindow(&windowSystem, 1, 0, 0, 100, 100, 0, visualFormatSystem.depth, visualFormatSystem.visual, visualFormatSystem.colormap, false);
+		changeWindowEventMask(&windowSystem, ALL_WINDOWS, XCB_EVENT_MASK_STRUCTURE_NOTIFY);
+		{
+			#include "../headers/functions/set-memory-function.hold"
+			uint32 icon[2 + 64];
+			*(icon + 0) = 8;
+			*(icon + 1) = 8;
+			setMemory(icon + 2, 64, sizeof(uint32), 0xFFFF0000);
+			changeWindowProperties(&windowSystem, ALL_WINDOWS, "program name", "program icon name", "class name 0\0class name 1\0", 2 * (lengthof("class name 0") + 1), 33, 33, 200, 200, 10, 10, 1, 1, 1, 1, 100, 100, XCB_GRAVITY_CENTER, NONE_WINDOW_POSITION, 0, 0, 0, 0, true, NORMAL_STATE, XCB_NONE, XCB_NONE, 0, 0, XCB_NONE, XCB_NONE, false, DELETE_WINDOW_CLIENT_PROTOCOL, NORMAL_WINDOW_TYPE, NONE_STATE, icon, countof(icon), NONE_WINDOW_DESKTOP);
+		}
+		drawWindowBuffer(&windowSystem, ALL_WINDOWS, &drawWindow, NULL);
+		swapWindowBuffer(&windowSystem, ALL_WINDOWS);
+		{
+			const xcb_timestamp_t timestamp = findTimestamp(&connectionSystem, NULL);
+			mapWindow(&windowSystem, ALL_WINDOWS, ABOVE_WINDOW_STACK_MODE, timestamp);
+		}
+
+		/*! sleepThreadSystem */
+
+#ifdef a
+		fprintf(stdout, "parseConfiguration() said %u\n", parseConfiguration(&configurationParserSystem, argumentSystem.configPath, NULL, NULL, &parseConfigurationFgetc, &parseConfigurationContentMain, NULL, NULL));
+#endif
+
+
+
+		event = NULL;
+		eventToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+		jmp eventLoop;
+	}
+	eventLoop:{
+		xcb_flush(connectionSystem.connection);
+		free(event);
+		removeMemoryManagementPointer(&memoryManagementSystem, eventToken);
+		event = NULL;
+		eventToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+		jmp waitForEvent;
+	}
+	waitForEvent:{
+		event = xcb_wait_for_event(connectionSystem.connection);
+		eventToken = insertMemoryManagementPointer(&memoryManagementSystem, event, "main() waitForEvent: event pointer", &memoryManagementFree);
+		if(event){
+			jmp switchEvent;
+		}
+		if(xcb_connection_has_error(connectionSystem.connection)){
+			printConnectionError(&connectionSystem);
+			jmp eventLoopExit;
+		}
+		jmp waitForEvent;
+	}
+	switchEvent:{
+		#define XCB_ONE /*-*/ (1)
+		(*event).response_type &= b(01111111);
+		if((*event).response_type > XCB_NONE and (*event).response_type < XCB_GE_GENERIC){
+			printConnectionXEvent(&connectionSystem, event);
+		}
+		switch((*event).response_type){
+			to XCB_NONE: /*--------------*/ jmp errorEvent;
+			to XCB_ONE: /*---------------*/ jmp unrecognizedEvent;
+			to XCB_KEY_PRESS: /*---------*/ jmp unexpectedEvent;
+			to XCB_KEY_RELEASE: /*-------*/ jmp unexpectedEvent;
+			to XCB_BUTTON_PRESS: /*------*/ jmp unexpectedEvent;
+			to XCB_BUTTON_RELEASE: /*----*/ jmp unexpectedEvent;
+			to XCB_MOTION_NOTIFY: /*-----*/ jmp unexpectedEvent;
+			to XCB_ENTER_NOTIFY: /*------*/ jmp unexpectedEvent;
+			to XCB_LEAVE_NOTIFY: /*------*/ jmp unexpectedEvent;
+			to XCB_FOCUS_IN: /*----------*/ jmp unexpectedEvent;
+			to XCB_FOCUS_OUT: /*---------*/ jmp unexpectedEvent;
+			to XCB_KEYMAP_NOTIFY: /*-----*/ jmp unexpectedEvent;
+			to XCB_EXPOSE: /*------------*/ jmp unexpectedEvent;
+			to XCB_GRAPHICS_EXPOSURE: /*-*/ jmp unexpectedEvent;
+			to XCB_NO_EXPOSURE: /*-------*/ jmp unexpectedEvent;
+			to XCB_VISIBILITY_NOTIFY: /*-*/ jmp unexpectedEvent;
+			to XCB_CREATE_NOTIFY: /*-----*/ jmp unexpectedEvent;
+			to XCB_DESTROY_NOTIFY: /*----*/ jmp unexpectedEvent;
+			to XCB_UNMAP_NOTIFY: /*------*/ jmp unexpectedEvent;
+			to XCB_MAP_NOTIFY: /*--------*/ jmp eventLoop;
+			to XCB_MAP_REQUEST: /*-------*/ jmp unexpectedEvent;
+			to XCB_REPARENT_NOTIFY: /*---*/ jmp eventLoop;
+			to XCB_CONFIGURE_NOTIFY: /*--*/ jmp configureNotifyEvent;
+			to XCB_CONFIGURE_REQUEST: /*-*/ jmp unexpectedEvent;
+			to XCB_GRAVITY_NOTIFY: /*----*/ jmp unexpectedEvent;
+			to XCB_RESIZE_REQUEST: /*----*/ jmp unexpectedEvent;
+			to XCB_CIRCULATE_NOTIFY: /*--*/ jmp unexpectedEvent;
+			to XCB_CIRCULATE_REQUEST: /*-*/ jmp unexpectedEvent;
+			to XCB_PROPERTY_NOTIFY: /*---*/ jmp unexpectedEvent;
+			to XCB_SELECTION_CLEAR: /*---*/ jmp unexpectedEvent;
+			to XCB_SELECTION_REQUEST: /*-*/ jmp unexpectedEvent;
+			to XCB_SELECTION_NOTIFY: /*--*/ jmp unexpectedEvent;
+			to XCB_COLORMAP_NOTIFY: /*---*/ jmp unexpectedEvent;
+			to XCB_CLIENT_MESSAGE: /*----*/ jmp clientMessageEvent;
+			to XCB_MAPPING_NOTIFY: /*----*/ jmp unexpectedEvent;
+			to XCB_GE_GENERIC: /*--------*/ jmp genericEvent;
+			off: /*----------------------*/ jmp extensionEvent;
+		}
+		#undef  XCB_ONE
+	}
+	genericEvent:{
+		if(isConnectionEventInput(&connectionSystem, event)) /*-*/ jmp switchInputEvent;
+		printConnectionXEvent(&connectionSystem, event);
+		jmp unhandledEvent;
+	}
+	extensionEvent:{
+		if(isConnectionEventRandr(&connectionSystem, event)) /*-*/ jmp switchRandrEvent;
+		if(isConnectionEventXkb(&connectionSystem, event)) /*---*/ jmp switchXkbEvent;
+		printConnectionXEvent(&connectionSystem, event);
+		jmp unhandledEvent;
+	}
+	switchInputEvent:{
+		#define XCB_INPUT_ZERO /*-*/ (0)
+		printConnectionXEvent(&connectionSystem, event);
+		switch(getConnectionInputResponseType(&connectionSystem, event)){
+			to XCB_INPUT_ZERO: /*-----------------*/ jmp unrecognizedEvent;
+			to XCB_INPUT_DEVICE_CHANGED: /*-------*/ jmp inputDeviceChangedEvent;
+			to XCB_INPUT_KEY_PRESS: /*------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_KEY_RELEASE: /*----------*/ jmp unexpectedEvent;
+			to XCB_INPUT_BUTTON_PRESS: /*---------*/ jmp unexpectedEvent;
+			to XCB_INPUT_BUTTON_RELEASE: /*-------*/ jmp unexpectedEvent;
+			to XCB_INPUT_MOTION: /*---------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_ENTER: /*----------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_LEAVE: /*----------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_FOCUS_IN: /*-------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_FOCUS_OUT: /*------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_HIERARCHY: /*------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_PROPERTY: /*-------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_RAW_KEY_PRESS: /*--------*/ jmp inputRawKeyPressEvent;
+			to XCB_INPUT_RAW_KEY_RELEASE: /*------*/ jmp inputRawKeyReleaseEvent;
+			to XCB_INPUT_RAW_BUTTON_PRESS: /*-----*/ jmp unexpectedEvent;
+			to XCB_INPUT_RAW_BUTTON_RELEASE: /*---*/ jmp unexpectedEvent;
+			to XCB_INPUT_RAW_MOTION: /*-----------*/ jmp unexpectedEvent;
+			to XCB_INPUT_TOUCH_BEGIN: /*----------*/ jmp unexpectedEvent;
+			to XCB_INPUT_TOUCH_UPDATE: /*---------*/ jmp unexpectedEvent;
+			to XCB_INPUT_TOUCH_END: /*------------*/ jmp unexpectedEvent;
+			to XCB_INPUT_TOUCH_OWNERSHIP: /*------*/ jmp unexpectedEvent;
+			to XCB_INPUT_RAW_TOUCH_BEGIN: /*------*/ jmp inputRawTouchBeginEvent;
+			to XCB_INPUT_RAW_TOUCH_UPDATE: /*-----*/ jmp inputRawTouchUpdateEvent;
+			to XCB_INPUT_RAW_TOUCH_END: /*--------*/ jmp inputRawTouchEndEvent;
+			to XCB_INPUT_BARRIER_HIT: /*----------*/ jmp unexpectedEvent;
+			to XCB_INPUT_BARRIER_LEAVE: /*--------*/ jmp unexpectedEvent;
+			to XCB_INPUT_GESTURE_PINCH_BEGIN: /*--*/ jmp unexpectedEvent;
+			to XCB_INPUT_GESTURE_PINCH_UPDATE: /*-*/ jmp unexpectedEvent;
+			to XCB_INPUT_GESTURE_PINCH_END: /*----*/ jmp unexpectedEvent;
+			to XCB_INPUT_GESTURE_SWIPE_BEGIN: /*--*/ jmp unexpectedEvent;
+			to XCB_INPUT_GESTURE_SWIPE_UPDATE: /*-*/ jmp unexpectedEvent;
+			to XCB_INPUT_GESTURE_SWIPE_END: /*----*/ jmp unexpectedEvent;
+			off: /*-------------------------------*/ jmp unrecognizedEvent;
+		}
+		#undef  XCB_INPUT_ZERO
+	}
+	switchRandrEvent:{
+		printConnectionXEvent(&connectionSystem, event);
+		switch(getConnectionRandrResponseType(&connectionSystem, event)){
+			to XCB_RANDR_SCREEN_CHANGE_NOTIFY: /*-*/ jmp randrScreenChangeNotifyEvent;
+			to XCB_RANDR_NOTIFY: /*---------------*/ jmp randrNotifyEvent;
+			off: /*-------------------------------*/ jmp unrecognizedEvent;
+		}
+	}
+	switchXkbEvent:{
+		printConnectionXEvent(&connectionSystem, event);
+		switch(getConnectionXkbResponseType(&connectionSystem, event)){
+			to XCB_XKB_NEW_KEYBOARD_NOTIFY: /*-----*/ jmp xkbNewKeyboardNotifyEvent;
+			to XCB_XKB_MAP_NOTIFY: /*--------------*/ jmp unexpectedEvent;
+			to XCB_XKB_STATE_NOTIFY: /*------------*/ jmp xkbStateNotifyEvent;
+			to XCB_XKB_CONTROLS_NOTIFY: /*---------*/ jmp unexpectedEvent;
+			to XCB_XKB_INDICATOR_STATE_NOTIFY: /*--*/ jmp unexpectedEvent;
+			to XCB_XKB_INDICATOR_MAP_NOTIFY: /*----*/ jmp unexpectedEvent;
+			to XCB_XKB_NAMES_NOTIFY: /*------------*/ jmp unexpectedEvent;
+			to XCB_XKB_COMPAT_MAP_NOTIFY: /*-------*/ jmp unexpectedEvent;
+			to XCB_XKB_BELL_NOTIFY: /*-------------*/ jmp unexpectedEvent;
+			to XCB_XKB_ACTION_MESSAGE: /*----------*/ jmp unexpectedEvent;
+			to XCB_XKB_ACCESS_X_NOTIFY: /*---------*/ jmp unexpectedEvent;
+			to XCB_XKB_EXTENSION_DEVICE_NOTIFY: /*-*/ jmp unexpectedEvent;
+			off: /*--------------------------------*/ jmp unrecognizedEvent;
+		}
+	}
+	errorEvent:{
+		#define e /*-*/ ((xcb_generic_error_t *)event)
+		printConnectionXError(&connectionSystem, event);
+		jmp eventLoop;
+		#undef  e
+	}
+	configureNotifyEvent:{
+		#define e /*-*/ ((xcb_configure_notify_event_t *)event)
+		WindowInfo window;
+		if(findWindow(&windowSystem, (*e).window, &window)){
+			const bool redraw = (*e).width != window.width or (*e).height != window.height;
+			reconfigureWindow(&windowSystem, &window, (*e).x, (*e).y, (*e).width, (*e).height, (*e).border_width);
+			if(redraw){
+				drawWindowBuffer(&windowSystem, ALL_WINDOWS, &drawWindow, NULL);
+				swapWindowBuffer(&windowSystem, ALL_WINDOWS);
+			}
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	clientMessageEvent:{
+		#define e /*-*/ ((xcb_client_message_event_t *)event)
+		const xcb_atom_t atom = (*e).type;
+		if(!atom){
+			jmp eventLoop;
+		}
+		if(atom == atomSystem.ICCCM_PROTOCOLS and *(*e).data.data32 == atomSystem.ICCCM_DELETE_WINDOW){
+			jmp eventLoopExit;
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	inputDeviceChangedEvent:{
+		#define e /*-*/ ((xcb_input_device_changed_event_t *)event)
+
+
+
+		/*! create the touchpads anew only as necessary */
+
+		requestTouchpads(&touchpadSystem);
+
+
+
+		/*! undo all gestures and fingers before querring and adding all touchpads. should this be achieved, the undoing of all gestures and fingers should be minimized to allow for any touchpad in use to continue operation without fail. */
+
+		jmp eventLoop;
+		#undef  e
+	}
+	inputRawKeyPressEvent:{
+		#define e /*-*/ ((xcb_input_raw_key_press_event_t *)event)
+		lockWriteLock(&lockSystem);
+		palmSuppression = FULL_PALM_SUPPRESSION;
+		unlockLock(&lockSystem);
+
+
+
+		/*! remove all gestures from all touchpads */
+
+		{
+			Touchpad *current = touchpadSystem.touchpadStart;
+			Touchpad *const wall = current + touchpadSystem.touchpadSize;
+			jmp touchpadLoop;
+			touchpadLoop:{
+				if(current < wall){
+					free((*current).gestureStart);
+					removeMemoryManagementPointer(&memoryManagementSystem, (*current).gestureToken);
+					(*current).gestureStart = NULL;
+					(*current).gestureToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+					(*current).gestureSize = 0;
+					(*current).gestureAllocated = 0;
+					inc current;
+					jmp touchpadLoop;
+				}
+			}
+		}
+
+
+
+		jmp eventLoop;
+		#undef  e
+	}
+	inputRawKeyReleaseEvent:{
+		#define e /*-*/ ((xcb_input_raw_key_release_event_t *)event)
+		lockWriteLock(&lockSystem);
+		palmSuppression = READY_PALM_SUPPRESSION;
+		unlockLock(&lockSystem);
+		signalSleepThread(&delaySleepThreadSystem);
+		jmp eventLoop;
+		#undef  e
+	}
+
+
+
+
+
+
+
+
+
+/*!
+	v	01. Single Tap, with 1 - 5 fingers
+			Quick touch and release on the touchpad.
+
+		02. Double Tap, with 1 - 5 fingers
+			Two quick taps in succession.
+
+		03. Tap and Hold
+			Tap and hold the finger down for a certain duration.
+
+		04. Swipe. with 1 - 5 fingers
+			Swipe fingers up/down/left/right.
+
+		05. Drag (Tap and Drag / Click and Drag)
+			Tap and hold, then move the finger while keeping contact.
+
+		06. Scroll, with 1 - 5 fingers
+			Move fingers vertically or horizontally to scroll content.
+
+		07. Pinch Zoom (use d = sqrt((x2 - x1)^2 + (y2 - y1)^2))
+			Place two fingers on the touchpad and move them closer together or farther apart.
+
+		08. Rotate
+			Place two fingers on the touchpad and rotate them around a point.
+
+	v	09. Edge/Corner Tap
+			Tap with 1-5 on the edge or corner of the touchpad.
+
+	v	10. Edge/Corner Swipe
+			Swipe from the edge or corner of the touchpad inward.
+
+		11. Three-Finger Drag
+			Tap and drag using three fingers.
+
+		12. Palm Rejection with Resting Fingers
+			Detect fingers resting on the pad without moving (for example, resting thumbs while typing).
+
+		13. Tap-and-Hold with Movement (Drag Lock)
+			Hold down a tap, then move, and optionally lock drag mode until the next tap.
+
+		14. Multi-Finger Flick
+			Flick with two or more fingers quickly in a direction.
+
+		15. Customizable Corners
+			Tap or click on certain corners or edges for specific actions (e.g., right-click in the bottom-right corner).
+
+		16. Palm Rejection with Multiple Touch Points
+			Advanced filtering to ignore accidental touches during typing or palm contact.
+
+		17. Gesture Combination Sequences
+			Sequences of gestures, e.g., two-finger scroll + three-finger tap to trigger custom shortcuts.
+*/
+
+
+
+	/*! also add release event on double tap. maybe also add the button presses themselves. */
+
+	/*! everything in here works properly for a 5 point touchpad. what if we act as if it is a 4 point touchpad? as in, drop all operations if fingern > 4. */
+
+	/*! perform swipes such that the first movement axis is considered the only allowed axis of movement. se t a boolean for whether diagonal, aka both axes, is allowed. */
+
+#define printTouchpadSystemState(touchpad, finger) /*-*/ { \
+	Finger *const f = finger; \
+	uint fingerID = 0; \
+	double x = 0.0; \
+	double y = 0.0; \
+	if(f){ \
+		fingerID = (*f).fingerID; \
+		x = (*f).x; \
+		y = (*f).y; \
+	} \
+	/*! fprintf(stdout, "\t\t\t\t\t\t\t| %s | %s | %s | %s | %s |\n", "device", "finger", "finger position", "finger amount", "gesture amount"); */ \
+	/*! fprintf(stdout, "\t\t\t\t\t\t\t| %u     | %4u   | %6.1f, %6.1f  | %u             | %u              |\n", (*touchpad).deviceID, fingerID, x, y, (*touchpad).fingerAmount, (*touchpad).gestureAmount); */ \
+	if((*touchpad).gestureAmount){ \
+		Gesture *current = (*touchpad).gestureStart; \
+		Gesture *const wall = current + (*touchpad).gestureAllocated; \
+		while(current < wall){ \
+			if((*current).inUse){ \
+				/*! fprintf(stdout, "\t\t\t\t\t\t\t                                                                     | %s | %s | %s | %s | %s | %s | %s |\n", "finger amount", "swipe direction", "gesture position style", "initial position", "absolute position", "relative position", "delta position"); */ \
+				/*! fprintf(stdout, "\t\t\t\t\t\t\t                                                                     | %u             | %u               | %u                      | %6.1f, %6.1f   | %6.1f, %6.1f    | %6.1f, %6.1f    | %6.1f, %6.1f |\n", (*current).fingerAmount, (*current).swipeDirection, (*current).gesturePositionStyle, (*current).initialX, (*current).initialY, (*current).absoluteX, (*current).absoluteY, (*current).relativeX, (*current).relativeY, (*current).deltaX, (*current).deltaY); */ \
+			} \
+			inc current; \
+		} \
+	} \
+}
+
+	inputRawTouchBeginEvent:{
+		#define e /*-*/ ((xcb_input_raw_touch_begin_event_t *)event)
+		FingerData fingerData;
+		Touchpad *touchpad;
+		Finger *finger;
+		Gesture *gesture;
+		lockReadLock(&lockSystem);
+		if(palmSuppression){
+			unlockLock(&lockSystem);
+			jmp eventLoop;
+		}
+		unlockLock(&lockSystem);
+		getTouchpadFingerData(&touchpadSystem, e, &fingerData);
+		if((touchpad = findTouchpad(&touchpadSystem, fingerData.deviceID))){
+			(void)finger;
+			(void)gesture;
+
+
+
+
+
+
+
+
+
+#ifdef a
+			insertTouchpadFinger(&touchpadSystem, &fingerData);
+			finger = findTouchpadFinger(&touchpadSystem, touchpad, fingerData.fingerID);
+			gesture = findNewTouchpadGesture(&touchpadSystem, touchpad);
+			if(!gesture){
+
+				/*! createTouchpadGesture()? */
+				insertTouchpadGesture(&touchpadSystem, touchpad);
+
+				gesture = findNewTouchpadGesture(&touchpadSystem, touchpad);
+			}
+
+			/*! insertTouchpadGesture()? */
+			insertTouchpadGestureFinger(&touchpadSystem, touchpad, gesture, finger);
+
+			/*! use this somehow */
+			spawnWorkerThread(&workerThreadSystem);
+
+			printTouchpadSystemState(touchpad, finger);
+#endif
+
+
+
+
+
+
+
+
+
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	inputRawTouchUpdateEvent:{
+		#define e /*-*/ ((xcb_input_raw_touch_update_event_t *)event)
+		FingerData fingerData;
+		Touchpad *touchpad;
+		Finger *finger;
+		Gesture *gesture;
+		lockReadLock(&lockSystem);
+		if(palmSuppression){
+			unlockLock(&lockSystem);
+			jmp eventLoop;
+		}
+		unlockLock(&lockSystem);
+		getTouchpadFingerData(&touchpadSystem, e, &fingerData);
+		if((touchpad = findTouchpad(&touchpadSystem, fingerData.deviceID))){
+			(void)finger;
+			(void)gesture;
+
+
+
+
+
+
+
+
+
+#ifdef a
+			finger = findTouchpadFinger(&touchpadSystem, touchpad, fingerData.fingerID);
+			gesture = findTouchpadGesture(&touchpadSystem, touchpad, finger);
+			updateTouchpadFinger(&touchpadSystem, &fingerData);
+			updateTouchpadGesture(&touchpadSystem, touchpad, gesture, finger);
+			if(gesture){
+
+
+
+
+
+
+
+
+
+				bool isSwipe = (*gesture).relativeX > tapThresholdX or (*gesture).relativeX < -tapThresholdX or (*gesture).relativeY > tapThresholdY or (*gesture).relativeY < -tapThresholdY;
+				if(isSwipe){
+					/*! fprintf(stdout, "%sswipe has begun\n", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t"); */
+				}
+
+
+
+
+
+
+
+
+
+				if((*gesture).fingerAmount){
+					const bool xEdge = ((*gesture).initialX >= (*touchpad).x and (*gesture).initialX < (*touchpad).x + edgeThresholdX) or ((*gesture).initialX > (*touchpad).width + (*touchpad).x - 1 - edgeThresholdY and (*gesture).initialX <= (*touchpad).width + (*touchpad).x - 1);
+					const bool yEdge = ((*gesture).initialY >= (*touchpad).y and (*gesture).initialY < (*touchpad).y + edgeThresholdY) or ((*gesture).initialY > (*touchpad).height + (*touchpad).y - 1 - edgeThresholdY and (*gesture).initialY <= (*touchpad).height + (*touchpad).y - 1);
+					if(xEdge and yEdge){
+						/*! fprintf(stdout, "%s%u finger %s\n", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", (*gesture).fingerAmount, (*gesture).hasUpdated? "corner edge swipe" : "corner edge tap"); */
+					}elif(xEdge or yEdge){
+						/*! fprintf(stdout, "%s%u finger %s\n", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", (*gesture).fingerAmount, (*gesture).hasUpdated? "edge swipe" : "edge tap"); */
+					}else{
+						/*! fprintf(stdout, "%s%u finger %s\n", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", (*gesture).fingerAmount, (*gesture).hasUpdated? "swipe" : "tap"); */
+					}
+				}
+
+
+
+				if((*gesture).fingerAmount == 1){
+					xcb_query_pointer_reply_t *const reply = xcb_wait_for_reply(connectionSystem.connection, xcb_query_pointer_unchecked(connectionSystem.connection, connectionSystem.rootWindow), NULL);
+					uint32 token = insertMemoryManagementPointer(&memoryManagementSystem, reply, "main() xcb_query_pointer() reply", &memoryManagementFree);
+					if(reply){
+						xcb_test_fake_input(connectionSystem.connection, XCB_MOTION_NOTIFY, XCB_NONE, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x + (*gesture).deltaX, (*reply).root_y + (*gesture).deltaY, 0);
+						free(reply);
+						removeMemoryManagementPointer(&memoryManagementSystem, token);
+					}
+				}
+
+
+
+				if((*gesture).fingerAmount == 2){
+					xcb_query_pointer_reply_t *const reply = xcb_wait_for_reply(connectionSystem.connection, xcb_query_pointer_unchecked(connectionSystem.connection, connectionSystem.rootWindow), NULL);
+					uint32 token = insertMemoryManagementPointer(&memoryManagementSystem, reply, "main() xcb_query_pointer() reply", &memoryManagementFree);
+					if(reply){
+						if((*gesture).hasUpdated){
+							if((*gesture).n % scrollPer == 0){
+								if((*gesture).swipeDirection & HORIZONTAL_GESTURE_SWIPE_DIRECTION){
+									if((*gesture).deltaX < 0.0){
+										xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_PRESS, 6, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+										xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_RELEASE, 6, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+									}elif((*gesture).deltaX > 0.0){
+										xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_PRESS, 7, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+										xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_RELEASE, 7, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+									}
+								}
+								if((*gesture).swipeDirection & VERTICAL_GESTURE_SWIPE_DIRECTION){
+									if((*gesture).deltaY < 0.0){
+										xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_PRESS, XCB_BUTTON_INDEX_4, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+										xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_RELEASE, XCB_BUTTON_INDEX_4, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+									}elif((*gesture).deltaY > 0.0){
+										xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_PRESS, XCB_BUTTON_INDEX_5, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+										xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_RELEASE, XCB_BUTTON_INDEX_5, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+									}
+								}
+							}
+						}
+						free(reply);
+						removeMemoryManagementPointer(&memoryManagementSystem, token);
+					}
+				}
+
+
+
+
+
+
+
+
+
+			}
+			printTouchpadSystemState(touchpad, finger);
+#endif
+
+
+
+
+
+
+
+
+
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	inputRawTouchEndEvent:{
+		#define e /*-*/ ((xcb_input_raw_touch_end_event_t *)event)
+		FingerData fingerData;
+		Touchpad *touchpad;
+		Finger *finger;
+		Gesture *gesture;
+		lockReadLock(&lockSystem);
+		if(palmSuppression){
+			unlockLock(&lockSystem);
+			jmp eventLoop;
+		}
+		unlockLock(&lockSystem);
+		getTouchpadFingerData(&touchpadSystem, e, &fingerData);
+		if((touchpad = findTouchpad(&touchpadSystem, fingerData.deviceID))){
+			(void)finger;
+			(void)gesture;
+
+
+
+
+
+
+
+
+
+#ifdef a
+			finger = findTouchpadFinger(&touchpadSystem, touchpad, fingerData.fingerID);
+			gesture = findTouchpadGesture(&touchpadSystem, touchpad, finger);
+
+
+
+
+
+
+
+
+
+			if(gesture and (*gesture).fingerAmount){
+				const bool xEdge = ((*gesture).initialX >= (*touchpad).x and (*gesture).initialX < (*touchpad).x + edgeThresholdX) or ((*gesture).initialX > (*touchpad).width + (*touchpad).x - 1 - edgeThresholdY and (*gesture).initialX <= (*touchpad).width + (*touchpad).x - 1);
+				const bool yEdge = ((*gesture).initialY >= (*touchpad).y and (*gesture).initialY < (*touchpad).y + edgeThresholdY) or ((*gesture).initialY > (*touchpad).height + (*touchpad).y - 1 - edgeThresholdY and (*gesture).initialY <= (*touchpad).height + (*touchpad).y - 1);
+				if(xEdge and yEdge){
+					/*! fprintf(stdout, "%s%u finger %s\n", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", (*gesture).fingerAmount, (*gesture).hasUpdated? "corner edge swipe" : "corner edge tap"); */
+				}elif(xEdge or yEdge){
+					/*! fprintf(stdout, "%s%u finger %s\n", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", (*gesture).fingerAmount, (*gesture).hasUpdated? "edge swipe" : "edge tap"); */
+				}else{
+					/*! fprintf(stdout, "%s%u finger %s\n", "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t", (*gesture).fingerAmount, (*gesture).hasUpdated? "swipe" : "tap"); */
+				}
+			}
+
+
+
+			/*! this should in theory be only release as the press happens earlier and that's if everything goes well there */
+
+			if(gesture and !(*gesture).hasUpdated){
+				xcb_query_pointer_reply_t *const reply = xcb_wait_for_reply(connectionSystem.connection, xcb_query_pointer_unchecked(connectionSystem.connection, connectionSystem.rootWindow), NULL);
+				uint32 token = insertMemoryManagementPointer(&memoryManagementSystem, reply, "main() xcb_query_pointer() reply", &memoryManagementFree);
+				if(reply){
+					xcb_button_t button = XCB_NONE;
+					if((*gesture).fingerAmount == 1){
+						button = XCB_BUTTON_INDEX_1;
+						/*! fprintf(stdout, "fingered 1\n"); */
+					}elif((*gesture).fingerAmount == 2){
+						button = XCB_BUTTON_INDEX_3;
+						/*! fprintf(stdout, "fingered 2\n"); */
+					}elif((*gesture).fingerAmount == 3){
+						button = XCB_BUTTON_INDEX_2;
+						/*! fprintf(stdout, "fingered 3\n"); */
+					}elif((*gesture).fingerAmount == 4){
+						button = XCB_BUTTON_INDEX_4;
+						/*! fprintf(stdout, "fingered 4\n"); */
+					}elif((*gesture).fingerAmount == 5){
+						button = XCB_BUTTON_INDEX_5;
+						/*! fprintf(stdout, "fingered 5\n"); */
+					}
+					if(button){
+						xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_PRESS, button, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+						xcb_test_fake_input(connectionSystem.connection, XCB_BUTTON_RELEASE, button, XCB_CURRENT_TIME, connectionSystem.rootWindow, (*reply).root_x, (*reply).root_y, 0);
+					}
+					free(reply);
+					removeMemoryManagementPointer(&memoryManagementSystem, token);
+				}
+			}
+
+
+
+
+
+
+
+
+
+			removeTouchpadFinger(&touchpadSystem, &fingerData);
+			removeTouchpadGesture(&touchpadSystem, touchpad, gesture);
+			printTouchpadSystemState(touchpad, NULL);
+#endif
+
+
+
+
+
+
+
+
+
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	randrScreenChangeNotifyEvent:{
+		#define e /*-*/ ((xcb_randr_screen_change_notify_event_t *)event)
+
+
+
+		/*!*/
+
+
+
+		jmp eventLoop;
+		#undef  e
+	}
+	randrNotifyEvent:{
+		#define e /*-*/ ((xcb_randr_notify_event_t *)event)
+
+
+
+		/*!*/
+
+
+
+		jmp eventLoop;
+		#undef  e
+	}
+	xkbNewKeyboardNotifyEvent:{
+		#define e /*-*/ ((xcb_xkb_new_keyboard_notify_event_t *)event)
+		xcb_generic_event_t *newEvent = NULL;
+		uint32 newEventToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+		consumeSameEvents(&connectionSystem, &xcb_poll_for_event, event, &newEvent, &newEventToken);
+		requestKeyboardLayouts(&keyboardLayoutSystem);
+		if(requestCurrentKeyboardLayout(&keyboardLayoutSystem)){
+			const char *const s = keyboardLayoutSystem.keyboardLayoutDataStart;
+			const uint32 *const layoutData = (uint32 *)s + keyboardLayoutSystem.currentKeyboardLayout * 5;
+			fprintf(stdout, "current keyboard layout changed to:\n");
+			if(*(layoutData + 0)){
+				const char *string = s + *(layoutData + 0);
+				const uint size0 = *(layoutData + 1);
+				const uint size1 = *(layoutData + 2);
+				const uint size2 = *(layoutData + 3);
+				const uint size3 = *(layoutData + 4);
+				fprintf(stdout, "\tname       : \"%.*s\"\n", size0, string); string += size0 + !!size0;
+				fprintf(stdout, "\tsimple name: \"%.*s\"\n", size1, string); string += size1 + !!size1;
+				fprintf(stdout, "\tlayout     : \"%.*s\"\n", size2, string); string += size2 + !!size2;
+				fprintf(stdout, "\tvariant    : \"%.*s\"\n", size3, string);
+				fprintf(stdout, "\n");
+			}
+		}
+		if(newEvent){
+			free(event);
+			removeMemoryManagementPointer(&memoryManagementSystem, eventToken);
+			event = newEvent;
+			eventToken = newEventToken;
+			jmp switchEvent;
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	xkbStateNotifyEvent:{
+		#define e /*-*/ ((xcb_xkb_state_notify_event_t *)event)
+		if(setCurrentKeyboardLayout(&keyboardLayoutSystem, (*e).group)){
+			const char *const s = keyboardLayoutSystem.keyboardLayoutDataStart;
+			const uint32 *const layoutData = (uint32 *)s + keyboardLayoutSystem.currentKeyboardLayout * 5;
+			fprintf(stdout, "current keyboard layout changed to:\n");
+			if(*(layoutData + 0)){
+				const char *string = s + *(layoutData + 0);
+				const uint size0 = *(layoutData + 1);
+				const uint size1 = *(layoutData + 2);
+				const uint size2 = *(layoutData + 3);
+				const uint size3 = *(layoutData + 4);
+				fprintf(stdout, "\tname       : \"%.*s\"\n", size0, string); string += size0 + !!size0;
+				fprintf(stdout, "\tsimple name: \"%.*s\"\n", size1, string); string += size1 + !!size1;
+				fprintf(stdout, "\tlayout     : \"%.*s\"\n", size2, string); string += size2 + !!size2;
+				fprintf(stdout, "\tvariant    : \"%.*s\"\n", size3, string);
+				fprintf(stdout, "\n");
+			}
+		}
+		jmp eventLoop;
+		#undef  e
+	}
+	unrecognizedEvent:{
+		printTitledValuedError(&printSystem, "X event error", "unrecognized event with type", (*event).response_type);
+		jmp eventLoop;
+	}
+	unexpectedEvent:{
+		printError(&printSystem, "%s%s: %s%s:%s %s %s %s\n", printSystem.errorColorStart, printSystem.programName, printSystem.errorColorError, "X event", printSystem.errorColorEnd, "unexpected", findXEventName(&connectionSystem, event), "event came in");
+		jmp eventLoop;
+	}
+	unhandledEvent:{
+		printTitledValuedError(&printSystem, "X event error", "unhandled event with type", (*event).response_type);
+		jmp eventLoop;
+	}
+	eventLoopExit:{
+		free(event);
+		removeMemoryManagementPointer(&memoryManagementSystem, eventToken);
+		jmp mainEmergencyExit;
+	}
+	mainEmergencyExit:{
+		finiConfigurationParserSystem(&configurationParserSystem);
+		finiSleepThreadSystem(&sleepThreadSystem);
+		finiWindowSystem(&windowSystem);
+		finiShortcutSystem(&mouseShortcutSystem);
+		finiShortcutSystem(&keyboardShortcutSystem);
+		finiSharedMemorySystem(&sharedMemorySystem);
+		finiStdinSystem(&stdinSystem);
+		finiStringTreeSystem(&stringTreeSystem);
+		finiMonitorSystem(&monitorSystem);
+		finiAtomSystem(&atomSystem);
+		finiConnectionSystem(&connectionSystem);
+		finiArgumentSystem(&argumentSystem);
+		finiPrintSystem(&printSystem);
+		finiPermissionSystem(&permissionSystem);
+		finiMemoryManagementSystem(&memoryManagementSystem);
+		ret 0;
+	}
+}
+RESTORETOUCHPADFUNCTIONALITY(){
+	(void)argument;
+	if(!sleepThreadSystem){
+		ret false;
+	}
+	lockWriteLock(&lockSystem);
+	if(palmSuppression == READY_PALM_SUPPRESSION){
+		palmSuppression = NONE_PALM_SUPPRESSION;
+	}
+	unlockLock(&lockSystem);
+	if(palmSuppression){
+		ret false;
+	}
+	ret true;
+}
+TIMERTHREADFUNCTION(){
+	WorkerThreadSystem *const workerThreadSystem = argument;
+	if(!workerThreadSystem){
+		ret false;
+	}
+	nanosleep((struct timespec *)(*workerThreadSystem).argumentStart, NULL);
+
+
+
+
+
+
+
+
+
+	/*!*/
+
+	/*! fprintf(stdout, "worker fired after some time\n"); */
+
+
+
+
+
+
+
+
+
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+#include "../headers/functions/set-void-pointer-function.hold"
+#include "../headers/functions/fill-drawable-rectangle-function.hold"
+
+/*! remove createCircle() later and consider createCircleRectangles() */
+
+#define CREATECIRCLE() /*-----------*/ bool  createCircle(const int radius, const uint32 foreground, const uint32 background, const uint8 byteSize, Image *const image)
+#define CREATECIRCLERECTANGLES() /*-*/ bool  createCircleRectangles(const int radius, xcb_rectangle_t **const rectangleStartReturn, uint32 *const rectangleTokenReturn, uint *const rectangleSizeReturn)
+
+def struct{
+	void * /*-*/ dataStart;
+	uint32 /*-*/ dataToken;
+	uint32 /*-*/ dataSize;
+	int32 /*--*/ x;
+	int32 /*--*/ y;
+	uint32 /*-*/ width;
+	uint32 /*-*/ height;
+} Image;
+
+CREATECIRCLE(){
+	const uint width = radius * 2 + 1;
+	const uint height = width;
+	const int r2 = radius * radius;
+	void *data = malloc(width * height * byteSize);
+	uint32 token = insertMemoryManagementPointer(&memoryManagementSystem, data, "createCircle() data pointer", &memoryManagementFree);
+	int y = -radius;
+	void *dataCurrent = data;
+	if(!data){
+		ret false;
+	}
+	jmp yLoop;
+	yLoop:{
+		if(y <= radius){
+			const int y2 = y * y;
+			int x = -radius;
+			jmp xLoop;
+			xLoop:{
+				if(x <= radius){
+					const int x2y2 = x * x + y2;
+					uint32 color;
+					if(x2y2 <= r2){
+						color = foreground;
+					}else{
+						color = background;
+					}
+					setVoidPointer(dataCurrent, byteSize, color);
+					dataCurrent = (uint8 *)dataCurrent + byteSize;
+					inc x;
+					jmp xLoop;
+				}
+				inc y;
+				jmp yLoop;
+			}
+		}
+		(*image).x = 0;
+		(*image).y = 0;
+		(*image).width = width;
+		(*image).height = height;
+		(*image).dataStart = data;
+		(*image).dataToken = token;
+		(*image).dataSize = width * height * byteSize;
+		ret true;
+	}
+}
+CREATECIRCLERECTANGLES(){
+	int y;
+	int r2;
+	bool penDown;
+	bool generatedRectangle;
+	int rectangleStartX;
+	int rectangleEndX;
+	xcb_rectangle_t previousRectangle;
+	xcb_rectangle_t *rectangleStart;
+	uint32 rectangleToken;
+	uint rectangleSize;
+	uint rectangleAllocated;
+	uint rectangleBlockSize;
+	if(radius <= 0 or !rectangleStartReturn or !rectangleTokenReturn or !rectangleSizeReturn){
+		ret false;
+	}
+	y = -radius;
+	r2 = radius * radius;
+	penDown = false;
+	generatedRectangle = false;
+	previousRectangle.width = 0;
+	rectangleStart = NULL;
+	rectangleToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	rectangleSize = 0;
+	rectangleAllocated = 0;
+	rectangleBlockSize = 8;
+	jmp yLoop;
+	yLoop:{
+		if(y <= radius){
+			const int y2 = y * y;
+			int x = -radius;
+			jmp xLoop;
+			xLoop:{
+				if(x <= radius){
+					const int x2y2 = x * x + y2;
+					if(x2y2 <= r2){
+						if(!penDown){
+							rectangleStartX = x;
+							penDown = true;
+							generatedRectangle = true;
+						}
+					}else{
+						if(penDown){
+							rectangleEndX = x;
+							penDown = false;
+						}
+					}
+					inc x;
+					jmp xLoop;
+				}
+				if(penDown){
+					rectangleEndX = x;
+					penDown = false;
+				}
+
+
+
+				/*! ugly */
+
+				{
+					xcb_rectangle_t rectangle;
+					bool hasRectangle = false;
+					if(generatedRectangle){
+						rectangle.x = rectangleStartX + radius;
+						rectangle.y = y + radius;
+						rectangle.width = rectangleEndX - rectangleStartX;
+						rectangle.height = 1;
+						if(!previousRectangle.width){
+							previousRectangle = rectangle;
+						}else{
+							if(rectangle.x == previousRectangle.x and rectangle.width == previousRectangle.width){
+								inc previousRectangle.height;
+							}else{
+								xcb_rectangle_t temp = previousRectangle;
+								previousRectangle = rectangle;
+								rectangle = temp;
+								hasRectangle = true;
+							}
+						}
+						generatedRectangle = false;
+					}
+					if(hasRectangle or (y == radius and previousRectangle.width)){
+						jmp insertRectangleLoop;
+						insertRectangleLoop:{
+							if(rectangleAllocated == rectangleSize){
+								void *temp;
+								rectangleSize += rectangleBlockSize;
+								temp = realloc(rectangleStart, rectangleSize * sizeof(xcb_rectangle_t));
+								if(!rectangleToken){
+									rectangleToken = insertMemoryManagementPointer(&memoryManagementSystem, temp, "createCircleRectangles() rectangle pointer", &memoryManagementFree);
+								}else{
+									updateMemoryManagementPointer(&memoryManagementSystem, rectangleToken, temp);
+								}
+								if(!temp){
+									free(rectangleStart);
+									removeMemoryManagementPointer(&memoryManagementSystem, rectangleToken);
+									ret false;
+								}
+								rectangleStart = temp;
+							}
+							*(rectangleStart + rectangleAllocated) = rectangle;
+							inc rectangleAllocated;
+							if(hasRectangle){
+								hasRectangle = false;
+							}
+							if(y == radius and previousRectangle.width){
+								rectangle = previousRectangle;
+								previousRectangle.width = 0;
+								jmp insertRectangleLoop;
+							}
+						}
+					}
+				}
+
+
+
+				inc y;
+				jmp yLoop;
+			}
+		}
+		if(rectangleSize){
+			void *const temp = realloc(rectangleStart, rectangleAllocated * sizeof(xcb_rectangle_t));
+			updateMemoryManagementPointer(&memoryManagementSystem, rectangleToken, temp);
+			if(temp){
+				rectangleStart = temp;
+			}
+		}
+		*rectangleStartReturn = rectangleStart;
+		*rectangleTokenReturn = rectangleToken;
+		*rectangleSizeReturn = rectangleAllocated;
+		ret true;
+	}
+}
+
+
+
+
+
+
+
+
+
+DRAWWINDOW(){
+	ConnectionSystem *const connectionSystem = (*windowSystem).connectionSystem;
+	xcb_connection_t *const connection = (*connectionSystem).connection;
+	(void)argument;
+	fillDrawableGeometry(connectionSystem, buffer, (*window).gc, 0, 0, (*window).width, (*window).height, 0xFFFFFFFF);
+
+
+
+	{
+		uint i = 0;
+		fillDrawableGeometry(connectionSystem, buffer, (*window).gc, 0, 0, 320, 320, 0xFF00FF00);
+		while(i < 10){
+			uint ii = 0;
+			while(ii < 10){
+				if((i - ii) % 2 == 0){
+					fillDrawableGeometry(connectionSystem, buffer, (*window).gc, i * 32, ii * 32, 32, 32, 0xFFFF0000);
+				}
+				inc ii;
+			}
+			inc i;
+		}
+	}
+
+
+
+	/*! move up picture format shit */
+
+	{
+		initPictureFormatSystem(&pictureFormatSystem);
+		setPictureFormatMemoryManagementSystem(&pictureFormatSystem, &memoryManagementSystem);
+		setPictureFormatConnectionSystem(&pictureFormatSystem, connectionSystem);
+		requestPictureFormats(&pictureFormatSystem);
+
+
+
+		{
+			xcb_render_picture_t windowPicture = xcb_generate_id(connection);
+			xcb_pixmap_t         squarePixmap  = xcb_generate_id(connection);
+			xcb_render_picture_t squarePicture = xcb_generate_id(connection);
+			xcb_pixmap_t         circlePixmap  = xcb_generate_id(connection);
+			xcb_render_picture_t circlePicture = xcb_generate_id(connection);
+			xcb_rectangle_t      rectangle;
+
+
+
+			uint radius = 16;
+			uint width = 2 * radius + 1;
+			uint height = 2 * radius + 1;
+			uint circleDepth = 8;
+			xcb_rectangle_t *rectangleStart;
+			uint32 rectangleToken;
+			uint rectangleSize;
+			createCircleRectangles(radius, &rectangleStart, &rectangleToken, &rectangleSize);
+			rectangle.x = 0;
+			rectangle.y = 0;
+			rectangle.width = width;
+			rectangle.height = height;
+
+
+
+			xcb_render_create_picture(connection, windowPicture, buffer, getPictureFormat(&pictureFormatSystem, (*window).depth), 0, NULL);
+
+			xcb_create_pixmap(connection, circleDepth, squarePixmap, (*window).window, radius, radius);
+			xcb_render_create_picture(connection, squarePicture, squarePixmap, getPictureFormat(&pictureFormatSystem, circleDepth), 0, NULL);
+
+			xcb_create_pixmap(connection, circleDepth, circlePixmap, (*window).window, width, height);
+			xcb_render_create_picture(connection, circlePicture, circlePixmap, getPictureFormat(&pictureFormatSystem, circleDepth), 0, NULL);
+
+
+
+			{
+				xcb_gcontext_t gc = xcb_generate_id(connection);
+				struct{
+					uint32 /*-*/ generateExpose;
+				} valueList;
+				valueList.generateExpose = false;
+				xcb_create_gc(connection, gc, squarePixmap, XCB_GC_GRAPHICS_EXPOSURES, &valueList);
+				fillDrawableGeometry(connectionSystem, squarePixmap, gc, 0, 0, radius, radius, 0xFF);
+				xcb_free_gc(connection, gc);
+			}
+
+
+
+			{
+				xcb_gcontext_t gc = xcb_generate_id(connection);
+				uint32 color;
+				xcb_rectangle_t rectangle;
+				struct{
+					uint32 /*-*/ generateExpose;
+				} valueList;
+				valueList.generateExpose = false;
+				xcb_create_gc(connection, gc, circlePixmap, XCB_GC_GRAPHICS_EXPOSURES, &valueList);
+				rectangle.x = 0;
+				rectangle.y = 0;
+				rectangle.width = width;
+				rectangle.height = height;
+				color = 0x00;
+				xcb_change_gc(connection, gc, XCB_GC_FOREGROUND, &color);
+				xcb_poly_fill_rectangle(connection, circlePixmap, gc, 1, &rectangle);
+				color = 0xFF;
+				xcb_change_gc(connection, gc, XCB_GC_FOREGROUND, &color);
+				xcb_poly_fill_rectangle(connection, circlePixmap, gc, rectangleSize, rectangleStart);
+				xcb_free_gc(connection, gc);
+			}
+
+
+
+			xcb_render_composite(connection, XCB_RENDER_PICT_OP_IN_REVERSE, squarePicture, circlePicture, windowPicture, 0, 0, 0         , 0         , 0                       , 0                        , radius, radius);
+			xcb_render_composite(connection, XCB_RENDER_PICT_OP_IN_REVERSE, squarePicture, circlePicture, windowPicture, 0, 0, radius + 1, 0         , (*window).width - radius, 0                        , radius, radius);
+			xcb_render_composite(connection, XCB_RENDER_PICT_OP_IN_REVERSE, squarePicture, circlePicture, windowPicture, 0, 0, 0         , radius + 1, 0                       , (*window).height - radius, radius, radius);
+			xcb_render_composite(connection, XCB_RENDER_PICT_OP_IN_REVERSE, squarePicture, circlePicture, windowPicture, 0, 0, radius + 1, radius + 1, (*window).width - radius, (*window).height - radius, radius, radius);
+
+
+
+			free(rectangleStart);
+			removeMemoryManagementPointer(&memoryManagementSystem, rectangleToken);
+
+			xcb_render_free_picture(connection, circlePicture);
+			xcb_free_pixmap(connection, circlePixmap);
+
+			xcb_render_free_picture(connection, squarePicture);
+			xcb_free_pixmap(connection, squarePixmap);
+
+			xcb_render_free_picture(connection, windowPicture);
+		}
+
+
+
+		finiPictureFormatSystem(&pictureFormatSystem);
+	}
+	ret true;
+}
+

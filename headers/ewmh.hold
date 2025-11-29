@@ -1,0 +1,105 @@
+
+/*! ewmh.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef EWMH_HOLD
+#define EWMH_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../cold/cold.hold"
+#endif
+
+#define _NET_WM_ORIENTATION_HORZ /*------------*/ (0)
+#define _NET_WM_ORIENTATION_VERT /*------------*/ (1)
+
+#define _NET_WM_TOPLEFT /*---------------------*/ (0)
+#define _NET_WM_TOPRIGHT /*--------------------*/ (1)
+#define _NET_WM_BOTTOMRIGHT /*-----------------*/ (2)
+#define _NET_WM_BOTTOMLEFT /*------------------*/ (3)
+
+#define _NET_WM_MOVERESIZE_SIZE_TOPLEFT /*-----*/ (0)
+#define _NET_WM_MOVERESIZE_SIZE_TOP /*---------*/ (1)
+#define _NET_WM_MOVERESIZE_SIZE_TOPRIGHT /*----*/ (2)
+#define _NET_WM_MOVERESIZE_SIZE_RIGHT /*-------*/ (3)
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOMRIGHT /*-*/ (4)
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOM /*------*/ (5)
+#define _NET_WM_MOVERESIZE_SIZE_BOTTOMLEFT /*--*/ (6)
+#define _NET_WM_MOVERESIZE_SIZE_LEFT /*--------*/ (7)
+#define _NET_WM_MOVERESIZE_MOVE /*-------------*/ (8)
+#define _NET_WM_MOVERESIZE_SIZE_KEYBOARD /*----*/ (9)
+#define _NET_WM_MOVERESIZE_MOVE_KEYBOARD /*----*/ (10)
+
+#define NONE_WINDOW_TYPE /*--------------------*/ (b(00000000))
+#define DESKTOP_WINDOW_TYPE /*-----------------*/ (b(00000001))
+#define DOCK_WINDOW_TYPE /*--------------------*/ (b(00000010))
+#define TOOLBAR_WINDOW_TYPE /*-----------------*/ (b(00000100))
+#define MENU_WINDOW_TYPE /*--------------------*/ (b(00001000))
+#define UTILITY_WINDOW_TYPE /*-----------------*/ (b(00010000))
+#define SPLASH_WINDOW_TYPE /*------------------*/ (b(00100000))
+#define DIALOG_WINDOW_TYPE /*------------------*/ (b(01000000))
+#define NORMAL_WINDOW_TYPE /*------------------*/ (b(10000000))
+
+#define NONE_STATE /*--------------------------*/ (b(000000000000))
+#define MODAL_STATE /*-------------------------*/ (b(000000000001))
+#define STICKY_STATE /*------------------------*/ (b(000000000010))
+#define MAXIMIZED_HORZ_STATE /*----------------*/ (b(000000000100))
+#define MAXIMIZED_VERT_STATE /*----------------*/ (b(000000001000))
+#define SHADED_STATE /*------------------------*/ (b(000000010000))
+#define SKIP_TASKBAR_STATE /*------------------*/ (b(000000100000))
+#define SKIP_PAGER_STATE /*--------------------*/ (b(000001000000))
+#define HIDDEN_STATE /*------------------------*/ (b(000010000000))
+#define FULLSCREEN_STATE /*--------------------*/ (b(000100000000))
+#define ABOVE_STATE /*-------------------------*/ (b(001000000000))
+#define BELOW_STATE /*-------------------------*/ (b(010000000000))
+#define DEMANDS_ATTENTION_STATE /*-------------*/ (b(100000000000))
+
+#define _NET_WM_STATE_REMOVE /*----------------*/ (0)
+#define _NET_WM_STATE_ADD /*-------------------*/ (1)
+#define _NET_WM_STATE_TOGGLE /*----------------*/ (2)
+
+#define NONE_ALLOWED_ACTION /*-----------------*/ (b(0000000000))
+#define MOVE_ALLOWED_ACTION /*-----------------*/ (b(0000000001))
+#define RESIZE_ALLOWED_ACTION /*---------------*/ (b(0000000010))
+#define MINIMIZE_ALLOWED_ACTION /*-------------*/ (b(0000000100))
+#define SHADE_ALLOWED_ACTION /*----------------*/ (b(0000001000))
+#define STICK_ALLOWED_ACTION /*----------------*/ (b(0000010000))
+#define MAXIMIZE_HORZ_ALLOWED_ACTION /*--------*/ (b(0000100000))
+#define MAXIMIZE_VERT_ALLOWED_ACTION /*--------*/ (b(0001000000))
+#define FULLSCREEN_ALLOWED_ACTION /*-----------*/ (b(0010000000))
+#define CHANGE_DESKTOP_ALLOWED_ACTION /*-------*/ (b(0100000000))
+#define CLOSE_ALLOWED_ACTION /*----------------*/ (b(1000000000))
+
+#undef  NONE_CLIENT_PROTOCOL
+#define NONE_CLIENT_PROTOCOL /*----------------*/ (b(0000))
+#define PING_CLIENT_PROTOCOL /*----------------*/ (b(0100))
+#define SYNC_REQUEST_CLIENT_PROTOCOL /*--------*/ (b(1000))
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../cold/hot.hold"
+#endif
+
+#endif
+

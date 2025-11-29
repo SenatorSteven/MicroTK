@@ -1,0 +1,104 @@
+
+/*! worker-thread-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/worker-thread-system.hold"
+#include "../../headers/functions/copy-memory-function.hold"
+
+INITWORKERTHREADSYSTEM(){
+	(*workerThreadSystem).memoryManagementSystem = NULL;
+	(*workerThreadSystem).callback = NULL;
+	(*workerThreadSystem).argumentSize = 0;
+	ret true;
+}
+SETWORKERTHREADMEMORYMANAGEMENTSYSTEM(){
+	if(!workerThreadSystem or memoryManagementSystem == (*workerThreadSystem).memoryManagementSystem){
+		ret false;
+	}
+	(*workerThreadSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETWORKERTHREADARGUMENT(){
+	if(!workerThreadSystem or !callback){
+		ret false;
+	}
+	if(argumentSize > countof((*workerThreadSystem).argumentStart)){
+		argumentSize = countof((*workerThreadSystem).argumentStart);
+	}
+	(*workerThreadSystem).callback = callback;
+	(*workerThreadSystem).argumentSize = argumentSize;
+	copyMemory(argumentStart, (*workerThreadSystem).argumentStart, argumentSize);
+	ret true;
+}
+SPAWNWORKERTHREAD(){
+	pthread_t thread;
+	WorkerThreadSystem *argument;
+	uint32 token;
+	if(!workerThreadSystem or !(*workerThreadSystem).callback){
+		ret false;
+	}
+	argument = malloc(sizeof(WorkerThreadSystem));
+	token = insertMemoryManagementPointer((*workerThreadSystem).memoryManagementSystem, argument, "WorkerThreadSystem spawnWorkerThread() argument pointer", &memoryManagementFree);
+	if(!argument){
+		ret false;
+	}
+	copyMemory(workerThreadSystem, argument, sizeof(WorkerThreadSystem));
+	(*argument).argumentToken = token;
+	if(pthread_create(&thread, NULL, workerThreadMain, argument) != PTHREAD_CREATE_SUCCESS){
+		free(argument);
+		removeMemoryManagementPointer((*argument).memoryManagementSystem, token);
+		ret false;
+	}
+	pthread_detach(thread);
+	ret true;
+}
+WORKERTHREADMAIN(){
+	WorkerThreadSystem *const workerThreadSystem = argument;
+	MemoryManagementSystem *memoryManagementSystem;
+	uint32 token;
+	if(!workerThreadSystem or !(*workerThreadSystem).callback){
+		ret NULL;
+	}
+	memoryManagementSystem = (*workerThreadSystem).memoryManagementSystem;
+	token = (*workerThreadSystem).argumentToken;
+	(*(*workerThreadSystem).callback)(workerThreadSystem);
+	free(workerThreadSystem);
+	removeMemoryManagementPointer(memoryManagementSystem, token);
+	ret workerThreadSystem;
+}
+FINIWORKERTHREADSYSTEM(){
+	(*workerThreadSystem).argumentSize = 0;
+	(*workerThreadSystem).callback = NULL;
+	(*workerThreadSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+

@@ -1,0 +1,203 @@
+
+/*! rectangle-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef RECTANGLE_SYSTEM_HOLD
+#define RECTANGLE_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define RectangleSystem /*---------------------------------------*/ RectangleSystem
+
+#define NONE_RECTANGLE_NUMBER_TYPE /*----------------------------*/ (0)
+#define INTEGER_RECTANGLE_NUMBER_TYPE /*-------------------------*/ (1)
+#define PERCENTAGE_RECTANGLE_NUMBER_TYPE /*----------------------*/ (2)
+#define MILLIMETER_RECTANGLE_NUMBER_TYPE /*----------------------*/ (3)
+
+#define NONE_RECTANGLE_PLACEMENT /*------------------------------*/ (0)
+#define TOP_RECTANGLE_PLACEMENT /*-------------------------------*/ (1)
+#define BOTTOM_RECTANGLE_PLACEMENT /*----------------------------*/ (2)
+#define LEFT_RECTANGLE_PLACEMENT /*------------------------------*/ (3)
+#define RIGHT_RECTANGLE_PLACEMENT /*-----------------------------*/ (4)
+
+#define NONE_RECTANGLE_HORIZONTAL_ALIGNMENT /*-------------------*/ (0)
+#define LEFT_RECTANGLE_HORIZONTAL_ALIGNMENT /*-------------------*/ (1)
+#define CENTER_RECTANGLE_HORIZONTAL_ALIGNMENT /*-----------------*/ (2)
+#define RIGHT_RECTANGLE_HORIZONTAL_ALIGNMENT /*------------------*/ (3)
+
+#define NONE_RECTANGLE_VERTICAL_ALIGNMENT /*---------------------*/ (0)
+#define TOP_RECTANGLE_VERTICAL_ALIGNMENT /*----------------------*/ (1)
+#define CENTER_RECTANGLE_VERTICAL_ALIGNMENT /*-------------------*/ (2)
+#define BOTTOM_RECTANGLE_VERTICAL_ALIGNMENT /*-------------------*/ (3)
+
+#define NONE_RECTANGLE_AXIS /*-----------------------------------*/ (0)
+#define HORIZONTAL_RECTANGLE_AXIS /*-----------------------------*/ (1)
+#define VERTICAL_RECTANGLE_AXIS /*-------------------------------*/ (2)
+
+#define NONE_RECTANGLE_OPERATION /*------------------------------*/ (0)
+#define SET_RECTANGLE_PRINT_SYSTEM_RECTANGLE_OPERATION /*--------*/ (1)
+#define SET_RECTANGLE_POSITION_RECTANGLE_OPERATION /*------------*/ (2)
+#define SET_RECTANGLE_OFFSET_RECTANGLE_OPERATION /*--------------*/ (3)
+#define SET_RECTANGLE_SIZE_RECTANGLE_OPERATION /*----------------*/ (4)
+#define SET_RECTANGLE_PADDING_RECTANGLE_OPERATION /*-------------*/ (5)
+#define SET_RECTANGLE_MARGIN_RECTANGLE_OPERATION /*--------------*/ (6)
+#define SET_RECTANGLE_PLACEMENT_RECTANGLE_OPERATION /*-----------*/ (7)
+#define SET_RECTANGLE_ALIGNMENT_RECTANGLE_OPERATION /*-----------*/ (8)
+#define SET_RECTANGLE_CLIPPING_RECTANGLE_OPERATION /*------------*/ (9)
+#define SET_RECTANGLE_CORNER_RADIUS_RECTANGLE_OPERATION /*-------*/ (10)
+#define SET_RECTANGLE_FOREGROUND_RECTANGLE_OPERATION /*----------*/ (11)
+#define SET_RECTANGLE_BACKGROUND_RECTANGLE_OPERATION /*----------*/ (12)
+#define SET_RECTANGLE_SELECTED_FOREGROUND_RECTANGLE_OPERATION /*-*/ (13)
+#define SET_RECTANGLE_SELECTED_BACKGROUND_RECTANGLE_OPERATION /*-*/ (14)
+#define SET_RECTANGLE_MULTITHREADING_RECTANGLE_OPERATION /*------*/ (15)
+#define GET_RECTANGLE_RECTANGLE_RECTANGLE_OPERATION /*-----------*/ (16)
+
+#define NONE_RECTANGLE_CODE /*-----------------------------------*/ (0)
+#define SUCCESS_RECTANGLE_CODE /*--------------------------------*/ (1)
+#define NOTHING_DONE_RECTANGLE_CODE /*---------------------------*/ (2)
+#define BAD_INPUT_RECTANGLE_CODE /*------------------------------*/ (3)
+#define FAILED_MUTEX_RECTANGLE_CODE /*---------------------------*/ (4)
+
+#define INITRECTANGLESYSTEM() /*---------------------------------*/ bool   initRectangleSystem(RectangleSystem *const rectangleSystem)
+#define SETRECTANGLEPRINTSYSTEM() /*-----------------------------*/ bool   setRectanglePrintSystem(RectangleSystem *const rectangleSystem, PrintSystem *const printSystem)
+#define SETRECTANGLEPOSITION() /*--------------------------------*/ bool   setRectanglePosition(RectangleSystem *const rectangleSystem, const int x, const uint8 xType, const int y, const uint8 yType)
+#define SETRECTANGLEOFFSET() /*----------------------------------*/ bool   setRectangleOffset(RectangleSystem *const rectangleSystem, const int xOffset, const uint8 xOffsetType, const int yOffset, const uint8 yOffsetType)
+#define SETRECTANGLESIZE() /*------------------------------------*/ bool   setRectangleSize(RectangleSystem *const rectangleSystem, const uint width, const uint8 widthType, const uint height, const uint8 heightType)
+#define SETRECTANGLEPADDING() /*---------------------------------*/ bool   setRectanglePadding(RectangleSystem *const rectangleSystem, const uint horizontalPadding, const uint8 horizontalPaddingType, const uint verticalPadding, const uint8 verticalPaddingType)
+#define SETRECTANGLEMARGIN() /*----------------------------------*/ bool   setRectangleMargin(RectangleSystem *const rectangleSystem, const uint horizontalMargin, const uint8 horizontalMarginType, const uint verticalMargin, const uint8 verticalMarginType)
+#define SETRECTANGLEPLACEMENT() /*-------------------------------*/ bool   setRectanglePlacement(RectangleSystem *const rectangleSystem, const uint8 placement)
+#define SETRECTANGLEALIGNMENT() /*-------------------------------*/ bool   setRectangleAlignment(RectangleSystem *const rectangleSystem, const uint8 horizontalAlignment, const uint8 verticalAlignment)
+#define SETRECTANGLECLIPPING() /*--------------------------------*/ bool   setRectangleClipping(RectangleSystem *const rectangleSystem, bool clipChildren)
+#define SETRECTANGLECORNERRADIUS() /*----------------------------*/ bool   setRectangleCornerRadius(RectangleSystem *const rectangleSystem, const uint cornerRadiusTopLeft, const uint cornerRadiusTopRight, const uint cornerRadiusBottomLeft, const uint cornerRadiusBottomRight)
+#define SETRECTANGLEFOREGROUND() /*------------------------------*/ bool   setRectangleForeground(RectangleSystem *const rectangleSystem, const uint foreground)
+#define SETRECTANGLEBACKGROUND() /*------------------------------*/ bool   setRectangleBackground(RectangleSystem *const rectangleSystem, const uint background)
+#define SETRECTANGLESELECTEDFOREGROUND() /*----------------------*/ bool   setRectangleSelectedForeground(RectangleSystem *const rectangleSystem, const uint selectedForeground)
+#define SETRECTANGLESELECTEDBACKGROUND() /*----------------------*/ bool   setRectangleSelectedBackground(RectangleSystem *const rectangleSystem, const uint selectedBackground)
+#define SETRECTANGLEMULTITHREADING() /*--------------------------*/ bool   setRectangleMultithreading(RectangleSystem *const rectangleSystem, bool multithreaded)
+#define GETRECTANGLERECTANGLE() /*-------------------------------*/ bool   getRectangleRectangle(RectangleSystem *const rectangleSystem, const uint parentRectangleWidth, const uint parentRectangleHeight, const uint rootRectanglePixelWidth, const uint rootRectanglePixelHeight, const uint rootRectangleMillimeterWidth, const uint rootRectangleMillimeterHeight, Rectangle *const rectangleReturn)
+#define GETRECTANGLETYPEDNUMBER() /*-----------------------------*/ int64  getRectangleTypedNumber(RectangleSystem *const rectangleSystem, const int64 number, const uint8 type, const uint8 axis, const uint64 parentSize, const uint64 rootRectanglePixelSize, const uint64 rootRectangleMillimeterSize)
+#define FINIRECTANGLESYSTEM() /*---------------------------------*/ bool   finiRectangleSystem(RectangleSystem *const rectangleSystem)
+
+#define PRINTRECTANGLELOG() /*-----------------------------------*/ bool   printRectangleLog(RectangleSystem *const rectangleSystem)
+
+def struct{
+	MutexSystem /*---*/ mutexSystem;
+	PrintSystem * /*-*/ printSystem;
+	int32 /*---------*/ x;
+	int32 /*---------*/ y;
+	int32 /*---------*/ xOffset;
+	int32 /*---------*/ yOffset;
+	uint32 /*--------*/ width;
+	uint32 /*--------*/ height;
+	uint32 /*--------*/ horizontalPadding;
+	uint32 /*--------*/ verticalPadding;
+	uint32 /*--------*/ horizontalMargin;
+	uint32 /*--------*/ verticalMargin;
+	uint32 /*--------*/ cornerRadiusTopLeft;
+	uint32 /*--------*/ cornerRadiusTopRight;
+	uint32 /*--------*/ cornerRadiusBottomLeft;
+	uint32 /*--------*/ cornerRadiusBottomRight;
+	uint32 /*--------*/ foreground;
+	uint32 /*--------*/ background;
+	uint32 /*--------*/ selectedForeground;
+	uint32 /*--------*/ selectedBackground;
+	uint8 /*---------*/ xType;
+	uint8 /*---------*/ yType;
+	uint8 /*---------*/ xOffsetType;
+	uint8 /*---------*/ yOffsetType;
+	uint8 /*---------*/ widthType;
+	uint8 /*---------*/ heightType;
+	uint8 /*---------*/ horizontalPaddingType;
+	uint8 /*---------*/ verticalPaddingType;
+	uint8 /*---------*/ horizontalMarginType;
+	uint8 /*---------*/ verticalMarginType;
+	uint8 /*---------*/ placement;
+	uint8 /*---------*/ horizontalAlignment;
+	uint8 /*---------*/ verticalAlignment;
+	bool /*----------*/ clipChildren;
+	uint8 /*---------*/ operation;
+	uint8 /*---------*/ code;
+	bool /*----------*/ multithreaded;
+	uint8 /*---------*/ pad0[7];
+} RectangleSystem;
+
+def struct{
+	uint32 /*--------*/ rootRectanglePixelWidth;
+	uint32 /*--------*/ rootRectanglePixelHeight;
+	uint32 /*--------*/ rootRectangleMillimeterWidth;
+	uint32 /*--------*/ rootRectangleMillimeterHeight;
+	int32 /*---------*/ x;
+	int32 /*---------*/ y;
+	uint32 /*--------*/ width;
+	uint32 /*--------*/ height;
+	uint32 /*--------*/ horizontalPadding;
+	uint32 /*--------*/ verticalPadding;
+	uint32 /*--------*/ horizontalMargin;
+	uint32 /*--------*/ verticalMargin;
+	uint32 /*--------*/ cornerRadiusTopLeft;
+	uint32 /*--------*/ cornerRadiusTopRight;
+	uint32 /*--------*/ cornerRadiusBottomLeft;
+	uint32 /*--------*/ cornerRadiusBottomRight;
+	uint32 /*--------*/ foreground;
+	uint32 /*--------*/ background;
+	uint32 /*--------*/ selectedForeground;
+	uint32 /*--------*/ selectedBackground;
+	uint8 /*---------*/ placement;
+	uint8 /*---------*/ horizontalAlignment;
+	uint8 /*---------*/ verticalAlignment;
+	bool /*----------*/ clipChildren;
+	uint8 /*---------*/ pad0[3];
+} Rectangle;
+
+INITRECTANGLESYSTEM();
+SETRECTANGLEPRINTSYSTEM();
+SETRECTANGLEPOSITION();
+SETRECTANGLEOFFSET();
+SETRECTANGLESIZE();
+SETRECTANGLEPADDING();
+SETRECTANGLEMARGIN();
+SETRECTANGLEPLACEMENT();
+SETRECTANGLEALIGNMENT();
+SETRECTANGLECLIPPING();
+SETRECTANGLECORNERRADIUS();
+SETRECTANGLEFOREGROUND();
+SETRECTANGLEBACKGROUND();
+SETRECTANGLESELECTEDFOREGROUND();
+SETRECTANGLESELECTEDBACKGROUND();
+SETRECTANGLEMULTITHREADING();
+GETRECTANGLERECTANGLE();
+GETRECTANGLETYPEDNUMBER();
+FINIRECTANGLESYSTEM();
+PRINTRECTANGLELOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

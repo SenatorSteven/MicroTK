@@ -1,0 +1,711 @@
+
+/*! argument-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Update.
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/argument-system.hold"
+#include "../../headers/functions/sensitive-string-compare-function.hold"
+#include "../../headers/functions/insensitive-string-compare-function.hold"
+#include "../../headers/functions/file-exists-function.hold"
+#include "../../headers/functions/directory-exists-function.hold"
+
+INITARGUMENTSYSTEM(){
+	if(!argumentSystem){
+		ret false;
+	}
+	(*argumentSystem).memoryManagementSystem = NULL;
+	(*argumentSystem).printSystem = NULL;
+	(*argumentSystem).programName = "";
+	(*argumentSystem).name = "";
+	(*argumentSystem).outputPath = "";
+	(*argumentSystem).errorPath = "";
+	(*argumentSystem).serverName = "";
+	(*argumentSystem).configPath = "";
+	(*argumentSystem).outputStream = NULL;
+	(*argumentSystem).errorStream = NULL;
+	(*argumentSystem).operation = NONE_ARGUMENT_OPERATION;
+	(*argumentSystem).code = NONE_ARGUMENT_CODE;
+	(*argumentSystem).multithreaded = false;
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+SETARGUMENTMEMORYMANAGEMENTSYSTEM(){
+	if(!argumentSystem or memoryManagementSystem == (*argumentSystem).memoryManagementSystem){
+		ret false;
+	}
+	(*argumentSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETARGUMENTPRINTSYSTEM(){
+	if(!argumentSystem or printSystem == (*argumentSystem).printSystem){
+		ret false;
+	}
+	(*argumentSystem).printSystem = printSystem;
+	ret true;
+}
+PARSEARGUMENTS(){
+	const char *const *argumentCurrent;
+	const char *const *argumentWall;
+	const char *programName;
+	const char *name;
+	const char *outputPath;
+	const char *errorPath;
+	const char *serverName;
+	const char *configPath;
+	MemoryManagementSystem *memoryManagementSystem;
+	PrintSystem *printSystem;
+	uint16 mask;
+	FILE *outputStream;
+	FILE *errorStream;
+	if(!argumentSystem or !argumentStart or !argumentAmount){
+		ret false;
+	}
+	memoryManagementSystem = (*argumentSystem).memoryManagementSystem;
+	printSystem = (*argumentSystem).printSystem;
+	argumentCurrent = argumentStart;
+	argumentWall = argumentCurrent + argumentAmount;
+	programName = "";
+	name = "";
+	outputPath = "";
+	errorPath = "";
+	serverName = "";
+	configPath = "";
+	mask = which;
+	outputStream = NULL;
+	errorStream = NULL;
+	if(!*argumentCurrent){
+		jmp printNoArgument;
+	}
+	programName = *argumentCurrent;
+	inc argumentCurrent;
+	jmp parseArgumentLoop;
+	parseArgumentLoop:{
+		if(argumentCurrent < argumentWall){
+			switch(identifyArgument(argumentSystem, *argumentCurrent)){
+				to NONE_ARGUMENT:{
+					jmp printNoArgument;
+				}
+				to UNRECOGNIZED_ARGUMENT:{
+					jmp printInvalidArgument;
+				}
+				to HELP_ARGUMENT:{
+					jmp printUsage;
+				}
+				to NAME_ARGUMENT:{
+					uint8 argument;
+					if(!(which & (NAME_WHICH_ARGUMENT | MANDATORY_NAME_WHICH_ARGUMENT))){
+						jmp printInvalidArgument;
+					}
+					if(!(mask & (NAME_WHICH_ARGUMENT | MANDATORY_NAME_WHICH_ARGUMENT))){
+						jmp printNameSpecified;
+					}
+					if(argumentCurrent + 1 == argumentWall){
+						jmp printNoNameValue;
+					}
+					inc argumentCurrent;
+					argument = identifyArgument(argumentSystem, *argumentCurrent);
+					switch(argument){
+						to NONE_ARGUMENT: /*---------*/ jmp printNoArgument;
+						to UNRECOGNIZED_ARGUMENT: /*-*/ brk;
+						to HELP_ARGUMENT: /*---------*/ jmp printNameUsage;
+						to NAME_ARGUMENT: /*---------*/ jmp printNoNameValue;
+						to OUTPUT_ARGUMENT: /*-------*/ jmp printNoNameValue;
+						to ERROR_ARGUMENT: /*--------*/ jmp printNoNameValue;
+						to SERVER_ARGUMENT: /*-------*/ jmp printNoNameValue;
+						to CONFIG_ARGUMENT: /*-------*/ jmp printNoNameValue;
+						to STDOUT_ARGUMENT: /*-------*/ jmp printNoNameValue;
+						to STDERR_ARGUMENT: /*-------*/ jmp printNoNameValue;
+						off: /*----------------------*/ jmp printNoNameValue;
+					}
+					name = *argumentCurrent;
+					mask &= ~(NAME_WHICH_ARGUMENT | MANDATORY_NAME_WHICH_ARGUMENT);
+					brk;
+				}
+				to OUTPUT_ARGUMENT:{
+					uint8 argument;
+					FILE *file;
+					uint32 token;
+					if(!(which & (OUTPUT_WHICH_ARGUMENT | MANDATORY_OUTPUT_WHICH_ARGUMENT))){
+						jmp printInvalidArgument;
+					}
+					if(!(mask & (OUTPUT_WHICH_ARGUMENT | MANDATORY_OUTPUT_WHICH_ARGUMENT))){
+						jmp printOutputSpecified;
+					}
+					if(argumentCurrent + 1 == argumentWall){
+						jmp printNoOutputValue;
+					}
+					inc argumentCurrent;
+					argument = identifyArgument(argumentSystem, *argumentCurrent);
+					switch(argument){
+						to NONE_ARGUMENT: /*---------*/ /*------------------*/ jmp printNoArgument;
+						to UNRECOGNIZED_ARGUMENT: /*-*/ /*------------------*/ brk;
+						to HELP_ARGUMENT: /*---------*/ /*------------------*/ jmp printOutputUsage;
+						to NAME_ARGUMENT: /*---------*/ /*------------------*/ jmp printNoOutputValue;
+						to OUTPUT_ARGUMENT: /*-------*/ /*------------------*/ jmp printNoOutputValue;
+						to ERROR_ARGUMENT: /*--------*/ /*------------------*/ jmp printNoOutputValue;
+						to SERVER_ARGUMENT: /*-------*/ /*------------------*/ jmp printNoOutputValue;
+						to CONFIG_ARGUMENT: /*-------*/ /*------------------*/ jmp printNoOutputValue;
+						to STDOUT_ARGUMENT: /*-------*/ outputStream = stdout; brk;
+						to STDERR_ARGUMENT: /*-------*/ outputStream = stderr; brk;
+						off: /*----------------------*/ /*------------------*/ jmp printNoOutputValue;
+					}
+					outputPath = *argumentCurrent;
+					if(directoryExists(outputPath)){
+						jmp printOutputValueDirectory;
+					}
+					file = fopen(outputPath, "w");
+					token = insertMemoryManagementPointer(memoryManagementSystem, file, "ArgumentSystem parseArguments() output file argument", &memoryManagementFclose);
+					if(file){
+						fclose(file);
+						removeMemoryManagementPointer(memoryManagementSystem, token);
+						remove(outputPath);
+						mask &= ~(OUTPUT_WHICH_ARGUMENT | MANDATORY_OUTPUT_WHICH_ARGUMENT);
+						brk;
+					}
+					jmp printOutputBadFile;
+				}
+				to ERROR_ARGUMENT:{
+					uint8 argument;
+					FILE *file;
+					uint32 token;
+					if(!(which & (ERROR_WHICH_ARGUMENT | MANDATORY_ERROR_WHICH_ARGUMENT))){
+						jmp printInvalidArgument;
+					}
+					if(!(mask & (ERROR_WHICH_ARGUMENT | MANDATORY_ERROR_WHICH_ARGUMENT))){
+						jmp printErrorSpecified;
+					}
+					if(argumentCurrent + 1 == argumentWall){
+						jmp printNoErrorValue;
+					}
+					inc argumentCurrent;
+					argument = identifyArgument(argumentSystem, *argumentCurrent);
+					switch(argument){
+						to NONE_ARGUMENT: /*---------*/ /*-----------------*/ jmp printNoArgument;
+						to UNRECOGNIZED_ARGUMENT: /*-*/ /*-----------------*/ brk;
+						to HELP_ARGUMENT: /*---------*/ /*-----------------*/ jmp printErrorUsage;
+						to NAME_ARGUMENT: /*---------*/ /*-----------------*/ jmp printNoErrorValue;
+						to OUTPUT_ARGUMENT: /*-------*/ /*-----------------*/ jmp printNoErrorValue;
+						to ERROR_ARGUMENT: /*--------*/ /*-----------------*/ jmp printNoErrorValue;
+						to SERVER_ARGUMENT: /*-------*/ /*-----------------*/ jmp printNoErrorValue;
+						to CONFIG_ARGUMENT: /*-------*/ /*-----------------*/ jmp printNoErrorValue;
+						to STDOUT_ARGUMENT: /*-------*/ errorStream = stdout; brk;
+						to STDERR_ARGUMENT: /*-------*/ errorStream = stderr; brk;
+						off: /*----------------------*/ /*-----------------*/ jmp printNoErrorValue;
+					}
+					errorPath = *argumentCurrent;
+					if(directoryExists(errorPath)){
+						jmp printErrorValueDirectory;
+					}
+					file = fopen(errorPath, "w");
+					token = insertMemoryManagementPointer(memoryManagementSystem, file, "ArgumentSystem parseArguments() error file argument", &memoryManagementFclose);
+					if(file){
+						fclose(file);
+						removeMemoryManagementPointer(memoryManagementSystem, token);
+						remove(errorPath);
+						mask &= ~(ERROR_WHICH_ARGUMENT | MANDATORY_ERROR_WHICH_ARGUMENT);
+						brk;
+					}
+					jmp printErrorBadFile;
+				}
+				to SERVER_ARGUMENT:{
+					uint8 argument;
+					if(!(which & (SERVER_WHICH_ARGUMENT | MANDATORY_SERVER_WHICH_ARGUMENT))){
+						jmp printInvalidArgument;
+					}
+					if(!(mask & (SERVER_WHICH_ARGUMENT | MANDATORY_SERVER_WHICH_ARGUMENT))){
+						jmp printServerSpecified;
+					}
+					if(argumentCurrent + 1 == argumentWall){
+						jmp printNoServerValue;
+					}
+					inc argumentCurrent;
+					argument = identifyArgument(argumentSystem, *argumentCurrent);
+					switch(argument){
+						to NONE_ARGUMENT: /*---------*/ jmp printNoArgument;
+						to UNRECOGNIZED_ARGUMENT: /*-*/ brk;
+						to HELP_ARGUMENT: /*---------*/ jmp printServerUsage;
+						to NAME_ARGUMENT: /*---------*/ jmp printNoServerValue;
+						to OUTPUT_ARGUMENT: /*-------*/ jmp printNoServerValue;
+						to ERROR_ARGUMENT: /*--------*/ jmp printNoServerValue;
+						to SERVER_ARGUMENT: /*-------*/ jmp printNoServerValue;
+						to CONFIG_ARGUMENT: /*-------*/ jmp printNoServerValue;
+						to STDOUT_ARGUMENT: /*-------*/ jmp printNoServerValue;
+						to STDERR_ARGUMENT: /*-------*/ jmp printNoServerValue;
+						off: /*----------------------*/ jmp printNoServerValue;
+					}
+					serverName = *argumentCurrent;
+					mask &= ~(SERVER_WHICH_ARGUMENT | MANDATORY_SERVER_WHICH_ARGUMENT);
+					brk;
+				}
+				to CONFIG_ARGUMENT:{
+					uint8 argument;
+					FILE *file;
+					uint32 token;
+					if(!(which & (CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT))){
+						jmp printInvalidArgument;
+					}
+					if(!(mask & (CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT))){
+						jmp printConfigSpecified;
+					}
+					if(argumentCurrent + 1 == argumentWall){
+						jmp printNoConfigValue;
+					}
+					inc argumentCurrent;
+					argument = identifyArgument(argumentSystem, *argumentCurrent);
+					switch(argument){
+						to NONE_ARGUMENT: /*---------*/ jmp printNoArgument;
+						to UNRECOGNIZED_ARGUMENT: /*-*/ brk;
+						to HELP_ARGUMENT: /*---------*/ jmp printConfigUsage;
+						to NAME_ARGUMENT: /*---------*/ jmp printNoConfigValue;
+						to OUTPUT_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+						to ERROR_ARGUMENT: /*--------*/ jmp printNoConfigValue;
+						to SERVER_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+						to CONFIG_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+						to STDOUT_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+						to STDERR_ARGUMENT: /*-------*/ jmp printNoConfigValue;
+						off: /*----------------------*/ jmp printNoConfigValue;
+					}
+					configPath = *argumentCurrent;
+					if(directoryExists(configPath)){
+						jmp printConfigValueDirectory;
+					}
+					file = fopen(configPath, "r");
+					token = insertMemoryManagementPointer(memoryManagementSystem, file, "ArgumentSystem parseArguments() config file argument", &memoryManagementFclose);
+					if(file){
+						fclose(file);
+						removeMemoryManagementPointer(memoryManagementSystem, token);
+						mask &= ~(CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT);
+						brk;
+					}
+					file = fopen(configPath, "w");
+					token = insertMemoryManagementPointer(memoryManagementSystem, file, "ArgumentSystem parseArguments() config file argument", &memoryManagementFclose);
+					if(file){
+						fclose(file);
+						removeMemoryManagementPointer(memoryManagementSystem, token);
+						remove(configPath);
+						mask &= ~(CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT);
+						brk;
+					}
+					jmp printConfigBadValue;
+				}
+				to STDOUT_ARGUMENT:{
+					jmp printInvalidArgument;
+				}
+				to STDERR_ARGUMENT:{
+					jmp printInvalidArgument;
+				}
+				off:{
+					jmp printUnsupportedArgument;
+				}
+			}
+			inc argumentCurrent;
+			jmp parseArgumentLoop;
+		}
+		jmp emergencyExit;
+	}
+	printNoArgument:{
+		printTitledError(printSystem, "argument error", "empty argument given");
+		ret false;
+	}
+	printInvalidArgument:{
+		printTitledQuotedError(printSystem, "argument error", *argumentCurrent, "is not a recognized program argument, check help? [-h]");
+		ret false;
+	}
+	printNameSpecified:{
+		printTitledError(printSystem, "argument error", "the name argument has already been specified");
+		ret false;
+	}
+	printNoNameValue:{
+		printTitledError(printSystem, "argument error", "no name value specified");
+		ret false;
+	}
+	printNameUsage:{
+		printOutput(printSystem, "%s%s: %susage:%s %s --name name\n\tthe specified name will be used to differentiate instances\n\tthe same name should be used per X instance\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorOutput, (*printSystem).outputColorEnd, (*printSystem).programName);
+		ret false;
+	}
+	printOutputSpecified:{
+		printTitledError(printSystem, "argument error", "the output argument has already been specified");
+		ret false;
+	}
+	printNoOutputValue:{
+		printTitledError(printSystem, "argument error", "no output value specified");
+		ret false;
+	}
+	printOutputUsage:{
+		printOutput(printSystem, "%s%s: %susage:%s %s --output stdout or stderr or /path/to/file\n\tif the specified output file doesn't exist it will be created\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorOutput, (*printSystem).outputColorEnd, (*printSystem).programName);
+		ret false;
+	}
+	printOutputValueDirectory:{
+		printTitledQuotedError(printSystem, "argument error", *argumentCurrent, "output value is directory");
+		ret false;
+	}
+	printOutputBadFile:{
+		printTitledError(printSystem, "argument error", "could not create output file");
+		ret false;
+	}
+	printErrorSpecified:{
+		printTitledError(printSystem, "argument error", "the error argument has already been specified");
+		ret false;
+	}
+	printNoErrorValue:{
+		printTitledError(printSystem, "argument error", "no error value specified");
+		ret false;
+	}
+	printErrorUsage:{
+		printOutput(printSystem, "%s%s: %susage:%s %s --error stdout or stderr or /path/to/file\n\tif the specified output file doesn't exist it will be created\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorOutput, (*printSystem).outputColorEnd, (*printSystem).programName);
+		ret false;
+	}
+	printErrorValueDirectory:{
+		printTitledQuotedError(printSystem, "argument error", *argumentCurrent, "error value is directory");
+		ret false;
+	}
+	printErrorBadFile:{
+		printTitledError(printSystem, "argument error", "could not create error file");
+		ret false;
+	}
+	printServerSpecified:{
+		printTitledError(printSystem, "argument error", "the server argument has already been specified");
+		ret false;
+	}
+	printNoServerValue:{
+		printTitledError(printSystem, "argument error", "no server value specified");
+		ret false;
+	}
+	printServerUsage:{
+		printOutput(printSystem, "%s%s: %susage:%s %s --server name\n\tthe name of the server, if running, should be something like :0\n\tit can be checked with the $DISPLAY variable on a running server (not tty)\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorOutput, (*printSystem).outputColorEnd, (*printSystem).programName);
+		ret false;
+	}
+	printConfigSpecified:{
+		printTitledError(printSystem, "argument error", "the config argument has already been specified");
+		ret false;
+	}
+	printNoConfigValue:{
+		printTitledError(printSystem, "argument error", "no config value specified");
+		ret false;
+	}
+	printConfigUsage:{
+		printOutput(printSystem, "%s%s: %susage:%s %s --config /path/to/file\n\tif the specified input file doesn't exist it will be created\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorOutput, (*printSystem).outputColorEnd, (*printSystem).programName);
+		ret false;
+	}
+	printConfigValueDirectory:{
+		printTitledQuotedError(printSystem, "argument error", *argumentCurrent, "config value is directory");
+		ret false;
+	}
+	printConfigBadValue:{
+		printTitledError(printSystem, "argument error", "could not read or write config file");
+		ret false;
+	}
+	printUnsupportedArgument:{
+		printTitledError(printSystem, "argument error", "argument is not supported");
+		ret false;
+	}
+	printUsage:{
+		printArgumentUsage(printSystem, argumentSystem, which);
+		ret false;
+	}
+	emergencyExit:{
+		if(argumentAmount == 1 and which){
+			jmp printUsage;
+		}
+		if(mask & MANDATORY_NAME_WHICH_ARGUMENT){
+			printTitledError(printSystem, "argument error", "no name argument specified");
+			ret false;
+		}
+		if(mask & MANDATORY_OUTPUT_WHICH_ARGUMENT){
+			printTitledError(printSystem, "argument error", "no output argument specified");
+			ret false;
+		}
+		if(mask & MANDATORY_ERROR_WHICH_ARGUMENT){
+			printTitledError(printSystem, "argument error", "no error argument specified");
+			ret false;
+		}
+		if(mask & MANDATORY_SERVER_WHICH_ARGUMENT){
+			printTitledError(printSystem, "argument error", "no server argument specified");
+			ret false;
+		}
+		if(mask & MANDATORY_CONFIG_WHICH_ARGUMENT){
+			printTitledError(printSystem, "argument error", "no config argument specified");
+			ret false;
+		}
+		if(*outputPath and sensitiveStringCompare(outputPath, configPath)){
+			printTitledError(printSystem, "argument error", "output and config files are the same");
+			ret false;
+		}
+		if(*errorPath and sensitiveStringCompare(errorPath, configPath)){
+			printTitledError(printSystem, "argument error", "error and config files are the same");
+			ret false;
+		}
+		(*argumentSystem).programName = programName;
+		(*argumentSystem).name = name;
+		(*argumentSystem).outputPath = outputPath;
+		(*argumentSystem).errorPath = errorPath;
+		(*argumentSystem).serverName = serverName;
+		(*argumentSystem).configPath = configPath;
+		(*argumentSystem).outputStream = outputStream;
+		(*argumentSystem).errorStream = errorStream;
+		ret true;
+	}
+}
+IDENTIFYARGUMENT(){
+	if(!argumentSystem or !argument){
+		ret NONE_ARGUMENT;
+	}
+	if(*argument != '-'){
+		if(insensitiveStringCompare("stdout", argument)) /*-*/ ret STDOUT_ARGUMENT;
+		if(insensitiveStringCompare("stderr", argument)) /*-*/ ret STDERR_ARGUMENT;
+		ret UNRECOGNIZED_ARGUMENT;
+	}
+	inc argument;
+	if(*argument != '-'){
+		if(insensitiveStringCompare("h", argument)) /*-*/ ret HELP_ARGUMENT;
+		if(insensitiveStringCompare("n", argument)) /*-*/ ret NAME_ARGUMENT;
+		if(insensitiveStringCompare("o", argument)) /*-*/ ret OUTPUT_ARGUMENT;
+		if(insensitiveStringCompare("e", argument)) /*-*/ ret ERROR_ARGUMENT;
+		if(insensitiveStringCompare("s", argument)) /*-*/ ret SERVER_ARGUMENT;
+		if(insensitiveStringCompare("c", argument)) /*-*/ ret CONFIG_ARGUMENT;
+		ret UNRECOGNIZED_ARGUMENT;
+	}
+	inc argument;
+	if(insensitiveStringCompare("help", argument)) /*---*/ ret HELP_ARGUMENT;
+	if(insensitiveStringCompare("name", argument)) /*---*/ ret NAME_ARGUMENT;
+	if(insensitiveStringCompare("output", argument)) /*-*/ ret OUTPUT_ARGUMENT;
+	if(insensitiveStringCompare("error", argument)) /*--*/ ret ERROR_ARGUMENT;
+	if(insensitiveStringCompare("server", argument)) /*-*/ ret SERVER_ARGUMENT;
+	if(insensitiveStringCompare("config", argument)) /*-*/ ret CONFIG_ARGUMENT;
+	ret UNRECOGNIZED_ARGUMENT;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+FINIARGUMENTSYSTEM(){
+	if(!argumentSystem){
+		ret false;
+	}
+	(*argumentSystem).multithreaded = false;
+	(*argumentSystem).code = NONE_ARGUMENT_CODE;
+	(*argumentSystem).operation = NONE_ARGUMENT_OPERATION;
+	(*argumentSystem).errorStream = NULL;
+	(*argumentSystem).outputStream = NULL;
+	(*argumentSystem).configPath = "";
+	(*argumentSystem).serverName = "";
+	(*argumentSystem).errorPath = "";
+	(*argumentSystem).outputPath = "";
+	(*argumentSystem).name = "";
+	(*argumentSystem).programName = "";
+	(*argumentSystem).printSystem = NULL;
+	(*argumentSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+PRINTARGUMENTUSAGE(){
+	const char *help;
+	const char *name;
+	const char *nameRequirement;
+	const char *output;
+	const char *outputRequirement;
+	const char *error;
+	const char *errorRequirement;
+	const char *server;
+	const char *serverRequirement;
+	const char *config;
+	const char *configRequirement;
+	if(!printSystem or !argumentSystem){
+		ret false;
+	}
+	help = "\t[-h], [--help]  \tdisplay this message\n";
+	if(which & (NAME_WHICH_ARGUMENT | MANDATORY_NAME_WHICH_ARGUMENT)){
+		name = "\t[-n], [--name]  \tcustom program name, ";
+		if(which & MANDATORY_NAME_WHICH_ARGUMENT){
+			nameRequirement = "mandatory\n";
+		}else{
+			nameRequirement = "optional\n";
+		}
+	}else{
+		name = "";
+		nameRequirement = "";
+	}
+	if(which & (OUTPUT_WHICH_ARGUMENT | MANDATORY_OUTPUT_WHICH_ARGUMENT)){
+		output = "\t[-o], [--output]\tpath to output file, ";
+		if(which & MANDATORY_OUTPUT_WHICH_ARGUMENT){
+			outputRequirement = "mandatory\n";
+		}else{
+			outputRequirement = "optional\n";
+		}
+	}else{
+		output = "";
+		outputRequirement = "";
+	}
+	if(which & (ERROR_WHICH_ARGUMENT | MANDATORY_ERROR_WHICH_ARGUMENT)){
+		error = "\t[-e], [--error] \tpath to error file, ";
+		if(which & MANDATORY_ERROR_WHICH_ARGUMENT){
+			errorRequirement = "mandatory\n";
+		}else{
+			errorRequirement = "optional\n";
+		}
+	}else{
+		error = "";
+		errorRequirement = "";
+	}
+	if(which & (SERVER_WHICH_ARGUMENT | MANDATORY_SERVER_WHICH_ARGUMENT)){
+		server = "\t[-s], [--server]\tX server connection, ";
+		if(which & MANDATORY_SERVER_WHICH_ARGUMENT){
+			serverRequirement = "mandatory\n";
+		}else{
+			serverRequirement = "optional\n";
+		}
+	}else{
+		server = "";
+		serverRequirement = "";
+	}
+	if(which & (CONFIG_WHICH_ARGUMENT | MANDATORY_CONFIG_WHICH_ARGUMENT)){
+		config = "\t[-c], [--config]\tpath to config file, ";
+		if(which & MANDATORY_CONFIG_WHICH_ARGUMENT){
+			configRequirement = "mandatory\n";
+		}else{
+			configRequirement = "optional\n";
+		}
+	}else{
+		config = "";
+		configRequirement = "";
+	}
+	if(!printOutput(printSystem, "%s%s: %susage:%s %s [argument] [value] or %s [argument] [--help]\n%s%s%s%s%s%s%s%s%s%s%s", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorOutput, (*printSystem).outputColorEnd, (*printSystem).programName, (*printSystem).programName, help, name, nameRequirement, output, outputRequirement, error, errorRequirement, server, serverRequirement, config, configRequirement)){
+		ret false;
+	}
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

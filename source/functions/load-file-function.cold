@@ -1,0 +1,73 @@
+
+/*! load-file-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/functions/get-stream-size-function.hold"
+#include "../../headers/functions/load-file-function.hold"
+
+LOADFILE(){
+	FILE *file;
+	uint32 token;
+	uint8 *dataStart;
+	uint32 dataToken;
+	uint64 dataSize;
+	if(!path or !fileReturn){
+		ret false;
+	}
+	file = fopen(path, "r");
+	token = insertMemoryManagementPointer(memoryManagementSystem, file, "loadFile() file", &memoryManagementFclose);
+	if(!file){
+		ret false;
+	}
+	dataSize = getStreamSize(file);
+	dataStart = malloc(dataSize * sizeof(uint8));
+	dataToken = insertMemoryManagementPointer(memoryManagementSystem, dataStart, "loadFile() file data pointer", &memoryManagementFree);
+	if(!dataStart){
+		fclose(file);
+		removeMemoryManagementPointer(memoryManagementSystem, token);
+		ret false;
+	}
+	if(fread(dataStart, sizeof(uint8), dataSize, file) != dataSize){
+		free(dataStart);
+		removeMemoryManagementPointer(memoryManagementSystem, dataToken);
+		fclose(file);
+		removeMemoryManagementPointer(memoryManagementSystem, token);
+		ret false;
+	}
+	fclose(file);
+	removeMemoryManagementPointer(memoryManagementSystem, token);
+	(*fileReturn).dataStart = dataStart;
+	(*fileReturn).dataToken = dataToken;
+	(*fileReturn).dataSize = dataSize;
+	ret true;
+}
+

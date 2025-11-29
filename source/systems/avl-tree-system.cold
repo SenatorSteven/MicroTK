@@ -1,0 +1,350 @@
+
+/*! avl-tree-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Implement the remove node function.
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/avl-tree-system.hold"
+
+#define MAX() /*-*/ local int  max(const int a, const int b)
+
+MAX();
+
+INITAVLTREESYSTEM(){
+	if(!avlTreeSystem){
+		ret false;
+	}
+	(*avlTreeSystem).memoryManagementSystem = NULL;
+	(*avlTreeSystem).nodeStart = NULL;
+	(*avlTreeSystem).nodeToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*avlTreeSystem).nodeSize = 0;
+	(*avlTreeSystem).nodeAllocated = 0;
+	(*avlTreeSystem).nodeBlockSize = 0;
+	(*avlTreeSystem).rootNodeOffset = 0;
+	ret true;
+}
+SETAVLTREEMEMORYMANAGEMENTSYSTEM(){
+	if(!avlTreeSystem or memoryManagementSystem == (*avlTreeSystem).memoryManagementSystem){
+		ret false;
+	}
+	if(memoryManagementSystem){
+		(*avlTreeSystem).nodeToken = insertMemoryManagementPointer(memoryManagementSystem, (*avlTreeSystem).nodeStart, "AvlTreeSystem setAvlTreeMemoryManagementSystem() node pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*avlTreeSystem).memoryManagementSystem, (*avlTreeSystem).nodeToken);
+	}
+	(*avlTreeSystem).memoryManagementSystem = memoryManagementSystem;
+	ret true;
+}
+SETAVLTREEBLOCKSIZE(){
+	if(!avlTreeSystem or blockSize == (*avlTreeSystem).nodeBlockSize){
+		ret false;
+	}
+	(*avlTreeSystem).nodeBlockSize = blockSize;
+	ret true;
+}
+INSERTAVLTREENODE(){
+	AvlTreeNode *nodeStart;
+	AvlTreeNode *node;
+	uint childOffset;
+	uint parentOffset;
+	if(!avlTreeSystem or !key){
+		ret false;
+	}
+	if((*avlTreeSystem).nodeAllocated < 2){
+		childOffset = 0;
+		parentOffset = 0;
+		jmp insertNode;
+	}
+	nodeStart = (*avlTreeSystem).nodeStart;
+	node = nodeStart + (*avlTreeSystem).rootNodeOffset;
+	jmp searchLoop;
+	searchLoop:{
+		if(key < (*node).key){
+			if(!(*node).leftChildOffset){
+				childOffset = 1;
+				parentOffset = node - nodeStart;
+				jmp insertNode;
+			}
+			node = nodeStart + (*node).leftChildOffset;
+			jmp searchLoop;
+		}
+		if(key > (*node).key){
+			if(!(*node).rightChildOffset){
+				childOffset = 2;
+				parentOffset = node - nodeStart;
+				jmp insertNode;
+			}
+			node = nodeStart + (*node).rightChildOffset;
+			jmp searchLoop;
+		}
+		ret false;
+	}
+	insertNode:{
+		if((*avlTreeSystem).nodeAllocated == (*avlTreeSystem).nodeSize){
+			void *temp;
+			(*avlTreeSystem).nodeSize += (*avlTreeSystem).nodeBlockSize;
+			temp = realloc((*avlTreeSystem).nodeStart, (*avlTreeSystem).nodeSize * sizeof(AvlTreeNode));
+			if(!(*avlTreeSystem).nodeToken){
+				(*avlTreeSystem).nodeToken = insertMemoryManagementPointer((*avlTreeSystem).memoryManagementSystem, temp, "AvlTreeSystem insertAvlTreeNode() node pointer", &memoryManagementFree);
+			}else{
+				updateMemoryManagementPointer((*avlTreeSystem).memoryManagementSystem, (*avlTreeSystem).nodeToken, temp);
+			}
+			if(!temp){
+				(*avlTreeSystem).nodeSize -= (*avlTreeSystem).nodeBlockSize;
+				ret false;
+			}
+			(*avlTreeSystem).nodeStart = temp;
+			if(!(*avlTreeSystem).nodeAllocated){
+				inc (*avlTreeSystem).nodeAllocated;
+				jmp insertNode;
+			}
+		}
+		nodeStart = (*avlTreeSystem).nodeStart;
+		if(childOffset == 1){
+			(*(nodeStart + parentOffset)).leftChildOffset = (*avlTreeSystem).nodeAllocated;
+		}elif(childOffset == 2){
+			(*(nodeStart + parentOffset)).rightChildOffset = (*avlTreeSystem).nodeAllocated;
+		}
+		node = nodeStart + (*avlTreeSystem).nodeAllocated;
+		(*node).key = key;
+		(*node).value = value;
+		(*node).height = 1;
+		(*node).parentOffset = parentOffset;
+		(*node).leftChildOffset = 0;
+		(*node).rightChildOffset = 0;
+		inc (*avlTreeSystem).nodeAllocated;
+		jmp updateNodeLoop;
+	}
+	updateNodeLoop:{
+		(*avlTreeSystem).rootNodeOffset = node - nodeStart;
+		node = nodeStart + (*node).parentOffset;
+		if(node != nodeStart){
+			const int balance = getAvlTreeNodeHeight(avlTreeSystem, (*node).leftChildOffset) - getAvlTreeNodeHeight(avlTreeSystem, (*node).rightChildOffset);
+			(*node).height = max(getAvlTreeNodeHeight(avlTreeSystem, (*node).leftChildOffset), getAvlTreeNodeHeight(avlTreeSystem, (*node).rightChildOffset)) + 1;
+			if(balance > 1){
+				AvlTreeNode *const leftChild = nodeStart + (*node).leftChildOffset;
+				if(key != (*leftChild).key){
+					if(key > (*leftChild).key){
+						(*node).leftChildOffset = rotateLeftAvlTreeNode(avlTreeSystem, (*node).leftChildOffset);
+					}
+					rotateRightAvlTreeNode(avlTreeSystem, node - nodeStart);
+				}
+				jmp updateNodeLoop;
+			}
+			if(balance < -1){
+				AvlTreeNode *const rightChild = nodeStart + (*node).rightChildOffset;
+				if(key != (*rightChild).key){
+					if(key < (*rightChild).key){
+						(*node).rightChildOffset = rotateRightAvlTreeNode(avlTreeSystem, (*node).rightChildOffset);
+					}
+					rotateLeftAvlTreeNode(avlTreeSystem, node - nodeStart);
+				}
+				jmp updateNodeLoop;
+			}
+			jmp updateNodeLoop;
+		}
+		ret true;
+	}
+}
+REMOVEAVLTREENODE(){
+	if(!avlTreeSystem){
+		ret false;
+	}
+	(void)key;
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+REMOVEALLAVLTREENODES(){
+	if(!avlTreeSystem){
+		ret false;
+	}
+	free((*avlTreeSystem).nodeStart);
+	removeMemoryManagementPointer((*avlTreeSystem).memoryManagementSystem, (*avlTreeSystem).nodeToken);
+	(*avlTreeSystem).nodeStart = NULL;
+	(*avlTreeSystem).nodeToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*avlTreeSystem).nodeSize = 0;
+	(*avlTreeSystem).nodeAllocated = 0;
+	(*avlTreeSystem).rootNodeOffset = 0;
+	ret true;
+}
+ROTATERIGHTAVLTREENODE(){
+	AvlTreeNode *nodeStart;
+	AvlTreeNode *node;
+	AvlTreeNode *leftChild;
+	AvlTreeNode *leftChildRight;
+	uint parentOffset;
+	if(!avlTreeSystem or nodeOffset < 1 or nodeOffset >= (*avlTreeSystem).nodeAllocated){
+		ret 0;
+	}
+	nodeStart = (*avlTreeSystem).nodeStart;
+	node = nodeStart + nodeOffset;
+	leftChild = nodeStart + (*node).leftChildOffset;
+	leftChildRight = nodeStart + (*leftChild).rightChildOffset;
+	parentOffset = (*node).parentOffset;
+	if(parentOffset){
+		AvlTreeNode *const parentNode = nodeStart + parentOffset;
+		if((*parentNode).leftChildOffset == nodeOffset){
+			(*parentNode).leftChildOffset = leftChild - nodeStart;
+		}else{
+			(*parentNode).rightChildOffset = leftChild - nodeStart;
+		}
+	}
+	(*leftChild).parentOffset = parentOffset;
+	(*node).parentOffset = leftChild - nodeStart;
+	(*leftChild).rightChildOffset = node - nodeStart;
+	(*node).leftChildOffset = leftChildRight - nodeStart;
+	(*leftChildRight).parentOffset = node - nodeStart;
+	(*leftChild).height = max(getAvlTreeNodeHeight(avlTreeSystem, (*leftChild).leftChildOffset), getAvlTreeNodeHeight(avlTreeSystem, (*leftChild).rightChildOffset)) + 1;
+	(*node).height = max(getAvlTreeNodeHeight(avlTreeSystem, (*node).leftChildOffset), getAvlTreeNodeHeight(avlTreeSystem, (*node).rightChildOffset)) + 1;
+	ret leftChild - nodeStart;
+}
+ROTATELEFTAVLTREENODE(){
+	AvlTreeNode *nodeStart;
+	AvlTreeNode *node;
+	AvlTreeNode *rightChild;
+	AvlTreeNode *rightChildLeft;
+	uint parentOffset;
+	if(!avlTreeSystem or nodeOffset < 1 or nodeOffset >= (*avlTreeSystem).nodeAllocated){
+		ret 0;
+	}
+	nodeStart = (*avlTreeSystem).nodeStart;
+	node = nodeStart + nodeOffset;
+	rightChild = nodeStart + (*node).rightChildOffset;
+	rightChildLeft = nodeStart + (*rightChild).leftChildOffset;
+	parentOffset = (*node).parentOffset;
+	if(parentOffset){
+		AvlTreeNode *const parentNode = nodeStart + parentOffset;
+		if((*parentNode).leftChildOffset == nodeOffset){
+			(*parentNode).leftChildOffset = rightChild - nodeStart;
+		}else{
+			(*parentNode).rightChildOffset = rightChild - nodeStart;
+		}
+	}
+	(*rightChild).parentOffset = parentOffset;
+	(*node).parentOffset = rightChild - nodeStart;
+	(*rightChild).leftChildOffset = node - nodeStart;
+	(*node).rightChildOffset = rightChildLeft - nodeStart;
+	(*rightChildLeft).parentOffset = node - nodeStart;
+	(*rightChild).height = max(getAvlTreeNodeHeight(avlTreeSystem, (*rightChild).leftChildOffset), getAvlTreeNodeHeight(avlTreeSystem, (*rightChild).rightChildOffset)) + 1;
+	(*node).height = max(getAvlTreeNodeHeight(avlTreeSystem, (*node).leftChildOffset), getAvlTreeNodeHeight(avlTreeSystem, (*node).rightChildOffset)) + 1;
+	ret rightChild - nodeStart;
+}
+GETAVLTREENODEHEIGHT(){
+	if(!avlTreeSystem or nodeOffset >= (*avlTreeSystem).nodeAllocated){
+		ret 0;
+	}
+	ret (*((*avlTreeSystem).nodeStart + nodeOffset)).height;
+}
+MAX(){
+	if(a > b){
+		ret a;
+	}
+	ret b;
+}
+FINDAVLTREEKEY(){
+	AvlTreeNode *nodeStart;
+	AvlTreeNode *node;
+	if(!avlTreeSystem or (*avlTreeSystem).nodeAllocated < 2){
+		ret NULL;
+	}
+	nodeStart = (*avlTreeSystem).nodeStart;
+	node = nodeStart + (*avlTreeSystem).rootNodeOffset;
+	jmp findAVLTreeKeyLoop;
+	findAVLTreeKeyLoop:{
+		if(node == nodeStart){
+			ret NULL;
+		}
+		if(key < (*node).key){
+			node = nodeStart + (*node).leftChildOffset;
+			jmp findAVLTreeKeyLoop;
+		}
+		if(key > (*node).key){
+			node = nodeStart + (*node).rightChildOffset;
+			jmp findAVLTreeKeyLoop;
+		}
+		ret node;
+	}
+}
+TRAVERSEAVLTREEINORDER(){
+	AvlTreeNode *nodeStart;
+	AvlTreeNode *node;
+	uint key;
+	if(!avlTreeSystem or (*avlTreeSystem).nodeAllocated < 2 or !function){
+		ret false;
+	}
+	nodeStart = (*avlTreeSystem).nodeStart;
+	node = nodeStart + (*avlTreeSystem).rootNodeOffset;
+	key = 0;
+	jmp traverseAvlTreeInOrderLoop;
+	traverseAvlTreeInOrderLoop:{
+		if((*node).leftChildOffset and (*(nodeStart + (*node).leftChildOffset)).key > key){
+			node = nodeStart + (*node).leftChildOffset;
+			jmp traverseAvlTreeInOrderLoop;
+		}
+		if((*node).key > key){
+			if(!(*function)(avlTreeSystem, node, argument)){
+				ret false;
+			}
+			key = (*node).key;
+		}
+		if((*node).rightChildOffset and (*(nodeStart + (*node).rightChildOffset)).key > key){
+			node = nodeStart + (*node).rightChildOffset;
+			jmp traverseAvlTreeInOrderLoop;
+		}
+		if((*node).parentOffset){
+			node = nodeStart + (*node).parentOffset;
+			jmp traverseAvlTreeInOrderLoop;
+		}
+		ret true;
+	}
+}
+FINIAVLTREESYSTEM(){
+	if(!avlTreeSystem){
+		ret false;
+	}
+	removeAllAvlTreeNodes(avlTreeSystem);
+	(*avlTreeSystem).memoryManagementSystem = NULL;
+	(*avlTreeSystem).nodeBlockSize = 0;
+	ret true;
+}
+

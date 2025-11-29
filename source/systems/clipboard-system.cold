@@ -1,0 +1,286 @@
+
+/*! clipboard-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#include <pthread.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/stdio.hold"
+#include "../../headers/stdlib.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/clipboard-system.hold"
+#include "../../headers/functions/copy-memory-function.hold"
+
+INITCLIPBOARDSYSTEM(){
+	if(!clipboardSystem){
+		ret false;
+	}
+	initMutexSystem(&(*clipboardSystem).mutexSystem);
+	(*clipboardSystem).memoryManagementSystem = NULL;
+	(*clipboardSystem).printSystem = NULL;
+	(*clipboardSystem).dataStart = NULL;
+	(*clipboardSystem).dataToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*clipboardSystem).dataSize = 0;
+	(*clipboardSystem).operation = NONE_CLIPBOARD_OPERATION;
+	(*clipboardSystem).code = NONE_CLIPBOARD_CODE;
+	(*clipboardSystem).multithreaded = false;
+	ret true;
+}
+SETCLIPBOARDMEMORYMANAGEMENTSYSTEM(){
+	uint8 code;
+	if(!clipboardSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*clipboardSystem).mutexSystem)){
+		ret false;
+	}
+	if(memoryManagementSystem == (*clipboardSystem).memoryManagementSystem){
+		code = NOTHING_DONE_CLIPBOARD_CODE;
+		jmp emergencyExit;
+	}
+	if(memoryManagementSystem){
+		(*clipboardSystem).dataToken = insertMemoryManagementPointer(memoryManagementSystem, (*clipboardSystem).dataStart, "ClipboardSystem setClipboardMemoryManagementSystem() data pointer", &memoryManagementFree);
+	}else{
+		removeMemoryManagementPointer((*clipboardSystem).memoryManagementSystem, (*clipboardSystem).dataToken);
+	}
+	(*clipboardSystem).memoryManagementSystem = memoryManagementSystem;
+	code = SUCCESS_CLIPBOARD_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*clipboardSystem).operation = SET_CLIPBOARD_MEMORY_MANAGEMENT_SYSTEM_CLIPBOARD_OPERATION;
+		(*clipboardSystem).code = code;
+		unlockMutex(&(*clipboardSystem).mutexSystem);
+		if(code != SUCCESS_CLIPBOARD_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETCLIPBOARDPRINTSYSTEM(){
+	uint8 code;
+	if(!clipboardSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*clipboardSystem).mutexSystem)){
+		ret false;
+	}
+	if(printSystem == (*clipboardSystem).printSystem){
+		code = NOTHING_DONE_CLIPBOARD_CODE;
+		jmp emergencyExit;
+	}
+	(*clipboardSystem).printSystem = printSystem;
+	code = SUCCESS_CLIPBOARD_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*clipboardSystem).operation = SET_CLIPBOARD_PRINT_SYSTEM_CLIPBOARD_OPERATION;
+		(*clipboardSystem).code = code;
+		unlockMutex(&(*clipboardSystem).mutexSystem);
+		if(code != SUCCESS_CLIPBOARD_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+SETCLIPBOARDMULTITHREADING(){
+	uint8 code;
+	if(!clipboardSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*clipboardSystem).multithreaded){
+		code = NOTHING_DONE_CLIPBOARD_CODE;
+		jmp emergencyExit;
+	}
+	if(multithreaded){
+		if(!createMutex(&(*clipboardSystem).mutexSystem)){
+			code = FAILED_MUTEX_CLIPBOARD_CODE;
+			jmp emergencyExit;
+		}
+	}else{
+		if(!destroyMutex(&(*clipboardSystem).mutexSystem)){
+			code = FAILED_MUTEX_CLIPBOARD_CODE;
+			jmp emergencyExit;
+		}
+	}
+	setMutexMultithreading(&(*clipboardSystem).mutexSystem, multithreaded);
+	(*clipboardSystem).multithreaded = multithreaded;
+	code = SUCCESS_CLIPBOARD_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*clipboardSystem).operation = SET_CLIPBOARD_MULTITHREADING_CLIPBOARD_OPERATION;
+		(*clipboardSystem).code = code;
+		if(code != SUCCESS_CLIPBOARD_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+CREATECLIPBOARDBUFFER(){
+	uint8 *dataStart;
+	uint32 dataToken;
+	uint8 code;
+	if(!clipboardSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*clipboardSystem).mutexSystem)){
+		ret false;
+	}
+	if(!start or !size){
+		code = BAD_INPUT_CLIPBOARD_CODE;
+		jmp emergencyExit;
+	}
+	dataStart = malloc(size * sizeof(uint8));
+	dataToken = insertMemoryManagementPointer((*clipboardSystem).memoryManagementSystem, dataStart, "ClipboardSystem createClipboardBuffer() data pointer", &memoryManagementFree);
+	if(!dataStart){
+		code = FAILED_ALLOCATION_CLIPBOARD_CODE;
+		jmp emergencyExit;
+	}
+	free((*clipboardSystem).dataStart);
+	removeMemoryManagementPointer((*clipboardSystem).memoryManagementSystem, (*clipboardSystem).dataToken);
+	(*clipboardSystem).dataStart = dataStart;
+	(*clipboardSystem).dataToken = dataToken;
+	(*clipboardSystem).dataSize = size;
+	copyMemory(start, (*clipboardSystem).dataStart, size * sizeof(uint8));
+	code = SUCCESS_CLIPBOARD_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*clipboardSystem).operation = CREATE_CLIPBOARD_BUFFER_CLIPBOARD_OPERATION;
+		(*clipboardSystem).code = code;
+		unlockMutex(&(*clipboardSystem).mutexSystem);
+		if(code != SUCCESS_CLIPBOARD_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+DESTROYCLIPBOARDBUFFER(){
+	uint8 code;
+	if(!clipboardSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*clipboardSystem).mutexSystem)){
+		ret false;
+	}
+	if(!(*clipboardSystem).dataStart){
+		code = NOTHING_DONE_CLIPBOARD_CODE;
+		jmp emergencyExit;
+	}
+	free((*clipboardSystem).dataStart);
+	removeMemoryManagementPointer((*clipboardSystem).memoryManagementSystem, (*clipboardSystem).dataToken);
+	(*clipboardSystem).dataStart = NULL;
+	(*clipboardSystem).dataToken = NONE_MEMORY_MANAGEMENT_TOKEN;
+	(*clipboardSystem).dataSize = 0;
+	code = SUCCESS_CLIPBOARD_CODE;
+	jmp emergencyExit;
+	emergencyExit:{
+		(*clipboardSystem).operation = DESTROY_CLIPBOARD_BUFFER_CLIPBOARD_OPERATION;
+		(*clipboardSystem).code = code;
+		unlockMutex(&(*clipboardSystem).mutexSystem);
+		if(code != SUCCESS_CLIPBOARD_CODE){
+			ret false;
+		}
+		ret true;
+	}
+}
+FINICLIPBOARDSYSTEM(){
+	if(!clipboardSystem){
+		ret false;
+	}
+	if(!finiMutexSystem(&(*clipboardSystem).mutexSystem)){
+		ret false;
+	}
+	(*clipboardSystem).multithreaded = false;
+	destroyClipboardBuffer(clipboardSystem);
+	(*clipboardSystem).code = NONE_CLIPBOARD_CODE;
+	(*clipboardSystem).operation = NONE_CLIPBOARD_OPERATION;
+	(*clipboardSystem).printSystem = NULL;
+	(*clipboardSystem).memoryManagementSystem = NULL;
+	ret true;
+}
+PRINTCLIPBOARDLOG(){
+	const char *operation;
+	const char *code;
+	PrintSystem *printSystem;
+	bool success;
+	if(!clipboardSystem){
+		ret false;
+	}
+	if(!lockMutex(&(*clipboardSystem).mutexSystem)){
+		ret false;
+	}
+	printSystem = (*clipboardSystem).printSystem;
+	success = false;
+	if(!printSystem){
+		jmp emergencyExit;
+	}
+	if(!lockMutex(&(*printSystem).mutexSystem)){
+		jmp emergencyExit;
+	}
+	switch((*clipboardSystem).operation){
+		to NONE_CLIPBOARD_OPERATION: /*-----------------------------------*/ operation = NULL; /*---------------------------------*/ brk;
+		to SET_CLIPBOARD_MEMORY_MANAGEMENT_SYSTEM_CLIPBOARD_OPERATION: /*-*/ operation = "setClipboardMemoryManagementSystem"; /*-*/ brk;
+		to SET_CLIPBOARD_PRINT_SYSTEM_CLIPBOARD_OPERATION: /*-------------*/ operation = "setClipboardPrintSystem"; /*------------*/ brk;
+		to SET_CLIPBOARD_MULTITHREADING_CLIPBOARD_OPERATION: /*-----------*/ operation = "setClipboardMultithreading"; /*---------*/ brk;
+		to CREATE_CLIPBOARD_BUFFER_CLIPBOARD_OPERATION: /*----------------*/ operation = "createClipboardBuffer"; /*--------------*/ brk;
+		to DESTROY_CLIPBOARD_BUFFER_CLIPBOARD_OPERATION: /*---------------*/ operation = "destroyClipboardBuffer"; /*-------------*/ brk;
+		off: /*-----------------------------------------------------------*/ operation = "<operation>"; /*------------------------*/ brk;
+	}
+	switch((*clipboardSystem).code){
+		to NONE_CLIPBOARD_CODE: /*----------------------------------------*/ code = NULL; /*--------------------------------------*/ brk;
+		to SUCCESS_CLIPBOARD_CODE: /*-------------------------------------*/ code = "success"; /*---------------------------------*/ brk;
+		to NOTHING_DONE_CLIPBOARD_CODE: /*--------------------------------*/ code = "nothing done"; /*----------------------------*/ brk;
+		to BAD_INPUT_CLIPBOARD_CODE: /*-----------------------------------*/ code = "bad input"; /*-------------------------------*/ brk;
+		to FAILED_ALLOCATION_CLIPBOARD_CODE: /*---------------------------*/ code = "failed allocation"; /*-----------------------*/ brk;
+		to FAILED_MUTEX_CLIPBOARD_CODE: /*--------------------------------*/ code = "failed mutex"; /*----------------------------*/ brk;
+		off: /*-----------------------------------------------------------*/ code = "<code>"; /*----------------------------------*/ brk;
+	}
+	if(operation and code){
+		if((*clipboardSystem).code == SUCCESS_CLIPBOARD_CODE){
+			if(printUnlockedOutput(printSystem, "%s%s: [%ssuccess%s%s] clipboard system:%s %s() reported \"%s\"\n", (*printSystem).outputColorStart, (*printSystem).programName, (*printSystem).outputColorEvent, (*printSystem).outputColorEnd, (*printSystem).outputColorStart, (*printSystem).outputColorEnd, operation, code)){
+				success = true;
+			}
+		}else{
+			if(printUnlockedError(printSystem, "%s%s: [%sfailure%s%s] clipboard system:%s %s() reported \"%s\"\n", (*printSystem).errorColorStart, (*printSystem).programName, (*printSystem).errorColorError, (*printSystem).errorColorEnd, (*printSystem).errorColorStart, (*printSystem).errorColorEnd, operation, code)){
+				success = true;
+			}
+		}
+	}
+	unlockMutex(&(*printSystem).mutexSystem);
+	jmp emergencyExit;
+	emergencyExit:{
+		unlockMutex(&(*clipboardSystem).mutexSystem);
+		if(!success){
+			ret false;
+		}
+		ret true;
+	}
+}
+

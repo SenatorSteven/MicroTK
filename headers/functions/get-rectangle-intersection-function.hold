@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! get-rectangle-intersection-function.hold
 
 MIT License
 
@@ -21,11 +21,24 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#ifndef GET_RECTANGLE_INTERSECTION_FUNCTION_HOLD
+#define GET_RECTANGLE_INTERSECTION_FUNCTION_HOLD
 
-## -
--
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define GETRECTANGLEINTERSECTION() /*-*/ bool  getRectangleIntersection(xcb_rectangle_t *const rectangle0, xcb_rectangle_t *const rectangle1, xcb_rectangle_t *const rectangleReturn)
+
+GETRECTANGLEINTERSECTION();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
 

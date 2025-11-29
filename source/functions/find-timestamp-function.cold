@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! find-timestamp-function.cold
 
 MIT License
 
@@ -21,11 +21,32 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#define _POSIX_C_SOURCE /*-*/ (200112L)
 
-## -
--
+#include <stdint.h>
+#include <stdio.h>
+#include <xcb/xcb.h>
+#include <xcb/xinput.h>
+#include <X11/Xlib.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/x.hold"
+#include "../../headers/systems/mutex-system.hold"
+#include "../../headers/systems/memory-management-system.hold"
+#include "../../headers/systems/print-system.hold"
+#include "../../headers/systems/lock-system.hold"
+#include "../../headers/systems/connection-system.hold"
+#include "../../headers/functions/get-event-timestamp-function.hold"
+#include "../../headers/functions/request-timestamp-function.hold"
+#include "../../headers/functions/find-timestamp-function.hold"
+
+FINDTIMESTAMP(){
+	const xcb_timestamp_t timestamp = getEventTimestamp(connectionSystem, event);
+	if(timestamp){
+		ret timestamp;
+	}
+	ret requestTimestamp((*connectionSystem).memoryManagementSystem);
+}
 

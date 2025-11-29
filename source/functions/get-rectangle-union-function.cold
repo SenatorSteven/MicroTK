@@ -1,0 +1,83 @@
+
+/*! get-rectangle-union-function.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#include <stdint.h>
+#include <xcb/xcb.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/x.hold"
+#include "../../headers/functions/get-rectangle-union-function.hold"
+
+GETRECTANGLEUNION(){
+	int leftX0;
+	int topY0;
+	int leftX1;
+	int topY1;
+	int leftX;
+	int topY;
+	if(!rectangle0 or !rectangle1 or !rectangleReturn){
+		ret false;
+	}
+	leftX0 = (*rectangle0).x;
+	topY0 = (*rectangle0).y;
+	leftX1 = (*rectangle1).x;
+	topY1 = (*rectangle1).y;
+	if(leftX0 < leftX1){
+		leftX = leftX0;
+	}else{
+		leftX = leftX1;
+	}
+	if(topY0 < topY1){
+		topY = topY0;
+	}else{
+		topY = topY1;
+	}
+	(*rectangleReturn).x = leftX;
+	(*rectangleReturn).y = topY;
+	{
+		const int rightX0 = leftX0 + (*rectangle0).width;
+		const int rightX1 = leftX1 + (*rectangle1).width;
+		int rightX;
+		if(rightX0 > rightX1){
+			rightX = rightX0;
+		}else{
+			rightX = rightX1;
+		}
+		(*rectangleReturn).width = (rightX > leftX) * (rightX - leftX);
+	}
+	{
+		const int bottomY0 = topY0 + (*rectangle0).height;
+		const int bottomY1 = topY1 + (*rectangle1).height;
+		int bottomY;
+		if(bottomY0 > bottomY1){
+			bottomY = bottomY0;
+		}else{
+			bottomY = bottomY1;
+		}
+		(*rectangleReturn).height = (bottomY > topY) * (bottomY - topY);
+	}
+	ret true;
+}
+

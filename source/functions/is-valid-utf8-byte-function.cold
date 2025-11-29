@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! is-valid-utf8-byte-function.cold
 
 MIT License
 
@@ -21,11 +21,17 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#include <stdint.h>
 
-## -
--
+#include "../../../cold/cold.hold"
+#include "../../headers/functions/is-valid-utf8-byte-function.hold"
+
+ISVALIDUTF8BYTE(){
+	if(byte == b(11000000) or byte == b(11000001) or byte >= b(11110101)){
+		ret false;
+	}
+	ret true;
+}
 

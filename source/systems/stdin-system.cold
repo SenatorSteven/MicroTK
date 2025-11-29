@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! stdin-system.cold
 
 MIT License
 
@@ -21,11 +21,40 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#warning Complete the Stdin system.
 
-## -
--
+#include <stdint.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/systems/stdin-system.hold"
+
+INITSTDINSYSTEM(){
+	if(!stdinSystem){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+FINISTDINSYSTEM(){
+	if(!stdinSystem){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
 

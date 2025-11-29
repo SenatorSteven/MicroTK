@@ -1,0 +1,73 @@
+
+/*! permission-system.hold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#ifndef PERMISSION_SYSTEM_HOLD
+#define PERMISSION_SYSTEM_HOLD
+
+#ifndef COLD_HOLD
+#define COLD_INCLUDED
+#include "../../../cold/cold.hold"
+#endif
+
+#define PermissionSystem /*-----------------------*/ PermissionSystem
+
+#define INITPERMISSIONSYSTEM() /*-----------------*/ bool  initPermissionSystem(PermissionSystem *const permissionSystem)
+#define SETPERMISSIONSMEMORYMANAGEMENTSYSTEM() /*-*/ bool  setPermissionsMemoryManagementSystem(PermissionSystem *const permissionSystem, MemoryManagementSystem *const memoryManagementSystem)
+#define SETPERMISSIONS() /*-----------------------*/ bool  setPermissions(PermissionSystem *const permissionSystem)
+#define LOWERPERMISSIONS() /*---------------------*/ bool  lowerPermissions(PermissionSystem *const permissionSystem)
+#define RAISEPERMISSIONS() /*---------------------*/ bool  raisePermissions(PermissionSystem *const permissionSystem)
+#define DROPPERMISSIONS() /*----------------------*/ bool  dropPermissions(PermissionSystem *const permissionSystem)
+#define FINIPERMISSIONSYSTEM() /*-----------------*/ bool  finiPermissionSystem(PermissionSystem *const permissionSystem)
+
+#define PRINTPERMISSIONLOG() /*-------------------*/ bool  printPermissionLog(PermissionSystem *const permissionSystem)
+
+def struct{
+	MutexSystem /*--------------*/ mutexSystem;
+	MemoryManagementSystem * /*-*/ memoryManagementSystem;
+	PrintSystem * /*------------*/ printSystem;
+	uid_t /*--------------------*/ normalUID;
+	gid_t /*--------------------*/ normalGID;
+	uint8 /*--------------------*/ operation;
+	uint8 /*--------------------*/ code;
+	bool /*---------------------*/ multithreaded;
+	uint8 /*--------------------*/ pad0[5];
+} PermissionSystem;
+
+INITPERMISSIONSYSTEM();
+SETPERMISSIONSMEMORYMANAGEMENTSYSTEM();
+SETPERMISSIONS();
+LOWERPERMISSIONS();
+RAISEPERMISSIONS();
+DROPPERMISSIONS();
+FINIPERMISSIONSYSTEM();
+PRINTPERMISSIONLOG();
+
+#ifdef  COLD_INCLUDED
+#undef  COLD_INCLUDED
+#include "../../../cold/hot.hold"
+#endif
+
+#endif
+

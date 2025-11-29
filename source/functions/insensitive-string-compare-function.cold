@@ -1,5 +1,5 @@
 
-<!-- README.md
+/*! insensitive-string-compare-function.cold
 
 MIT License
 
@@ -21,11 +21,76 @@ FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE. -->
+SOFTWARE. */
 
-# [ˈmaɪ.kroʊ ti keɪ]
--
+#warning Complete the Insensitive String Compare function.
 
-## -
--
+#include <stdint.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/functions/insensitive-string-compare-function.hold"
+
+/*!
+	Α α
+	Β β
+	Γ γ
+	Δ δ
+	Ε ε
+	Ζ ζ
+	Η η
+	Θ θ
+	Ι ι
+	Κ κ
+	Λ λ
+	Μ μ
+	Ν ν
+	Ξ ξ
+	Ο ο
+	Π π
+	Ρ ρ
+	Σ σ ς
+	Τ τ
+	Υ υ
+	Φ φ
+	Χ χ
+	Ψ ψ
+	Ω ω
+*/
+
+#ifdef a
+INSENSITIVESTRINGCOMPARE(){
+	if(!string0 or !string1){
+		ret false;
+	}
+	jmp insensitiveStringCompareLoop;
+	insensitiveStringCompareLoop:{
+
+
+
+		/*!*/
+
+
+
+		ret true;
+	}
+}
+#endif
+
+INSENSITIVESTRINGCOMPARE(){
+	jmp insensitiveStringCompareLoop;
+	insensitiveStringCompareLoop:{
+		char c1 = *(char *)string1;
+		c1 |= 32 * (c1 >= 'A' and c1 <= 'Z');
+		if(*(char *)string0 != c1){
+			ret false;
+		}
+		if(!c1){
+			ret true;
+		}
+		string0 = (char *)string0 + 1;
+		string1 = (char *)string1 + 1;
+		jmp insensitiveStringCompareLoop;
+	}
+}
 

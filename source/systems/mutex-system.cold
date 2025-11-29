@@ -1,0 +1,136 @@
+
+/*! mutex-system.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#define _POSIX_C_SOURCE /*-*/ (200809L)
+
+#include <pthread.h>
+#include <signal.h>
+#include <stdint.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/pthread.hold"
+#include "../../headers/signal.hold"
+#include "../../headers/stdint.hold"
+#include "../../headers/systems/mutex-system.hold"
+
+INITMUTEXSYSTEM(){
+	if(!mutexSystem){
+		ret false;
+	}
+	(*mutexSystem).mutexCreated = false;
+	(*mutexSystem).multithreaded = false;
+	ret true;
+}
+SETMUTEXMULTITHREADING(){
+	if(!mutexSystem){
+		ret false;
+	}
+	multithreaded = !!multithreaded;
+	if(multithreaded == (*mutexSystem).multithreaded){
+		ret false;
+	}
+	(*mutexSystem).multithreaded = multithreaded;
+	ret true;
+}
+CREATEMUTEX(){
+	pthread_mutexattr_t attributes;
+	if(!mutexSystem or (*mutexSystem).mutexCreated){
+		ret false;
+	}
+	if(pthread_mutexattr_init(&attributes) != PTHREAD_RWLOCKATTR_INIT_SUCCESS){
+		ret false;
+	}
+	if(pthread_mutexattr_setprotocol(&attributes, PTHREAD_PRIO_NONE) != PTHREAD_MUTEXATTR_SETPROTOCOL_SUCCESS){
+		pthread_mutexattr_destroy(&attributes);
+		ret false;
+	}
+	if(pthread_mutexattr_setpshared(&attributes, PTHREAD_PROCESS_PRIVATE) != PTHREAD_MUTEXATTR_SETPSHARED_SUCCESS){
+		pthread_mutexattr_destroy(&attributes);
+		ret false;
+	}
+	if(pthread_mutexattr_settype(&attributes, PTHREAD_MUTEX_ERRORCHECK) != PTHREAD_MUTEXATTR_SETTYPE_SUCCESS){
+		pthread_mutexattr_destroy(&attributes);
+		ret false;
+	}
+	if(pthread_mutexattr_setrobust(&attributes, PTHREAD_MUTEX_STALLED) != PTHREAD_MUTEXATTR_SETROBUST_SUCCESS){
+		pthread_mutexattr_destroy(&attributes);
+		ret false;
+	}
+	if(pthread_mutex_init(&(*mutexSystem).mutex, &attributes) != PTHREAD_MUTEX_INIT_SUCCESS){
+		pthread_mutexattr_destroy(&attributes);
+		ret false;
+	}
+	pthread_mutexattr_destroy(&attributes);
+	(*mutexSystem).mutexCreated = true;
+	ret true;
+}
+TRYLOCKMUTEX(){
+	if(!mutexSystem){
+		ret false;
+	}
+	if((*mutexSystem).multithreaded and (!(*mutexSystem).mutexCreated or pthread_mutex_trylock(&(*mutexSystem).mutex) != PTHREAD_MUTEX_TRYLOCK_SUCCESS)){
+		ret false;
+	}
+	ret true;
+}
+LOCKMUTEX(){
+	if(!mutexSystem){
+		ret false;
+	}
+	if((*mutexSystem).multithreaded and (!(*mutexSystem).mutexCreated or pthread_mutex_lock(&(*mutexSystem).mutex) != PTHREAD_MUTEX_LOCK_SUCCESS)){
+		ret false;
+	}
+	ret true;
+}
+UNLOCKMUTEX(){
+	if(!mutexSystem){
+		ret false;
+	}
+	if((*mutexSystem).multithreaded and (!(*mutexSystem).mutexCreated or pthread_mutex_unlock(&(*mutexSystem).mutex) != PTHREAD_MUTEX_UNLOCK_SUCCESS)){
+		ret false;
+	}
+	ret true;
+}
+DESTROYMUTEX(){
+	if(!mutexSystem or !(*mutexSystem).mutexCreated){
+		ret false;
+	}
+	if(pthread_mutex_destroy(&(*mutexSystem).mutex) != PTHREAD_MUTEX_DESTROY_SUCCESS){
+		ret false;
+	}
+	(*mutexSystem).mutexCreated = false;
+	ret true;
+}
+FINIMUTEXSYSTEM(){
+	if(!mutexSystem){
+		ret false;
+	}
+	if(!destroyMutex(mutexSystem)){
+		ret false;
+	}
+	setMutexMultithreading(mutexSystem, false);
+	ret true;
+}
+

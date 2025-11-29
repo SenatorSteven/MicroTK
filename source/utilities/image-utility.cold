@@ -1,0 +1,837 @@
+
+/*! image-utility.cold
+
+MIT License
+
+Copyright (C) 2025 Stefanos "Steven" Tsakiris
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
+
+#warning Complete the Image utility.
+
+#include <stdint.h>
+
+#include "../../../cold/cold.hold"
+#include "../../headers/utilities/image-utility.hold"
+
+CREATEIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+CREATECIRCLEIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+CREATESQUIRCLEIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+FILLIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+CROPIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+RESIZEIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+SCALEIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+ROTATEIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+FLIPIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+APPLYTWOPASSBOXBLURIMAGE(){
+	if(!image){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+COMPOSITEIMAGES(){
+	if(!source or !destination){
+		ret false;
+	}
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+COMPOSITEIMAGESOVER(){
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+COMPOSITEIMAGESAND(){
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+COMPOSITEIMAGESXOR(){
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+COMPOSITEIMAGESIN(){
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+COMPOSITEIMAGESOUT(){
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+COMPOSITEIMAGESATOP(){
+
+
+
+	/*!*/
+
+
+
+	ret true;
+}
+
+
+
+
+
+
+
+
+
+#ifdef a
+#define CREATECIRCLE() /*--------------------------------*/ local bool               createCircle(const int radius, const uint32 foreground, const uint32 background, Image *image)
+#define CREATESQUIRCLEIMAGE() /*-------------------------*/ local bool               createSquircleImage(Image *image)
+#define COMPOSITEIMAGES() /*-----------------------------*/ local bool               compositeImages(void (*operation)(const uint32 *const, uint32 *const), const int sourceX, const int sourceY, Image *const source, int destinationX, int destinationY, Image *const destination)
+#define COMPOSITEIMAGESOVER() /*-------------------------*/ local bool               compositeImagesOver(const uint32 *const source, uint32 *const destination)
+#define COMPOSITEIMAGESAND() /*--------------------------*/ local bool               compositeImagesAnd(const uint32 *const source, uint32 *const destination)
+#define TWOPASSBOXBLUR() /*------------------------------*/ local bool               twoPassBoxBlur(const int width, const int height, const int boxSize, uint32 *destinationData)
+#define SCALEIMAGE() /*----------------------------------*/ local bool               scaleImage(void *const source, const uint sourceWidth, const uint sourceHeight, void *const destination, const uint destinationWidth, const uint destinationHeight)
+#define RESIZEIMAGE() /*---------------------------------*/ local bool               resizeImage(void)
+#define CROPIMAGE() /*-----------------------------------*/ local bool               cropImage(void)
+#define FLIPIMAGE() /*-----------------------------------*/ local bool               flipImage(void)
+
+ROTATEIMAGE(){
+	if(!image or !rotation){
+		ret false;
+	}
+	int oldWidth = (*image).width;
+	int oldHeight = (*image).height;
+	int oldSize = (*image).dataSize;
+	uint32 *newData;
+	uint32 newDataToken;
+	uint32 *current = (*image).dataStart;
+	uint32 *yWall = (void *)((uint8 *)current + oldSize);
+	uint32 *xWall = current + oldWidth;
+	int newWidth;
+	int newHeight;
+	uint32 *newDataCurrent;
+	int newDataNextX;
+	int newDataNextY;
+	newData = malloc(oldSize * sizeof(uint8));
+	newDataToken = pushPointer(newData, "rotateImage() new data pointer", iFree);
+	if(!newData){
+		ret false;
+	}
+	switch rotation over
+		to NONE_IMAGE_ROTATION: /*--------*/ ret false;
+		to DEGREES_90_IMAGE_ROTATION: /*--*/ jmp rotate90Degrees;
+		to DEGREES_180_IMAGE_ROTATION: /*-*/ jmp rotate180Degrees;
+		to DEGREES_270_IMAGE_ROTATION: /*-*/ jmp rotate270Degrees;
+		off: /*---------------------------*/ ret false;
+	end
+	rotate90Degrees:{
+		newWidth = oldHeight;
+		newHeight = oldWidth;
+		newDataCurrent = newData + newWidth - 1;
+		newDataNextX = newWidth;
+		newDataNextY = -newHeight * newWidth - 1;
+		jmp copyYAxisLoop;
+	}
+	rotate180Degrees:{
+		newWidth = oldWidth;
+		newHeight = oldHeight;
+		newDataCurrent = newData + newHeight * newWidth - 1;
+		newDataNextX = -1;
+		newDataNextY = 0;
+		jmp copyYAxisLoop;
+	}
+	rotate270Degrees:{
+		newWidth = oldHeight;
+		newHeight = oldWidth;
+		newDataCurrent = newData + newHeight * newWidth - newWidth;
+		newDataNextX = -newWidth;
+		newDataNextY = newHeight * newWidth + 1;
+		jmp copyYAxisLoop;
+	}
+	copyYAxisLoop:{
+		if(current < yWall){
+			jmp copyXAxisLoop;
+			copyXAxisLoop:{
+				if(current < xWall){
+					*newDataCurrent = *current;
+					newDataCurrent += newDataNextX;
+					inc current;
+					jmp copyXAxisLoop;
+				}
+				newDataCurrent += newDataNextY;
+				xWall += oldWidth;
+				jmp copyYAxisLoop;
+			}
+		}
+		jmp success;
+	}
+	success:{
+		if(deletePreviousData){
+			free((*image).dataStart);
+			popPointer((*image).dataToken);
+		}
+		(*image).width = newWidth;
+		(*image).height = newHeight;
+		(*image).dataStart = newData;
+		(*image).dataToken = newDataToken;
+		ret true;
+	}
+}
+CREATECIRCLE(){
+	const uint width = radius * 2 + 1;
+	const uint height = width;
+	const int r2 = radius * radius;
+	uint32 *data = malloc(width * height * sizeof(uint32));
+	uint32 token = pushPointer(data, "createCorner() data pointer", iFree);
+	int y = -radius;
+	uint32 *currentData = data;
+	if(!data){
+		ret false;
+	}
+	jmp yLoop;
+	yLoop:{
+		if(y <= radius){
+			const int y2 = y * y;
+			int x = -radius;
+			jmp xLoop;
+			xLoop:{
+				if(x <= radius){
+					const int x2y2 = x * x + y2;
+					if(x2y2 <= r2){
+						*currentData = foreground;
+					}else{
+						*currentData = background;
+					}
+					inc currentData;
+					inc x;
+					jmp xLoop;
+				}
+				inc y;
+				jmp yLoop;
+			}
+		}
+		(*image).x = 0;
+		(*image).y = 0;
+		(*image).width = width;
+		(*image).height = height;
+		(*image).dataStart = data;
+		(*image).dataToken = token;
+		(*image).dataSize = width * height * sizeof(uint32);
+		ret true;
+	}
+}
+COMPOSITEIMAGES(){
+	int intersectionWidth;
+	int intersectionHeight;
+	uint32 *sourceCurrent;
+	uint32 *sourceWidthWall;
+	uint32 *sourceWall;
+	uint32 *destinationCurrent;
+	if(sourceX < 0 or sourceY < 0 or sourceX >= (*source).width or sourceY >= (*source).height){
+		ret;
+	}
+	{
+		const int b1lx = 0;
+		const int b1ty = 0;
+		const int b1rx = (*destination).width;
+		const int b1by = (*destination).height;
+		const int b2lx = destinationX;
+		const int b2ty = destinationY;
+		const int b2rx = b2lx + (*source).width - sourceX;
+		const int b2by = b2ty + (*source).height - sourceY;
+		intersectionWidth = (b1rx < b2rx? b1rx : b2rx) - (b1lx > b2lx? b1lx : b2lx);
+		intersectionHeight = (b1by < b2by? b1by : b2by) - (b1ty > b2ty? b1ty : b2ty);
+		if(intersectionWidth < 1 or intersectionWidth < 1){
+			ret;
+		}
+	}
+	sourceCurrent = (uint32 *)(*source).dataStart + sourceY * (*source).width + sourceX;
+	if(destinationX < 0){
+		sourceCurrent -= destinationX;
+		destinationX = 0;
+	}
+	if(destinationY < 0){
+		sourceCurrent -= destinationY * (*source).width;
+		destinationY = 0;
+	}
+	sourceWidthWall = sourceCurrent + intersectionWidth;
+	sourceWall = sourceCurrent + intersectionHeight * (*source).width;
+	destinationCurrent = (uint32 *)(*destination).dataStart + destinationY * (*destination).width + destinationX;
+	jmp yLoop;
+	yLoop:{
+		if(sourceCurrent < sourceWall){
+			jmp xLoop;
+			xLoop:{
+				if(sourceCurrent < sourceWidthWall){
+					operation(sourceCurrent, destinationCurrent);
+					inc sourceCurrent;
+					inc destinationCurrent;
+					jmp xLoop;
+				}
+				sourceCurrent += (*source).width - intersectionWidth;
+				sourceWidthWall += (*source).width;
+				destinationCurrent += (*destination).width - intersectionWidth;
+				jmp yLoop;
+			}
+		}
+		ret;
+	}
+}
+COMPOSITEIMAGESOVER(){
+	const uint32 s = *source;
+	const uint32 d = *destination;
+	const uint64 a_a = s >> 24;
+	if(a_a == 0xFF){
+		*destination = s;
+		ret;
+	}
+	if(a_a){
+		const uint32 r_a = (s & 0x00FF0000) >> 16;
+		const uint32 g_a = (s & 0x0000FF00) >> 8;
+		const uint32 b_a = (s & 0x000000FF) >> 0;
+		const uint32 a_b = d >> 24;
+		const uint32 r_b = (d & 0x00FF0000) >> 16;
+		const uint32 g_b = (d & 0x0000FF00) >> 8;
+		const uint32 b_b = (d & 0x000000FF) >> 0;
+		const uint32 a_0 = a_a + a_b * (0xFF - a_a) / 0xFF;
+		const uint32 r = (r_a * a_a + r_b * a_b * (0xFF - a_a) / 0xFF) / a_0;
+		const uint32 g = (g_a * a_a + g_b * a_b * (0xFF - a_a) / 0xFF) / a_0;
+		const uint32 b = (b_a * a_a + b_b * a_b * (0xFF - a_a) / 0xFF) / a_0;
+		*destination = (a_0 << 24) + ((r & 0x000000FF) << 16) + ((g & 0x000000FF) << 8) + ((b & 0x000000FF) << 0);
+		ret;
+	}
+	ret;
+}
+COMPOSITEIMAGESAND(){
+	if(!(*source >> 24)){
+		*destination = 0x00000000;
+		ret;
+	}
+	ret;
+}
+TWOPASSBOXBLUR(){
+	uint32 *intermediateData;
+	uint32 *kernelColumnRStart;
+	uint32 *kernelColumnGStart;
+	uint32 *kernelColumnBStart;
+	uint32 *pixelRStart;
+	uint32 *pixelGStart;
+	uint32 *pixelBStart;
+	if(boxSize == 1){
+		ret;
+	}
+	intermediateData = malloc(width * height * sizeof(uint32));
+	kernelColumnRStart = malloc(boxSize + 2 * width * sizeof(uint32));
+	kernelColumnGStart = malloc(boxSize + 2 * width * sizeof(uint32));
+	kernelColumnBStart = malloc(boxSize + 2 * width * sizeof(uint32));
+	pixelRStart = malloc(boxSize + 2 * width * height * sizeof(uint32));
+	pixelGStart = malloc(boxSize + 2 * width * height * sizeof(uint32));
+	pixelBStart = malloc(boxSize + 2 * width * height * sizeof(uint32));
+	{
+		const int divisor = boxSize * boxSize;
+		const int boxDistanceFromZero = boxSize >> 1;
+		const int nBoxDistanceFromZero = -boxDistanceFromZero;
+		const int widthMinusOne = width - 1;
+		const int heightMinusOne = height - 1;
+		const int heightMinusBoxSize = height - boxSize;
+		uint32 *tx = destinationData;
+		uint32 *txCopy = tx;
+		uint32 *rx = intermediateData;
+		uint32 r;
+		uint32 g;
+		uint32 b;
+		jmp loop;
+		loop:{
+			uint32 *kernelColumnRCurrent = kernelColumnRStart;
+			uint32 *kernelColumnGCurrent = kernelColumnGStart;
+			uint32 *kernelColumnBCurrent = kernelColumnBStart;
+			uint32 *kernelColumnRCurrentCopy = kernelColumnRStart;
+			uint32 *kernelColumnGCurrentCopy = kernelColumnGStart;
+			uint32 *kernelColumnBCurrentCopy = kernelColumnBStart;
+			uint32 *pixelRCurrent = pixelRStart;
+			uint32 *pixelGCurrent = pixelGStart;
+			uint32 *pixelBCurrent = pixelBStart;
+			uint32 *pixelRCurrentCopy = pixelRStart;
+			uint32 *pixelGCurrentCopy = pixelGStart;
+			uint32 *pixelBCurrentCopy = pixelBStart;
+			int x = 0;
+			int y = 0;
+			{
+				int kx = nBoxDistanceFromZero;
+				r = 0;
+				g = 0;
+				b = 0;
+				while(kx <= boxDistanceFromZero){
+					int ky = nBoxDistanceFromZero;
+					int usedX = x + kx;
+					if(usedX < 0){
+						usedX = 0;
+					}
+					*kernelColumnRCurrent = 0;
+					*kernelColumnGCurrent = 0;
+					*kernelColumnBCurrent = 0;
+					tx += usedX;
+					while(ky <= boxDistanceFromZero){
+						int usedY = y + ky;
+						uint32 color;
+						if(usedY < 0){
+							usedY = 0;
+						}
+						color = *(tx + usedY * width);
+						*pixelRCurrent = (color & 0xFF0000) >> 16;
+						*pixelGCurrent = (color & 0x00FF00) >>  8;
+						*pixelBCurrent =  color & 0x0000FF;
+						*kernelColumnRCurrent += *pixelRCurrent;
+						*kernelColumnGCurrent += *pixelGCurrent;
+						*kernelColumnBCurrent += *pixelBCurrent;
+						inc pixelRCurrent;
+						inc pixelGCurrent;
+						inc pixelBCurrent;
+						inc ky;
+					}
+					tx -= usedX;
+					r += *kernelColumnRCurrent;
+					g += *kernelColumnGCurrent;
+					b += *kernelColumnBCurrent;
+					pixelRCurrent += heightMinusBoxSize;
+					pixelGCurrent += heightMinusBoxSize;
+					pixelBCurrent += heightMinusBoxSize;
+					inc kernelColumnRCurrent;
+					inc kernelColumnGCurrent;
+					inc kernelColumnBCurrent;
+					inc kx;
+				}
+				*rx = 0xFF000000 + ((r / divisor) << 16) + ((g / divisor) << 8) + b / divisor;
+				inc rx;
+			}
+			inc x;
+			xFirstLoop:{
+				int kx = boxDistanceFromZero;
+				int ky = nBoxDistanceFromZero;
+				int usedX = x + kx;
+				if(usedX < 0){
+					usedX = 0;
+				}elif(usedX >= width){
+					usedX = widthMinusOne;
+				}
+				r -= *kernelColumnRCurrentCopy;
+				g -= *kernelColumnGCurrentCopy;
+				b -= *kernelColumnBCurrentCopy;
+				kernelColumnRCurrent = kernelColumnRCurrentCopy + boxSize;
+				kernelColumnGCurrent = kernelColumnGCurrentCopy + boxSize;
+				kernelColumnBCurrent = kernelColumnBCurrentCopy + boxSize;
+				inc kernelColumnRCurrentCopy;
+				inc kernelColumnGCurrentCopy;
+				inc kernelColumnBCurrentCopy;
+				{
+					uint32 lr = 0;
+					uint32 lg = 0;
+					uint32 lb = 0;
+					tx += usedX;
+					while(ky <= boxDistanceFromZero){
+						int usedY = y + ky;
+						uint32 color;
+						if(usedY < 0){
+							usedY = 0;
+						}elif(usedY >= height){
+							usedY = heightMinusOne;
+						}
+						color = *(tx + usedY * width);
+						*pixelRCurrent = (color & 0xFF0000) >> 16;
+						*pixelGCurrent = (color & 0x00FF00) >>  8;
+						*pixelBCurrent =  color & 0x0000FF;
+						lr += *pixelRCurrent;
+						lg += *pixelGCurrent;
+						lb += *pixelBCurrent;
+						inc pixelRCurrent;
+						inc pixelGCurrent;
+						inc pixelBCurrent;
+						inc ky;
+					}
+					tx -= usedX;
+					r += lr;
+					g += lg;
+					b += lb;
+					*kernelColumnRCurrent = lr;
+					*kernelColumnGCurrent = lg;
+					*kernelColumnBCurrent = lb;
+					pixelRCurrent += heightMinusBoxSize;
+					pixelGCurrent += heightMinusBoxSize;
+					pixelBCurrent += heightMinusBoxSize;
+				}
+				*rx = 0xFF000000 + ((r / divisor) << 16) + ((g / divisor) << 8) + b / divisor;
+				inc rx;
+				if(inc x < width){
+					jmp xFirstLoop;
+				}
+			}
+			inc y;
+			yLoop:{
+				uint32 *pr;
+				uint32 *pg;
+				uint32 *pb;
+				int ky = boxDistanceFromZero;
+				int usedY = y + ky;
+				if(usedY < 0){
+					usedY = 0;
+				}elif(usedY >= height){
+					usedY = heightMinusOne;
+				}
+				x = 0;
+				{
+					int kx = nBoxDistanceFromZero;
+					kernelColumnRCurrent = kernelColumnRStart;
+					kernelColumnGCurrent = kernelColumnGStart;
+					kernelColumnBCurrent = kernelColumnBStart;
+					kernelColumnRCurrentCopy = kernelColumnRStart;
+					kernelColumnGCurrentCopy = kernelColumnGStart;
+					kernelColumnBCurrentCopy = kernelColumnBStart;
+					pixelRCurrent = pixelRCurrentCopy;
+					pixelGCurrent = pixelGCurrentCopy;
+					pixelBCurrent = pixelBCurrentCopy;
+					pr = pixelRCurrent + boxSize;
+					pg = pixelGCurrent + boxSize;
+					pb = pixelBCurrent + boxSize;
+					r = 0;
+					g = 0;
+					b = 0;
+					tx += usedY * width;
+					while(kx <= boxDistanceFromZero){
+						int usedX = x + kx;
+						uint32 color;
+						if(usedX < 0){
+							usedX = 0;
+						}elif(usedX >= width){
+							usedX = widthMinusOne;
+						}
+						color = *(tx + usedX);
+						*pr = (color & 0xFF0000) >> 16;
+						*pg = (color & 0x00FF00) >>  8;
+						*pb =  color & 0x0000FF;
+						*kernelColumnRCurrent += *pr - *pixelRCurrent;
+						*kernelColumnGCurrent += *pg - *pixelGCurrent;
+						*kernelColumnBCurrent += *pb - *pixelBCurrent;
+						r += *kernelColumnRCurrent;
+						g += *kernelColumnGCurrent;
+						b += *kernelColumnBCurrent;
+						pixelRCurrent += height;
+						pixelGCurrent += height;
+						pixelBCurrent += height;
+						pr += height;
+						pg += height;
+						pb += height;
+						inc kernelColumnRCurrent;
+						inc kernelColumnGCurrent;
+						inc kernelColumnBCurrent;
+						inc kx;
+					}
+					tx -= usedY * width;
+					*rx = 0xFF000000 + ((r / divisor) << 16) + ((g / divisor) << 8) + b / divisor;
+					inc rx;
+					inc x;
+				}
+				{
+					int usedX = x + boxDistanceFromZero;
+					usedY *= width;
+					tx += usedY;
+					xLoop:{
+						uint32 color;
+						if(usedX >= width){
+							usedX = widthMinusOne;
+						}
+						kernelColumnRCurrent = kernelColumnRCurrentCopy + boxSize;
+						kernelColumnGCurrent = kernelColumnGCurrentCopy + boxSize;
+						kernelColumnBCurrent = kernelColumnBCurrentCopy + boxSize;
+						r -= *kernelColumnRCurrentCopy;
+						g -= *kernelColumnGCurrentCopy;
+						b -= *kernelColumnBCurrentCopy;
+						color = *(tx + usedX);
+						*pr = (color & 0xFF0000) >> 16;
+						*pg = (color & 0x00FF00) >>  8;
+						*pb =  color & 0x0000FF;
+						*kernelColumnRCurrent += *pr - *pixelRCurrent;
+						*kernelColumnGCurrent += *pg - *pixelGCurrent;
+						*kernelColumnBCurrent += *pb - *pixelBCurrent;
+						r += *kernelColumnRCurrent;
+						g += *kernelColumnGCurrent;
+						b += *kernelColumnBCurrent;
+						inc kernelColumnRCurrentCopy;
+						inc kernelColumnGCurrentCopy;
+						inc kernelColumnBCurrentCopy;
+						pixelRCurrent += height;
+						pixelGCurrent += height;
+						pixelBCurrent += height;
+						pr += height;
+						pg += height;
+						pb += height;
+						*rx = 0xFF000000 + ((r / divisor) << 16) + ((g / divisor) << 8) + b / divisor;
+						inc rx;
+						if(inc x < width){
+							inc usedX;
+							jmp xLoop;
+						}
+					}
+					tx -= usedY;
+				}
+				if(inc y < height){
+					inc pixelRCurrentCopy;
+					inc pixelGCurrentCopy;
+					inc pixelBCurrentCopy;
+					jmp yLoop;
+				}
+			}
+			if(txCopy == destinationData){
+				tx = intermediateData;
+				txCopy = tx;
+				rx = destinationData;
+				jmp loop;
+			}
+		}
+	}
+	free(intermediateData);
+	free(kernelColumnRStart);
+	free(kernelColumnGStart);
+	free(kernelColumnBStart);
+	free(pixelRStart);
+	free(pixelGStart);
+	free(pixelBStart);
+	ret;
+}
+SCALEIMAGE(){
+	uint y;
+	uint xWall;
+	uint yWall;
+	uint32 *destinationCurrent;
+	if(!source or !destination or !sourceWidth or !sourceHeight or !destinationWidth or !destinationHeight){
+		ret false;
+	}
+	y = 0;
+	destinationCurrent = destination;
+	xWall = destinationWidth * sourceWidth;
+	yWall = destinationHeight * sourceHeight;
+	jmp yLoop;
+	yLoop:{
+		if(y < yWall){
+			uint x = 0;
+			jmp xLoop;
+			xLoop:{
+				if(x < destinationWidth * sourceWidth){
+					*destinationCurrent = 0xFF000000 | *((uint32 *)source + y / destinationHeight * sourceWidth + x / destinationWidth);
+					inc destinationCurrent;
+					x += sourceWidth;
+					jmp xLoop;
+				}
+				y += sourceHeight;
+				jmp yLoop;
+			}
+		}
+		ret true;
+	}
+}
+bool applySquircleMask(uint8 *const pixels, const uint width, const uint height, const float exponent){
+
+
+
+	int centerX = (int)width / 2;
+	int centerY = (int)height / 2;
+	float rx = (int)width / 2.0;
+	float ry = (int)height / 2.0;
+
+
+
+	int y = 0;
+	jmp yLoop;
+	yLoop:{
+		if(y < (int)height){
+
+
+
+			const float fy = fabsf((y - centerY) / ry);
+
+
+
+			int x = 0;
+			jmp xLoop;
+			xLoop:{
+				if(x < (int)width){
+
+
+
+					const float fx = fabsf((x - centerX) / rx);
+
+
+
+					if(powf(fx, exponent) + powf(fy, exponent) > 1.0){
+						*(pixels + y * width + x) &= 0x00FFFFFF;
+					}
+					inc x;
+					jmp xLoop;
+				}
+				inc y;
+				jmp yLoop;
+			}
+		}
+		ret true;
+	}
+}
+#endif
+
