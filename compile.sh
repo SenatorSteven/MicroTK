@@ -42,6 +42,7 @@ function main(){
 	[ $true        ] && { parameters+=(debug-folder "$folder/debug");                                                                                                                          } || :;
 	[ $true        ] && { parameters+=(output-folder "$folder/output");                                                                                                                        } || :;
 	[ $true        ] && { parameters+=(record-folder "$folder/record");                                                                                                                        } || :;
+	[ $true        ] && { parameters+=(includes "-I$(pwd)");                                                                                                                                   } || :;
 	[ $true        ] && { parameters+=(systems "$(cat ./systems.csv)");                                                                                                                        } || :;
 	[ $true        ] && { parameters+=(utilities "$(cat ./utilities.csv)");                                                                                                                    } || :;
 	[ $true        ] && { parameters+=(functions "$(cat ./functions.csv)");                                                                                                                    } || :;
