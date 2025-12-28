@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/functions/generic-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/functions/generic-function.hold"
 
 GENERIC(){
 	ret true;

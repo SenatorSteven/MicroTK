@@ -44,18 +44,18 @@ SOFTWARE. */
 #include <xcb/xtest.h>
 #include <X11/Xlib.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/stdlib.hold"
-#include "../../headers/x.hold"
-#include "../../headers/systems/lock-system.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/systems/connection-system.hold"
-#include "../../headers/functions/consume-same-events-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/pthread.hold"
+#include "headers/stdint.hold"
+#include "headers/stdio.hold"
+#include "headers/stdlib.hold"
+#include "headers/x.hold"
+#include "headers/systems/lock-system.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/systems/connection-system.hold"
+#include "headers/functions/consume-same-events-function.hold"
 
 CONSUMESAMEEVENTS(){
 	uint8 eventType;

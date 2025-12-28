@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define UNGRABKEYCODE() /*-*/ bool  ungrabKeycode(ConnectionSystem *const connectionSystem, const xcb_window_t window, const uint8 code, uint16 modifier, uint16 additionalModifier)
@@ -37,7 +37,7 @@ UNGRABKEYCODE();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

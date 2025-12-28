@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define MutexSystem /*--------------*/ MutexSystem
@@ -60,7 +60,7 @@ FINIMUTEXSYSTEM();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

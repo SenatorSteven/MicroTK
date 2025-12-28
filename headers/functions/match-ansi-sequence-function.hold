@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define MATCHANSISEQUENCE() /*-*/ bool  matchANSISequence(char *const string, ANSIAttributes attributesInUse, const char *const *const stringReturn, ANSIAttributes *const attributesReturn)
@@ -42,7 +42,7 @@ MATCHANSISEQUENCE();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

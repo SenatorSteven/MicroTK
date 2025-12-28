@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define GETEVENTTIMESTAMP() /*-*/ xcb_timestamp_t  getEventTimestamp(ConnectionSystem *const connectionSystem, const xcb_generic_event_t *const event)
@@ -37,7 +37,7 @@ GETEVENTTIMESTAMP();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

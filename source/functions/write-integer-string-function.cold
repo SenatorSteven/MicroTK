@@ -25,10 +25,10 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/functions/get-integer-byte-size-function.hold"
-#include "../../headers/functions/write-integer-string-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/functions/get-integer-byte-size-function.hold"
+#include "headers/functions/write-integer-string-function.hold"
 
 WRITEINTEGERSTRING(){
 	if(!string){

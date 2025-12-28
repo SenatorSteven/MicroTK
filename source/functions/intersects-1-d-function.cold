@@ -25,8 +25,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/intersects-1-d-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/intersects-1-d-function.hold"
 
 INTERSECTS1D(){
 	ret x0 + width0 > x1 and x0 < x1 + width1;

@@ -31,15 +31,15 @@ SOFTWARE. */
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/systems/configuration-parser-system.hold"
-#include "../../headers/functions/file-exists-function.hold"
-#include "../../headers/functions/copy-file-function.hold"
-#include "../../headers/functions/lock-stream-function.hold"
-#include "../../headers/functions/unlock-stream-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/systems/configuration-parser-system.hold"
+#include "headers/functions/file-exists-function.hold"
+#include "headers/functions/copy-file-function.hold"
+#include "headers/functions/lock-stream-function.hold"
+#include "headers/functions/unlock-stream-function.hold"
 
 #define SWITCH_END_OF_FILE /*---------------*/ -1
 #define SWITCH_NULL /*----------------------*/ 0

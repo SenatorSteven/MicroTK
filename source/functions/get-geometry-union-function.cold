@@ -25,8 +25,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/get-geometry-union-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/get-geometry-union-function.hold"
 
 GETGEOMETRYUNION(){
 	int leftX;

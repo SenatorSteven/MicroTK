@@ -29,16 +29,16 @@ SOFTWARE. */
 #include <stdint.h>
 #include <stdio.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/systems/dynamic-argument-system.hold"
-#include "../../headers/functions/sensitive-string-compare-function.hold"
-#include "../../headers/functions/insensitive-string-compare-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/pthread.hold"
+#include "headers/stdint.hold"
+#include "headers/stdio.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/systems/dynamic-argument-system.hold"
+#include "headers/functions/sensitive-string-compare-function.hold"
+#include "headers/functions/insensitive-string-compare-function.hold"
 
 INITDYNAMICARGUMENTSYSTEM(){
 	if(!dynamicArgumentSystem){

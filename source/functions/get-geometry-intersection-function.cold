@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/functions/get-geometry-intersection-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/functions/get-geometry-intersection-function.hold"
 
 GETGEOMETRYINTERSECTION(){
 	int leftX;

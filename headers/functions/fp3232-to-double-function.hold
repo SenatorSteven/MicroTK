@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define FP3232TODOUBLE() /*-*/ double  fp3232ToDouble(const xcb_input_fp3232_t *const fp)
@@ -37,7 +37,7 @@ FP3232TODOUBLE();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

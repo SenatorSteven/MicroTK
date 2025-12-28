@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/shift-memory-function.hold"
-#include "../../headers/functions/copy-memory-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/shift-memory-function.hold"
+#include "headers/functions/copy-memory-function.hold"
 
 COPYMEMORY(){
 	if(!sourceStart or !destinationStart or byteAmount < 1){

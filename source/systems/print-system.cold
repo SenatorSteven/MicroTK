@@ -34,18 +34,18 @@ SOFTWARE. */
 #include <stdlib.h>
 #include <unistd.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/stdarg.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/stdlib.hold"
-#include "../../headers/unistd.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/functions/lock-stream-function.hold"
-#include "../../headers/functions/unlock-stream-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/pthread.hold"
+#include "headers/stdarg.hold"
+#include "headers/stdint.hold"
+#include "headers/stdio.hold"
+#include "headers/stdlib.hold"
+#include "headers/unistd.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/functions/lock-stream-function.hold"
+#include "headers/functions/unlock-stream-function.hold"
 
 INITPRINTSYSTEM(){
 	if(!printSystem){

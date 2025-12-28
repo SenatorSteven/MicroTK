@@ -25,8 +25,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/set-memory-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/set-memory-function.hold"
 
 SETMEMORY(){
 	uint64 byteAmount;

@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/is-valid-utf8-byte-function.hold"
-#include "../../headers/functions/find-string-length-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/is-valid-utf8-byte-function.hold"
+#include "headers/functions/find-string-length-function.hold"
 
 FINDSTRINGLENGTH(){
 	const uint8 *current;

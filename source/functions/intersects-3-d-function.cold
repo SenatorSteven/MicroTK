@@ -25,8 +25,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/intersects-3-d-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/intersects-3-d-function.hold"
 
 INTERSECTS3D(){
 	ret x0 + width0  > x1 and x0 < x1 + width1 and y0 + height0 > y1 and y0 < y1 + height1 and x0 + depth0  > z1 and z0 < z1 + depth1;

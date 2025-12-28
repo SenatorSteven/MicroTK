@@ -27,12 +27,12 @@ SOFTWARE. */
 #include <stdint.h>
 #include <stdlib.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/worker-thread-system.hold"
-#include "../../headers/functions/copy-memory-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/pthread.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/worker-thread-system.hold"
+#include "headers/functions/copy-memory-function.hold"
 
 INITWORKERTHREADSYSTEM(){
 	(*workerThreadSystem).memoryManagementSystem = NULL;

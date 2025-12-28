@@ -186,63 +186,63 @@ SOFTWARE. */
 	#include <xcb/xtest.h>
 	#include <X11/Xlib.h>
 
-	#include "../headers/cold/cold.hold"
-	#include "../headers/pthread.hold"
-	#include "../headers/stdint.hold"
-	#include "../headers/stdio.hold"
-	#include "../headers/stdlib.hold"
-	#include "../headers/time.hold"
-	#include "../headers/x.hold"
-	#include "../headers/icccm.hold"
-	#include "../headers/ewmh.hold"
-	#include "../headers/main.hold"
-	#include "../headers/systems/lock-system.hold"
-	#include "../headers/systems/mutex-system.hold"
-	#include "../headers/systems/memory-management-system.hold"
-	#include "../headers/systems/print-system.hold"
-	#include "../headers/systems/permission-system.hold"
-	#include "../headers/systems/argument-system.hold"
-	#include "../headers/systems/connection-system.hold"
-	#include "../headers/systems/visual-format-system.hold"
-	#include "../headers/systems/avl-tree-system.hold"
-	#include "../headers/systems/atom-system.hold"
-	#include "../headers/systems/monitor-system.hold"
-	#include "../headers/systems/string-tree-system.hold"
-	#include "../headers/systems/stdin-system.hold"
-	#include "../headers/systems/shared-memory-system.hold"
-	#include "../headers/systems/stack-system.hold"
-	#include "../headers/systems/shortcut-system.hold"
-	#include "../headers/systems/window-system.hold"
-	#include "../headers/systems/sleep-thread-system.hold"
-	#include "../headers/systems/configuration-parser-system.hold"
+	#include "headers/cold/cold.hold"
+	#include "headers/pthread.hold"
+	#include "headers/stdint.hold"
+	#include "headers/stdio.hold"
+	#include "headers/stdlib.hold"
+	#include "headers/time.hold"
+	#include "headers/x.hold"
+	#include "headers/icccm.hold"
+	#include "headers/ewmh.hold"
+	#include "headers/main.hold"
+	#include "headers/systems/lock-system.hold"
+	#include "headers/systems/mutex-system.hold"
+	#include "headers/systems/memory-management-system.hold"
+	#include "headers/systems/print-system.hold"
+	#include "headers/systems/permission-system.hold"
+	#include "headers/systems/argument-system.hold"
+	#include "headers/systems/connection-system.hold"
+	#include "headers/systems/visual-format-system.hold"
+	#include "headers/systems/avl-tree-system.hold"
+	#include "headers/systems/atom-system.hold"
+	#include "headers/systems/monitor-system.hold"
+	#include "headers/systems/string-tree-system.hold"
+	#include "headers/systems/stdin-system.hold"
+	#include "headers/systems/shared-memory-system.hold"
+	#include "headers/systems/stack-system.hold"
+	#include "headers/systems/shortcut-system.hold"
+	#include "headers/systems/window-system.hold"
+	#include "headers/systems/sleep-thread-system.hold"
+	#include "headers/systems/configuration-parser-system.hold"
 
 
 
-	#include "../headers/systems/input-device-system.hold"
-	#include "../headers/systems/touchpad-system.hold"
-	#include "../headers/systems/worker-thread-system.hold"
-	#include "../headers/systems/picture-format-system.hold"
+	#include "headers/systems/input-device-system.hold"
+	#include "headers/systems/touchpad-system.hold"
+	#include "headers/systems/worker-thread-system.hold"
+	#include "headers/systems/picture-format-system.hold"
 
 
 
-	#include "../headers/systems/queue-system.hold"
+	#include "headers/systems/queue-system.hold"
 
 
 
 	/*! xkb layout */
 
-	#include "../headers/systems/dynamic-argument-system.hold"
-	#include "../headers/systems/keyboard-layout-system.hold"
-	#include "../headers/functions/select-xkb-events-function.hold"
-	#include "../headers/functions/consume-same-events-function.hold"
+	#include "headers/systems/dynamic-argument-system.hold"
+	#include "headers/systems/keyboard-layout-system.hold"
+	#include "headers/functions/select-xkb-events-function.hold"
+	#include "headers/functions/consume-same-events-function.hold"
 
 
 
-	#include "../headers/functions/select-input-events-function.hold"
-	#include "../headers/functions/select-randr-events-function.hold"
-	#include "../headers/functions/fill-drawable-geometry-function.hold"
-	#include "../headers/functions/millisecond-to-timespec-function.hold"
-	#include "../headers/functions/find-timestamp-function.hold"
+	#include "headers/functions/select-input-events-function.hold"
+	#include "headers/functions/select-randr-events-function.hold"
+	#include "headers/functions/fill-drawable-geometry-function.hold"
+	#include "headers/functions/millisecond-to-timespec-function.hold"
+	#include "headers/functions/find-timestamp-function.hold"
 /*!}*/
 
 /*!defines:{*/
@@ -871,7 +871,7 @@ int main(const int argumentSize, const char *const *const argumentStart){
 		createWindow(&windowSystem, 1, 0, 0, 100, 100, 0, visualFormatSystem.depth, visualFormatSystem.visual, visualFormatSystem.colormap, false);
 		changeWindowEventMask(&windowSystem, ALL_WINDOWS, XCB_EVENT_MASK_STRUCTURE_NOTIFY);
 		{
-			#include "../headers/functions/set-memory-function.hold"
+			#include "headers/functions/set-memory-function.hold"
 			uint32 icon[2 + 64];
 			*(icon + 0) = 8;
 			*(icon + 1) = 8;
@@ -1695,8 +1695,8 @@ TIMERTHREADFUNCTION(){
 
 
 
-#include "../headers/functions/set-void-pointer-function.hold"
-#include "../headers/functions/fill-drawable-rectangle-function.hold"
+#include "headers/functions/set-void-pointer-function.hold"
+#include "headers/functions/fill-drawable-rectangle-function.hold"
 
 /*! remove createCircle() later and consider createCircleRectangles() */
 

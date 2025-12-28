@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/functions/get-highest-bit-position-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/functions/get-highest-bit-position-function.hold"
 
 GETHIGHESTBITPOSITION(){
 	uint pos = 0;

@@ -30,12 +30,12 @@ SOFTWARE. */
 #include <stdint.h>
 #include <stdio.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/errno.hold"
-#include "../../headers/fcntl.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/functions/lock-stream-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/errno.hold"
+#include "headers/fcntl.hold"
+#include "headers/stdint.hold"
+#include "headers/stdio.hold"
+#include "headers/functions/lock-stream-function.hold"
 
 LOCKSTREAM(){
 	int fd;

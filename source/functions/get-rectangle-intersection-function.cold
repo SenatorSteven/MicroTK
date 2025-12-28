@@ -26,10 +26,10 @@ SOFTWARE. */
 #include <stdint.h>
 #include <xcb/xcb.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/x.hold"
-#include "../../headers/functions/get-rectangle-intersection-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/x.hold"
+#include "headers/functions/get-rectangle-intersection-function.hold"
 
 GETRECTANGLEINTERSECTION(){
 	int leftX0;

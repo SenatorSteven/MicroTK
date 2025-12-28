@@ -32,13 +32,13 @@ SOFTWARE. */
 #include <stdint.h>
 #include <time.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/errno.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/time.hold"
-#include "../../headers/systems/sleep-thread-system.hold"
-#include "../../headers/functions/millisecond-to-timespec-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/errno.hold"
+#include "headers/pthread.hold"
+#include "headers/stdint.hold"
+#include "headers/time.hold"
+#include "headers/systems/sleep-thread-system.hold"
+#include "headers/functions/millisecond-to-timespec-function.hold"
 
 INITSLEEPTHREADSYSTEM(){
 	if(!sleepThreadSystem){

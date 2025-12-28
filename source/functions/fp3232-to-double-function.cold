@@ -26,8 +26,8 @@ SOFTWARE. */
 #include <stdint.h>
 #include <xcb/xinput.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/fp3232-to-double-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/fp3232-to-double-function.hold"
 
 FP3232TODOUBLE(){
 	ret (double)(*fp).integral + (double)(*fp).frac / 4294967296.0;

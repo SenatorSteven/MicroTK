@@ -26,9 +26,9 @@ SOFTWARE. */
 #include <stdint.h>
 #include <xcb/xcb.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/x.hold"
-#include "../../headers/functions/get-rectangle-union-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/x.hold"
+#include "headers/functions/get-rectangle-union-function.hold"
 
 GETRECTANGLEUNION(){
 	int leftX0;

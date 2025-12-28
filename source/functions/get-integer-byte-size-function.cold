@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/functions/get-integer-byte-size-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/functions/get-integer-byte-size-function.hold"
 
 GETINTEGERBYTESIZE(){
 	if(number < 10000000000UL){

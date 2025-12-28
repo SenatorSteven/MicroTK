@@ -30,13 +30,13 @@ SOFTWARE. */
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/functions/get-stream-size-function.hold"
-#include "../../headers/functions/lock-stream-function.hold"
-#include "../../headers/functions/unlock-stream-function.hold"
-#include "../../headers/functions/copy-file-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/functions/get-stream-size-function.hold"
+#include "headers/functions/lock-stream-function.hold"
+#include "headers/functions/unlock-stream-function.hold"
+#include "headers/functions/copy-file-function.hold"
 
 COPYFILE(){
 	#define BIG_FILE_SIZE /*-*/ (64 * 1024 * 1024)

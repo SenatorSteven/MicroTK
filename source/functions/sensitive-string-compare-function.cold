@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/functions/sensitive-string-compare-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/functions/sensitive-string-compare-function.hold"
 
 SENSITIVESTRINGCOMPARE(){
 	if(!string0 or !string1){

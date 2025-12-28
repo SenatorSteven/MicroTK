@@ -25,10 +25,10 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/functions/is-valid-utf8-byte-function.hold"
-#include "../../headers/functions/find-string-size-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/functions/is-valid-utf8-byte-function.hold"
+#include "headers/functions/find-string-size-function.hold"
 
 FINDSTRINGSIZE(){
 	const uint8 *current;

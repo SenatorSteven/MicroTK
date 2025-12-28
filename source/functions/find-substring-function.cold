@@ -26,9 +26,9 @@ SOFTWARE. */
 #include <stddef.h>
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/compare-memory-function.hold"
-#include "../../headers/functions/find-substring-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/compare-memory-function.hold"
+#include "headers/functions/find-substring-function.hold"
 
 FINDSUBSTRING(){
 	const char *stringCurrent;

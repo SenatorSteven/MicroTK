@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define xcb_wait_for_reply(a, b, c) /*---------------------------*/ (xcb_wait_for_reply(a, (b).sequence, c))
@@ -46,7 +46,7 @@ SOFTWARE. */
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

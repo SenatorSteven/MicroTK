@@ -26,9 +26,9 @@ SOFTWARE. */
 #include <stdint.h>
 #include <xcb/xcb.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/x.hold"
-#include "../../headers/functions/sort-rectangles-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/x.hold"
+#include "headers/functions/sort-rectangles-function.hold"
 
 SORTRECTANGLES(){
 	xcb_rectangle_t *current;

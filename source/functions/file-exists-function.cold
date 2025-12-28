@@ -26,10 +26,10 @@ SOFTWARE. */
 #include <stdint.h>
 #include <sys/stat.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/sys-stat.hold"
-#include "../../headers/functions/file-exists-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/sys-stat.hold"
+#include "headers/functions/file-exists-function.hold"
 
 FILEEXISTS(){
 	struct stat buffer;

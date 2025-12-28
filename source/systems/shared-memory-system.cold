@@ -27,9 +27,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/systems/shared-memory-system.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/systems/shared-memory-system.hold"
 
 INITSHAREDMEMORYSYSTEM(){
 	if(!sharedMemorySystem){

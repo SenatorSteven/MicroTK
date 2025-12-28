@@ -37,21 +37,21 @@ SOFTWARE. */
 #include <xcb/xcbext.h>
 #include <X11/Xlib.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/stdlib.hold"
-#include "../../headers/x.hold"
-#include "../../headers/systems/lock-system.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/systems/avl-tree-system.hold"
-#include "../../headers/systems/connection-system.hold"
-#include "../../headers/systems/atom-system.hold"
-#include "../../headers/functions/get-integer-byte-size-function.hold"
-#include "../../headers/functions/write-integer-string-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/pthread.hold"
+#include "headers/stdint.hold"
+#include "headers/stdio.hold"
+#include "headers/stdlib.hold"
+#include "headers/x.hold"
+#include "headers/systems/lock-system.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/systems/avl-tree-system.hold"
+#include "headers/systems/connection-system.hold"
+#include "headers/systems/atom-system.hold"
+#include "headers/functions/get-integer-byte-size-function.hold"
+#include "headers/functions/write-integer-string-function.hold"
 
 INITATOMSYSTEM(){
 	if(!atomSystem){

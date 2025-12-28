@@ -29,14 +29,14 @@ SOFTWARE. */
 #include <stdint.h>
 #include <stdio.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/systems/wallpaper-system.hold"
+#include "headers/cold/cold.hold"
+#include "headers/pthread.hold"
+#include "headers/stdint.hold"
+#include "headers/stdio.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/systems/wallpaper-system.hold"
 
 INITWALLPAPERSYSTEM(){
 	if(!wallpaperSystem){

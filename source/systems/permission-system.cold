@@ -35,18 +35,18 @@ SOFTWARE. */
 #include <unistd.h>
 #include <sys/types.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/permissions.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/stdlib.hold"
-#include "../../headers/unistd.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/systems/permission-system.hold"
-#include "../../headers/functions/load-file-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/pthread.hold"
+#include "headers/permissions.hold"
+#include "headers/stdint.hold"
+#include "headers/stdio.hold"
+#include "headers/stdlib.hold"
+#include "headers/unistd.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/systems/permission-system.hold"
+#include "headers/functions/load-file-function.hold"
 
 INITPERMISSIONSYSTEM(){
 	if(!permissionSystem){

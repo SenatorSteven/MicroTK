@@ -28,11 +28,11 @@ SOFTWARE. */
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/functions/get-stream-size-function.hold"
-#include "../../headers/functions/load-file-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/functions/get-stream-size-function.hold"
+#include "headers/functions/load-file-function.hold"
 
 LOADFILE(){
 	FILE *file;

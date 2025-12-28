@@ -31,16 +31,16 @@ SOFTWARE. */
 #include <xcb/xinput.h>
 #include <X11/Xlib.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/x.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/systems/lock-system.hold"
-#include "../../headers/systems/connection-system.hold"
-#include "../../headers/functions/get-event-timestamp-function.hold"
-#include "../../headers/functions/request-timestamp-function.hold"
-#include "../../headers/functions/find-timestamp-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/x.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/systems/lock-system.hold"
+#include "headers/systems/connection-system.hold"
+#include "headers/functions/get-event-timestamp-function.hold"
+#include "headers/functions/request-timestamp-function.hold"
+#include "headers/functions/find-timestamp-function.hold"
 
 FINDTIMESTAMP(){
 	const xcb_timestamp_t timestamp = getEventTimestamp(connectionSystem, event);

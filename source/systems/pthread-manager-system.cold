@@ -27,8 +27,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/systems/pthread-manager-system.hold"
+#include "headers/cold/cold.hold"
+#include "headers/systems/pthread-manager-system.hold"
 
 INITPTHREADMANAGERSYSTEM(){
 	if(!pthreadManagerSystem){

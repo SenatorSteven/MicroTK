@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define COMPAREMEMORY() /*-*/ bool  compareMemory(const void *memory0Start, const void *memory1Start, uint64 byteAmount)
@@ -37,7 +37,7 @@ COMPAREMEMORY();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

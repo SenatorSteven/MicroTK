@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define SETCLIPPINGGEOMETRY() /*-*/ bool  setClippingGeometry(ConnectionSystem *const connectionSystem, const xcb_gcontext_t gc, const int x, const int y, const uint width, const uint height)
@@ -37,7 +37,7 @@ SETCLIPPINGGEOMETRY();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

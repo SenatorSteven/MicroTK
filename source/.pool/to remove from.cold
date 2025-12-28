@@ -696,7 +696,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include "../../cold/cold.hold"
+#include "cold/cold.hold"
 
 #define NONE_STRING_TREE_SETTING /*--------*/ (b(00))
 #define ORDERED_STRING_TREE_SETTING /*-----*/ (b(01))

@@ -25,8 +25,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/get-highest-bit-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/get-highest-bit-function.hold"
 
 GETHIGHESTBIT(){
 	variable |= variable >> 1;

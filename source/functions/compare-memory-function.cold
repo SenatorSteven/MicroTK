@@ -25,8 +25,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/compare-memory-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/compare-memory-function.hold"
 
 COMPAREMEMORY(){
 	const void *memory0Current;

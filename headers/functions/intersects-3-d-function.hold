@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define INTERSECTS3D() /*-*/ bool  intersects3D(const int x0, const int y0, const int z0, const int width0, const int height0, const int depth0, const int x1, const int y1, const int z1, const int width1, const int height1, const int depth1)
@@ -37,7 +37,7 @@ INTERSECTS3D();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

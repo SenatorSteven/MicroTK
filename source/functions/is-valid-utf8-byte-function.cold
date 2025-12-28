@@ -25,8 +25,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/is-valid-utf8-byte-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/is-valid-utf8-byte-function.hold"
 
 ISVALIDUTF8BYTE(){
 	if(byte == b(11000000) or byte == b(11000001) or byte >= b(11110101)){

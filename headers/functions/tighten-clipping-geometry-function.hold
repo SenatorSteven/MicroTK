@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define TIGHTENCLIPPINGGEOMETRY() /*-*/ bool  tightenClippingGeometry(ConnectionSystem *const connectionSystem, const xcb_gcontext_t gc, const int x, const int y, const int width, const int height, int *const clipXReturn, int *const clipYReturn, int *const clipWidthReturn, int *const clipHeightReturn)
@@ -37,7 +37,7 @@ TIGHTENCLIPPINGGEOMETRY();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

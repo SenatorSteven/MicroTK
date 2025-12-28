@@ -27,11 +27,11 @@ SOFTWARE. */
 #include <stdlib.h>
 #include <xcb/xcb.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/x.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/functions/request-timestamp-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/x.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/functions/request-timestamp-function.hold"
 
 REQUESTTIMESTAMP(){
 	xcb_timestamp_t timestamp = XCB_CURRENT_TIME;

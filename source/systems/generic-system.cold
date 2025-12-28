@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/systems/generic-system.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/systems/generic-system.hold"
 
 INITGENERICSYSTEM(){
 	if(!genericSystem){

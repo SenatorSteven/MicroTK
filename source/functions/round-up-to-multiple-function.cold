@@ -25,9 +25,9 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/functions/round-up-to-multiple-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdint.hold"
+#include "headers/functions/round-up-to-multiple-function.hold"
 
 ROUNDUPTOMULTIPLE(){
 	ret (number + multiple - 1) / multiple * multiple;

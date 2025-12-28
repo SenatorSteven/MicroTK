@@ -30,17 +30,17 @@ SOFTWARE. */
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/pthread.hold"
-#include "../../headers/stdint.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/stdlib.hold"
-#include "../../headers/systems/mutex-system.hold"
-#include "../../headers/systems/memory-management-system.hold"
-#include "../../headers/systems/print-system.hold"
-#include "../../headers/systems/stack-system.hold"
-#include "../../headers/systems/shortcut-system.hold"
-#include "../../headers/functions/set-memory-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/pthread.hold"
+#include "headers/stdint.hold"
+#include "headers/stdio.hold"
+#include "headers/stdlib.hold"
+#include "headers/systems/mutex-system.hold"
+#include "headers/systems/memory-management-system.hold"
+#include "headers/systems/print-system.hold"
+#include "headers/systems/stack-system.hold"
+#include "headers/systems/shortcut-system.hold"
+#include "headers/functions/set-memory-function.hold"
 
 INITSHORTCUTSYSTEM(){
 	if(!shortcutSystem){

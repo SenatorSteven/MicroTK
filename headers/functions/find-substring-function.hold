@@ -28,7 +28,7 @@ SOFTWARE. */
 
 #ifndef COLD_HOLD
 #define COLD_INCLUDED
-#include "../../../cold/cold.hold"
+#include "cold/cold.hold"
 #endif
 
 #define FINDSUBSTRING() /*-*/ char * findSubstring(const char *const string, const uint64 stringSize, const char *const substring, const uint64 substringSize, const uint64 which)
@@ -37,7 +37,7 @@ FINDSUBSTRING();
 
 #ifdef  COLD_INCLUDED
 #undef  COLD_INCLUDED
-#include "../../../cold/hot.hold"
+#include "cold/hot.hold"
 #endif
 
 #endif

@@ -27,8 +27,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/match-integer-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/match-integer-function.hold"
 
 MATCHINTEGER(){
 

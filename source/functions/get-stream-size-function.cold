@@ -26,9 +26,9 @@ SOFTWARE. */
 #include <stdint.h>
 #include <stdio.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/stdio.hold"
-#include "../../headers/functions/get-stream-size-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/stdio.hold"
+#include "headers/functions/get-stream-size-function.hold"
 
 GETSTREAMSIZE(){
 	uint64 position;

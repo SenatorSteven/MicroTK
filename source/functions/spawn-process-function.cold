@@ -27,8 +27,8 @@ SOFTWARE. */
 
 #include <stdint.h>
 
-#include "../../headers/cold/cold.hold"
-#include "../../headers/functions/spawn-process-function.hold"
+#include "headers/cold/cold.hold"
+#include "headers/functions/spawn-process-function.hold"
 
 SPAWNPROCESS(){
 
