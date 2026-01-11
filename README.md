@@ -24,8 +24,5 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. -->
 
 # [ˈmaɪ.kroʊ ti keɪ]
--
-
-## -
--
+C toolkit focused on X11 Linux system software and application development
 
